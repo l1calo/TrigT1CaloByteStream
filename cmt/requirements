@@ -1,15 +1,14 @@
 package TrigT1CaloByteStream
 
-use AtlasPolicy      AtlasPolicy-*
-use GaudiInterface   GaudiInterface-*   External
-use CLIDSvc          CLIDSvc-*          Control
-use StoreGate        StoreGate-*        Control
-use SGTools          SGTools-*          Control
-use ByteStreamData   ByteStreamData-*   Event
+use AtlasPolicy          AtlasPolicy-*
 use ByteStreamCnvSvcBase ByteStreamCnvSvcBase-* Event 
-use ByteStreamCnvSvc ByteStreamCnvSvc-* Event 
-use DataCollection   DataCollection-*   External
-use TrigT1Calo       TrigT1Calo-*       Trigger/TrigT1
+use ByteStreamData       ByteStreamData-*       Event
+use CLIDSvc              CLIDSvc-*              Control
+use DataCollection       DataCollection-*       External
+use DataModel            DataModel-*            Control
+use GaudiInterface       GaudiInterface-*       External
+use SGTools              SGTools-*              Control
+use TrigT1Calo           TrigT1Calo-*           Trigger/TrigT1
 
 author Peter Faulkner <P.J.W.Faulkner@bham.ac.uk> 
 

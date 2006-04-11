@@ -1,6 +1,8 @@
 #ifndef TRIGT1CALOBYTESTREAM_L1CALOSRCIDMAP_H
 #define TRIGT1CALOBYTESTREAM_L1CALOSRCIDMAP_H
 
+#include <stdint.h>
+
 #include "eformat/SourceIdentifier.h"
 
 /** This class provides conversion between Lower level Source ID to

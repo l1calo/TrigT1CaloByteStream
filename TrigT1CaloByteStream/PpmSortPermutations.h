@@ -26,7 +26,7 @@ class PpmSortPermutations {
    void permutationVector(int code, std::vector<int>& perm);
 
    /// Return the total number of permutations for a given number of slices
-   int totalPerms(int nslice);
+   int totalPerms(int nslice) const;
 
  private:
 

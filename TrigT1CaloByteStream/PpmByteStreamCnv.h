@@ -1,19 +1,23 @@
 #ifndef TRIGT1CALOBYTESTREAM_PPMBYTESTREAMCNV_H
 #define TRIGT1CALOBYTESTREAM_PPMBYTESTREAMCNV_H
 
-#include "GaudiKernel/Converter.h"
+#include "GaudiKernel/ClassID.h"
 #include "GaudiKernel/CnvFactory.h"
+#include "GaudiKernel/Converter.h"
 #include "GaudiKernel/StatusCode.h"
+#include "GaudiKernel/svcType_t.h"
 
 class DataObject;
-class IROBDataProviderSvc;
 class IByteStreamEventAccess;
+class IOpaqueAddress;
+class IROBDataProviderSvc;
+class ISvcLocator;
 class PpmByteStreamTool;
 
 // Externals
 extern svcType_t ByteStream_StorageType;
 
-/** ByteStream converters for Pre-processor Module data / TriggerTowers.
+/** ByteStream converter for Pre-processor Module DAQ data / TriggerTowers.
  *
  *  @author Peter Faulkner
  */

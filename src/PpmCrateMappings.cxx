@@ -1,6 +1,4 @@
 
-#include <cmath>
-
 #include "TrigT1CaloByteStream/PpmCrateMappings.h"
 
 // Static constants

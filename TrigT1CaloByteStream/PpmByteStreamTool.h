@@ -1,28 +1,32 @@
 #ifndef TRIGT1CALOBYTESTREAM_PPMBYTESTREAMTOOL_H
 #define TRIGT1CALOBYTESTREAM_PPMBYTESTREAMTOOL_H
 
+#include <stdint.h>
+
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
-#include "GaudiKernel/AlgTool.h"
-#include "DataModel/DataVector.h"
-
-#include "ByteStreamData/RawEvent.h"
 #include "ByteStreamCnvSvcBase/FullEventAssembler.h"
 #include "ByteStreamCnvSvcBase/ROBDataProviderSvc.h"
+#include "ByteStreamData/RawEvent.h"
+#include "DataModel/DataVector.h"
+#include "GaudiKernel/AlgTool.h"
 
-#include "TrigT1Calo/TriggerTower.h"
-#include "TrigT1Calo/TriggerTowerKey.h"
-
-#include "TrigT1CaloByteStream/ChannelCoordinate.h"
 #include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
 
+class ChannelCoordinate;
+class IInterface;
+class InterfaceID;
 class MsgStream;
 class PpmCrateMappings;
+class PpmErrorBlock;
 class PpmSortPermutations;
 class PpmSubBlock;
-class PpmErrorBlock;
+namespace LVL1 {
+  class TriggerTower;
+  class TriggerTowerKey;
+}
 
 /** Tool to perform ROB fragments to trigger towers and trigger towers
  *  to raw data conversions.

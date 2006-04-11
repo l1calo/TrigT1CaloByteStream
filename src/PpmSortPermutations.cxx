@@ -28,8 +28,7 @@ void PpmSortPermutations::genPermMaps(int nslice)
     m_permCount = 0;
     m_mapP2V = new std::map<int, uint32_t>;
     m_mapV2P = new std::map<uint32_t, int>;
-    int pos = 0;
-    permutations(pos);
+    permutations(0);
     m_codeToVec.insert(std::make_pair(nslice, m_mapP2V));
     m_vecToCode.insert(std::make_pair(nslice, m_mapV2P));
   }
@@ -110,7 +109,7 @@ void PpmSortPermutations::permutationVector(int code, std::vector<int>& perm)
 
 // Return the total number of permutations for a given number of slices
 
-int PpmSortPermutations::totalPerms(int nslice)
+int PpmSortPermutations::totalPerms(int nslice) const
 {
   // It's just factorial(nslice)
   int total = 1;

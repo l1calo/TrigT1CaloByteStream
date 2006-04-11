@@ -1,9 +1,10 @@
 #ifndef TRIGT1CALOBYTESTREAM_PPMERRORBLOCK_H
 #define TRIGT1CALOBYTESTREAM_PPMERRORBLOCK_H
 
-#include "TrigT1CaloByteStream/L1CaloSubBlock.h"
-
+#include <stdint.h>
 #include <vector>
+
+#include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 
 /** Sub-Block class for PPM error data.
  *

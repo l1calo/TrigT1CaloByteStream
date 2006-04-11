@@ -1,8 +1,6 @@
 
 #include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
 
-using eformat::helper::SourceIdentifier;
-
 
 L1CaloSrcIdMap::L1CaloSrcIdMap()
 {
@@ -15,7 +13,7 @@ uint32_t L1CaloSrcIdMap::getRodID(int crate, int slink, int daqOrRoi,
 {
   // module ID = r0sscccc (ROD-spec-version1_06d, P33)
   uint16_t moduleId = (daqOrRoi << 7) | (slink << 4) | crate;
-  SourceIdentifier helpID(subdet, moduleId);
+  eformat::helper::SourceIdentifier helpID(subdet, moduleId);
   return helpID.code();
 }
 
@@ -30,8 +28,8 @@ uint32_t L1CaloSrcIdMap::getRobID(uint32_t rod_id)
 
 uint32_t L1CaloSrcIdMap::getRosID(uint32_t rob_id)
 {
-  SourceIdentifier id(rob_id);
-  SourceIdentifier id2(id.subdetector_id(), 0);
+  eformat::helper::SourceIdentifier id(rob_id);
+  eformat::helper::SourceIdentifier id2(id.subdetector_id(), 0);
   return id2.code();
 }
 
@@ -39,8 +37,8 @@ uint32_t L1CaloSrcIdMap::getRosID(uint32_t rob_id)
 
 uint32_t L1CaloSrcIdMap::getDetID(uint32_t ros_id)
 {
-  SourceIdentifier id(ros_id);
-  SourceIdentifier id2(id.subdetector_id(), 0);
+  eformat::helper::SourceIdentifier id(ros_id);
+  eformat::helper::SourceIdentifier id2(id.subdetector_id(), 0);
   return id2.code();
 }
 
@@ -48,7 +46,7 @@ uint32_t L1CaloSrcIdMap::getDetID(uint32_t ros_id)
 
 int L1CaloSrcIdMap::crate(uint32_t code)
 {
-  SourceIdentifier id(code);
+  eformat::helper::SourceIdentifier id(code);
   return id.module_id() & 0xf;
 }
 
@@ -56,7 +54,7 @@ int L1CaloSrcIdMap::crate(uint32_t code)
 
 int L1CaloSrcIdMap::daqOrRoi(uint32_t code)
 {
-  SourceIdentifier id(code);
+  eformat::helper::SourceIdentifier id(code);
   return (id.module_id() >> 7) & 0x1;
 }
 
@@ -64,7 +62,7 @@ int L1CaloSrcIdMap::daqOrRoi(uint32_t code)
 
 int L1CaloSrcIdMap::slink(uint32_t code)
 {
-  SourceIdentifier id(code);
+  eformat::helper::SourceIdentifier id(code);
   return (id.module_id() >> 4) & 0x3;
 }
 
@@ -79,6 +77,6 @@ int L1CaloSrcIdMap::maxSlinks()
 // Return sub-detector for given ID
 
 eformat::SubDetector L1CaloSrcIdMap::subDet(uint32_t code) {
-  SourceIdentifier id(code);
+  eformat::helper::SourceIdentifier id(code);
   return id.subdetector_id();
 }

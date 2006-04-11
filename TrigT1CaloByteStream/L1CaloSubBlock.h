@@ -1,10 +1,12 @@
 #ifndef TRIGT1CALOBYTESTREAM_L1CALOSUBBLOCK_H
 #define TRIGT1CALOBYTESTREAM_L1CALOSUBBLOCK_H
 
-#include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
+#include <stdint.h>
+#include <vector>
+
 #include "ByteStreamCnvSvcBase/FullEventAssembler.h"
 
-#include <vector>
+#include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
 
 /** L1Calo Sub-Block base class.
  *

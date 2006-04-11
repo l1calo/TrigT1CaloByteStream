@@ -1,0 +1,18 @@
+2006-04-11  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+	* Tag TrigT1CaloByteStream-00-00-03
+	* Add ChangeLog.
+        * doc: Delete Doxyfile and used_packages.html - generated automatically
+	       by Doxygen.
+	* doc/mainpage.h: Add introduction.
+        * share: Add TestReadPpmBS_jobOptions.py jo fragment.  Includes Tester
+	         to force PPM bytestream conversion.
+        * requirements: Remove StoreGate, ByteStreamCnvSvc, add DataModel
+	                to satisfy checkreq warnings.
+        * various .h .cxx: Tighten up includes and forward declarations.
+	* L1CaloSrcIdMap.cxx: Eliminate file scope using statement.
+	* PpmByteStreamTool.cxx: Add extra check when finding channels per
+	                         sub-block in input data in case of missing
+				 error block.
+        * PpmSortPermutations.h .cxx: make function totalPerms const,
+	                              eliminate unnecessary variable.

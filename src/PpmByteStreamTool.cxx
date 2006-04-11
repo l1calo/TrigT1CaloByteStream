@@ -1,18 +1,22 @@
 
 #include <utility>
-#include <string>
 
-#include "GaudiKernel/ToolFactory.h"
+#include "GaudiKernel/IInterface.h"
 #include "GaudiKernel/MsgStream.h"
+#include "GaudiKernel/PropertyMgr.h"
+#include "GaudiKernel/ToolFactory.h"
 
+#include "TrigT1Calo/TriggerTower.h"
 #include "TrigT1Calo/TriggerTowerKey.h"
 
-#include "TrigT1CaloByteStream/PpmByteStreamTool.h"
+#include "TrigT1CaloByteStream/ChannelCoordinate.h"
+#include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
+#include "TrigT1CaloByteStream/PpmByteStreamTool.h"
 #include "TrigT1CaloByteStream/PpmCrateMappings.h"
+#include "TrigT1CaloByteStream/PpmErrorBlock.h"
 #include "TrigT1CaloByteStream/PpmSortPermutations.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
-#include "TrigT1CaloByteStream/PpmErrorBlock.h"
 
 // Interface ID (copied blind from other examples)
 
@@ -166,7 +170,7 @@ StatusCode PpmByteStreamTool::convert(
         if (L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::DATA_HEADER) {
           testBlock.clear();
           payload = testBlock.read(payload, payloadEnd);
-	  chanPerSubBlock = testBlock.seqno();
+	  if (testBlock.seqno() > 0) chanPerSubBlock = testBlock.seqno();
         }
       }
     }
