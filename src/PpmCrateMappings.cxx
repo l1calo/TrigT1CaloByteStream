@@ -42,60 +42,38 @@ void PpmCrateMappings::init()
   int in1[16] = { 16,15,12,11,13,14, 9,10, 4, 3, 8, 7, 1, 2, 5, 6 };
 
   // Type 2.
-  // Eta 2.4 to 2.9.  4x1 plus 2x2 block (2 sets)
+  // Eta 2.4 to 2.9.  4x1 plus 2x2 block
   //
   //   +----+--------+--------+
   //   | 16 |        |        |
-  //   +----+   15   |   14   |
+  //   +----+   15   |   12   |
   //   | 13 |        |        |
   //   +----+--------+--------+ PI/8
   //   |  4 |        |        |
-  //   +----+    3   |    2   |
+  //   +----+    3   |    8   |
   //   |  1 |        |        |
-  //   +----+--------+--------+
-  //   +----+--------+--------+
-  //   | 12 |        |        |
-  //   +----+   11   |   10   |
-  //   |  9 |        |        |
-  //   +----+--------+--------+ PI/8
-  //   |  8 |        |        |
-  //   +----+    7   |    6   |
-  //   |  5 |        |        |
   //   +----+--------+--------+
   //              0.5
 
-  int in2a1[4] = { 16,13, 4, 1 };
-  int in2a2[4] = { 12, 9, 8, 5 };
-  int in2b1[4] = { 15,14, 3, 2 };
-  int in2b2[4] = { 11,10, 7, 6 };
+  int in2a[4] = { 16,13, 4, 1 };
+  int in2b[4] = { 15,12, 3, 8 };
 
   // Type 3.
-  // Eta -2.9 to -2.4.  2x2 plus 4x1 block (2 sets)
+  // Eta -2.9 to -2.4.  2x2 plus 4x1 block
   //
   //   +--------+--------+----+
   //   |        |        | 11 |
-  //   |    9   |   12   +----+
+  //   |   16   |   12   +----+
   //   |        |        | 10 |
   //   +--------+--------+----+ PI/8
   //   |        |        |  7 |
-  //   |    5   |    8   +----+
+  //   |    4   |    8   +----+
   //   |        |        |  6 |
-  //   +--------+--------+----+
-  //   +--------+--------+----+
-  //   |        |        | 15 |
-  //   |   13   |   16   +----+
-  //   |        |        | 14 |
-  //   +--------+--------+----+ PI/8
-  //   |        |        |  3 |
-  //   |    1   |    4   +----+
-  //   |        |        |  2 |
   //   +--------+--------+----+
   //              0.5
 
-  int in3a1[4] = {  9,12, 5, 8 };
-  int in3a2[4] = { 13,16, 1, 4 };
-  int in3b1[4] = { 11,10, 7, 6 };
-  int in3b2[4] = { 15,14, 3, 2 };
+  int in3a[4] = { 16,12, 4, 8 };
+  int in3b[4] = { 11,10, 7, 6 };
 
   // Type 4.
   // Eta 2.9 to 3.2 and -3.2 to -2.9.  4x1 plus 4x1
@@ -190,65 +168,34 @@ void PpmCrateMappings::init()
     addCoords(4,4,0.1,M_PI/32.,0.,block*M_PI/8.,in1,out,incr,
               ChannelCoordinate::HAD, *pos);
     ++pos;
-    if (block%2 == 0 ) {
 
-      // Map 2 : Type 2 EM first and third blocks
-      addCoords(4,1,0.1,M_PI/32.,0.0,block*M_PI/8.,in2a1,out,incr,
-                ChannelCoordinate::EM, *pos);
-      addCoords(2,2,0.2,M_PI/16.,0.1,block*M_PI/8.,in2b1,out,incr,
-                ChannelCoordinate::EM, *pos);
-      ++pos;
+    // Map 2 : Type 2 EM
+    addCoords(4,1,0.1,M_PI/32.,0.0,block*M_PI/8.,in2a,out,incr,
+              ChannelCoordinate::EM, *pos);
+    addCoords(2,2,0.2,M_PI/16.,0.1,block*M_PI/8.,in2b,out,incr,
+              ChannelCoordinate::EM, *pos);
+    ++pos;
 
-      // Map 3 : Type 2 Had first and third blocks
-      addCoords(4,1,0.1,M_PI/32.,0.0,block*M_PI/8.,in2a1,out,incr,
-                ChannelCoordinate::HAD, *pos);
-      addCoords(2,2,0.2,M_PI/16.,0.1,block*M_PI/8.,in2b1,out,incr,
-                ChannelCoordinate::HAD, *pos);
-      ++pos;
+    // Map 3 : Type 2 Had
+    addCoords(4,1,0.1,M_PI/32.,0.0,block*M_PI/8.,in2a,out,incr,
+              ChannelCoordinate::HAD, *pos);
+    addCoords(2,2,0.2,M_PI/16.,0.1,block*M_PI/8.,in2b,out,incr,
+              ChannelCoordinate::HAD, *pos);
+    ++pos;
 
-      // Map 4 : Type 3 EM first and third blocks
-      addCoords(2,2,0.2,M_PI/16.,0.0,block*M_PI/8.,in3a1,out,incr,
-                ChannelCoordinate::EM, *pos);
-      addCoords(4,1,0.1,M_PI/32.,0.4,block*M_PI/8.,in3b1,out,incr,
-                ChannelCoordinate::EM, *pos);
-      ++pos;
+    // Map 4 : Type 3 EM
+    addCoords(2,2,0.2,M_PI/16.,0.0,block*M_PI/8.,in3a,out,incr,
+              ChannelCoordinate::EM, *pos);
+    addCoords(4,1,0.1,M_PI/32.,0.4,block*M_PI/8.,in3b,out,incr,
+              ChannelCoordinate::EM, *pos);
+    ++pos;
 
-      // Map 5 : Type 3 Had first and third blocks
-      addCoords(2,2,0.2,M_PI/16.,0.0,block*M_PI/8.,in3a1,out,incr,
-                ChannelCoordinate::HAD, *pos);
-      addCoords(4,1,0.1,M_PI/32.,0.4,block*M_PI/8.,in3b1,out,incr,
-                ChannelCoordinate::HAD, *pos);
-      ++pos;
-    } else {
-
-      // Map 2 : Type 2 EM second and fourth blocks
-      addCoords(4,1,0.1,M_PI/32.,0.0,block*M_PI/8.,in2a2,out,incr,
-                ChannelCoordinate::EM, *pos);
-      addCoords(2,2,0.2,M_PI/16.,0.1,block*M_PI/8.,in2b2,out,incr,
-                ChannelCoordinate::EM, *pos);
-      ++pos;
-
-      // Map 3 : Type 2 Had second and fourth blocks
-      addCoords(4,1,0.1,M_PI/32.,0.0,block*M_PI/8.,in2a2,out,incr,
-                ChannelCoordinate::HAD, *pos);
-      addCoords(2,2,0.2,M_PI/16.,0.1,block*M_PI/8.,in2b2,out,incr,
-                ChannelCoordinate::HAD, *pos);
-      ++pos;
-
-      // Map 4 : Type 3 EM second and fourth blocks
-      addCoords(2,2,0.2,M_PI/16.,0.0,block*M_PI/8.,in3a2,out,incr,
-                ChannelCoordinate::EM, *pos);
-      addCoords(4,1,0.1,M_PI/32.,0.4,block*M_PI/8.,in3b2,out,incr,
-                ChannelCoordinate::EM, *pos);
-      ++pos;
-
-      // Map 5 : Type 3 Had second and fourth blocks
-      addCoords(2,2,0.2,M_PI/16.,0.0,block*M_PI/8.,in3a2,out,incr,
-                ChannelCoordinate::HAD, *pos);
-      addCoords(4,1,0.1,M_PI/32.,0.4,block*M_PI/8.,in3b2,out,incr,
-                ChannelCoordinate::HAD, *pos);
-      ++pos;
-    }
+    // Map 5 : Type 3 Had
+    addCoords(2,2,0.2,M_PI/16.,0.0,block*M_PI/8.,in3a,out,incr,
+              ChannelCoordinate::HAD, *pos);
+    addCoords(4,1,0.1,M_PI/32.,0.4,block*M_PI/8.,in3b,out,incr,
+              ChannelCoordinate::HAD, *pos);
+    ++pos;
 
     // Map 6 : Type 4 EM positive eta
     addCoords(4,1,0.2,M_PI/16.,0.0,block*M_PI/4.,in4a,out,incr,

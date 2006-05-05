@@ -3,7 +3,6 @@
 
 #include "GaudiKernel/IInterface.h"
 #include "GaudiKernel/MsgStream.h"
-#include "GaudiKernel/PropertyMgr.h"
 #include "GaudiKernel/ToolFactory.h"
 
 #include "TrigT1Calo/TriggerTower.h"
