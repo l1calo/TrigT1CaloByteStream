@@ -1,3 +1,8 @@
+2006-05-08  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-00-05
+        * PpmCrateMappings.cxx: put back #include <cmath> for M_PI.
+
 2006-05-05  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
 	* Tag TrigT1CaloByteStream-00-00-04
