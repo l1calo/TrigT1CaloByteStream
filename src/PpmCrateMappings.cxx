@@ -8,9 +8,17 @@ const int PpmCrateMappings::s_crates;
 const int PpmCrateMappings::s_modules;
 const int PpmCrateMappings::s_channels;
 
-PpmCrateMappings::PpmCrateMappings()
+PpmCrateMappings::PpmCrateMappings() : m_currentMap(0)
 {
   init();
+}
+
+PpmCrateMappings::~PpmCrateMappings()
+{
+  std::vector<CoordinateMap*>::iterator pos;
+  for (pos = m_coordMaps.begin(); pos != m_coordMaps.end(); ++pos) {
+    delete *pos;
+  }
 }
 
 // Initialise the mappings
@@ -153,12 +161,11 @@ void PpmCrateMappings::init()
   
   // Construct coordinate maps for each module type
   // Four blocks of each type make up the complete map
-  // We use a DataVector to take care of deletion.
 
   for (int i = 0; i < 12; ++i) m_coordMaps.push_back(new CoordinateMap);
   for (int block = 0; block < 4; ++block) {
     int incr = block * 4;
-    DataVector<CoordinateMap>::iterator pos = m_coordMaps.begin();
+    std::vector<CoordinateMap*>::iterator pos = m_coordMaps.begin();
 
     // Map 0 : Type 1 EM
     addCoords(4,4,0.1,M_PI/32.,0.,block*M_PI/8.,in1,out,incr,
@@ -240,7 +247,7 @@ void PpmCrateMappings::init()
 
   // Fill crate map
 
-  DataVector<CoordinateMap>::const_iterator pos = m_coordMaps.begin();
+  std::vector<CoordinateMap*>::const_iterator pos = m_coordMaps.begin();
 
   // Map 0 : all of crates 0,1
   //         crate 2 modules 1,2,5,6,9,10,13,14
@@ -350,32 +357,56 @@ void PpmCrateMappings::addMods(int crate, int modOffset, int nrows, int ncols,
   }
 }
  
-// Return channel to eta, phi and layer mappings for given crate/module
+// Return eta, phi and layer mapping for given crate/module/channel
 
-void PpmCrateMappings::mappings(int crate, int module,
-                       std::map<int, ChannelCoordinate>& etaPhiMap) const
+bool PpmCrateMappings::mapping(int crate, int module, int channel,
+                                          ChannelCoordinate& coord) const
 {
-  // Find the relevant mapping
+  if (crate < 0 || crate >= s_crates || module < 0 || module >= s_modules ||
+      channel < 0 || channel >= s_channels) return false;
 
-  CrateMap::const_iterator cpos = m_crateInfo.find(crate);
-  if (cpos == m_crateInfo.end()) return;
-  const ModuleMap& modMap(cpos->second);
-  ModuleMap::const_iterator mpos = modMap.find(module);
-  if (mpos == modMap.end()) return;
-  ModuleInfo modInfo(mpos->second);
-  Offsets etaPhiOff = modInfo.first;
-  const CoordinateMap* coordMap = modInfo.second;
-  double etaOffset = etaPhiOff.first;
-  double phiOffset = etaPhiOff.second;
+  if (!m_currentMap || crate != m_currentCrate || module != m_currentModule) {
 
-  // Fill the output map
+    // Find the relevant mapping
 
-  CoordinateMap::const_iterator pos = coordMap->begin();
-  for (; pos != coordMap->end(); ++pos) {
-    int channel = pos->first;
-    const ChannelCoordinate& coord(pos->second);
-    ChannelCoordinate outCoord(coord.layer(), coord.eta()+etaOffset,
-     coord.phi()+phiOffset, coord.etaGranularity(), coord.phiGranularity());
-    etaPhiMap.insert(std::make_pair(channel, outCoord));
+    CrateMap::const_iterator cpos = m_crateInfo.find(crate);
+    if (cpos == m_crateInfo.end()) return false;
+    const ModuleMap& modMap(cpos->second);
+    ModuleMap::const_iterator mpos = modMap.find(module);
+    if (mpos == modMap.end()) return false;
+    ModuleInfo modInfo(mpos->second);
+    Offsets etaPhiOff = modInfo.first;
+    m_currentMap    = modInfo.second;
+    m_etaOffset     = etaPhiOff.first;
+    m_phiOffset     = etaPhiOff.second;
+    m_currentCrate  = crate;
+    m_currentModule = module;
   }
+
+  // Set the output
+
+  CoordinateMap::const_iterator pos = m_currentMap->find(channel);
+  if (pos == m_currentMap->end()) return false;
+  const ChannelCoordinate& relCoord(pos->second);
+  coord.setLayer(relCoord.layer());
+  coord.setEta(relCoord.eta() + m_etaOffset);
+  coord.setPhi(relCoord.phi() + m_phiOffset);
+  coord.setEtaGranularity(relCoord.etaGranularity());
+  coord.setPhiGranularity(relCoord.phiGranularity());
+  return true;
+}
+
+int PpmCrateMappings::crates()
+{
+  return s_crates;
+}
+
+int PpmCrateMappings::modules()
+{
+  return s_modules;
+}
+
+int PpmCrateMappings::channels()
+{
+  return s_channels;
 }

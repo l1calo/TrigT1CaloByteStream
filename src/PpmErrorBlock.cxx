@@ -13,17 +13,16 @@ const int      PpmErrorBlock::s_timeoutBit;
 const int      PpmErrorBlock::s_mcmAbsentBit;
 const int      PpmErrorBlock::s_channelDisabledBit;
 
-const int      PpmErrorBlock::s_wordId;
+const int      PpmErrorBlock::s_glinkPins;
 
 const uint32_t PpmErrorBlock::s_flagNoData;
 const uint32_t PpmErrorBlock::s_flagData;
 const int      PpmErrorBlock::s_flagLen;
 const int      PpmErrorBlock::s_dataLen;
 
-PpmErrorBlock::PpmErrorBlock(int pins) : m_glinkPins(pins),
-                                  m_globalError(0), m_globalDone(false)
+PpmErrorBlock::PpmErrorBlock() : m_globalError(0), m_globalDone(false),
+                                 m_datamap(s_glinkPins)
 {
-  setWordId(s_wordId);
 }
 
 PpmErrorBlock::~PpmErrorBlock()
@@ -38,36 +37,28 @@ void PpmErrorBlock::clear()
   m_globalError = 0;
   m_globalDone  = false;
   m_datamap.clear();
+  m_datamap.resize(s_glinkPins);
 }
 
-// Return unpacked error data for given G-Link pin
+// Return unpacked error data for given channel
 
-int PpmErrorBlock::ppmError(int pin) const
+int PpmErrorBlock::ppmError(int chan) const
 {
-  int errorWord = 0;
-  if (pin >= 0 && size_t(pin) < m_datamap.size()) {
-    errorWord = m_datamap[pin] & s_errorMask;
-  }
-  return errorWord;
+  return m_datamap[pin(chan)] & s_errorMask;
 }
 
 // Store Error data for later packing
 
-void PpmErrorBlock::fillPpmError(int errorWord)
+void PpmErrorBlock::fillPpmError(int chan, int errorWord)
 {
-  uint32_t datum = errorWord & s_errorMask;
-  m_datamap.push_back(datum);
+  m_datamap[pin(chan)] = errorWord & s_errorMask;
 }
 
 // Return error bit
 
-bool PpmErrorBlock::errorBit(int pin, int bit) const
+bool PpmErrorBlock::errorBit(int chan, int bit) const
 {
-  bool error = false;
-  if (pin >= 0 && size_t(pin) < m_datamap.size()) {
-    error = m_datamap[pin] & (0x1 << bit);
-  }
-  return error;
+  return m_datamap[pin(chan)] & (0x1 << bit);
 }
 
 // Return global error bit
@@ -136,51 +127,22 @@ bool PpmErrorBlock::unpack()
 
 bool PpmErrorBlock::packCompressed()
 {
-  uint32_t anyErrors = 0;
-  std::vector<uint32_t>::const_iterator pos;
-  for (pos = m_datamap.begin(); pos != m_datamap.end(); ++pos) {
-    anyErrors |= *pos;
-  }
-  if (anyErrors) {
-    setStreamed();
-    uint32_t word = 0;
-    for (pos = m_datamap.begin(); pos != m_datamap.end(); ++pos) {
-      word = *pos;
-      if (word) {
-        packer(s_flagData, s_flagLen);
-        packer(word, s_dataLen);
-      } else {
-        packer(s_flagNoData, s_flagLen);
-      }
-    }
-    packerFlush();
-  }
-  return true;
+  return false;
 }
 
 // Unpack compressed and super-compressed data
 
 bool PpmErrorBlock::unpackCompressed()
 {
-  setStreamed();
-  unpackerInit();
-  for (int pin = 0; pin < m_glinkPins; ++pin) {
-    uint32_t datum = 0;
-    uint32_t flag = unpacker(s_flagLen);
-    if (flag == s_flagData) datum = unpacker(s_dataLen);
-    m_datamap.push_back(datum);
-  }
-  return true;
+  return false;
 }
 
 // Pack uncompressed data
 
 bool PpmErrorBlock::packUncompressed()
 {
-  bool sizeOK = m_datamap.size() == size_t(m_glinkPins);
-  for (int pin = 0; pin < m_glinkPins; ++pin) {
-    if (sizeOK) packer(m_datamap[pin], s_wordLen);
-    else packer(0, s_wordLen);
+  for (int pin = 0; pin < s_glinkPins; ++pin) {
+    packer(m_datamap[pin], s_wordLen);
   }
   packerFlush();
   return true;
@@ -191,8 +153,8 @@ bool PpmErrorBlock::packUncompressed()
 bool PpmErrorBlock::unpackUncompressed()
 {
   unpackerInit();
-  for (int pin = 0; pin < m_glinkPins; ++pin) {
+  for (int pin = 0; pin < s_glinkPins; ++pin) {
     m_datamap.push_back(unpacker(s_wordLen));
   }
-  return true;
+  return unpackerSuccess();
 }

@@ -3,8 +3,7 @@
 
 #include <map>
 #include <utility>
-
-#include "DataModel/DataVector.h"
+#include <vector>
 
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
 
@@ -22,14 +21,14 @@ class PpmCrateMappings {
 
  public:
    PpmCrateMappings();
+   ~PpmCrateMappings();
 
-   /// Return channel to eta, phi and layer mappings for given crate/module
-   void mappings(int crate, int module,
-                 std::map<int, ChannelCoordinate>& etaPhiMap) const;
-
-   int crates() const;
-   int modules() const;
-   int channels() const;
+   /// Return eta, phi and layer mapping for given crate/module/channel
+   bool mapping(int crate, int module, int channel,
+                                       ChannelCoordinate& coord) const;
+   static int crates();
+   static int modules();
+   static int channels();
 
  private:
    //  Crate/module map constituents
@@ -54,27 +53,22 @@ class PpmCrateMappings {
    /// Crate/module map
    CrateMap m_crateInfo;
    /// Vector of CoordinateMaps
-   DataVector<CoordinateMap> m_coordMaps;
+   std::vector<CoordinateMap*> m_coordMaps;
+   /// Current Coordinate map
+   mutable const CoordinateMap* m_currentMap;
+   /// Current module eta offset
+   mutable double m_etaOffset;
+   /// Current module phi offset
+   mutable double m_phiOffset;
+   /// Current crate
+   mutable int m_currentCrate;
+   /// Current module
+   mutable int m_currentModule;
 
    static const int s_crates   = 8;
    static const int s_modules  = 16;
    static const int s_channels = 64;
 
 };
-
-inline int PpmCrateMappings::crates() const
-{
-  return s_crates;
-}
-
-inline int PpmCrateMappings::modules() const
-{
-  return s_modules;
-}
-
-inline int PpmCrateMappings::channels() const
-{
-  return s_channels;
-}
 
 #endif

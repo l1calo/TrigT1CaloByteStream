@@ -1,8 +1,9 @@
 #ifndef TRIGT1CALOBYTESTREAM_CHANNELCOORDINATE_H
 #define TRIGT1CALOBYTESTREAM_CHANNELCOORDINATE_H
 
+#include <string>
 
-/** Holds eta/phi coordinates corresponding to a PPM channel.
+/** Holds eta/phi coordinates corresponding to a crate/module channel.
  *  
  *  Also includes layer and eta/phi granularities.
  *
@@ -32,6 +33,9 @@ class ChannelCoordinate {
    void setPhi(double phi);
    void setEtaGranularity(double etaGran);
    void setPhiGranularity(double phiGran);
+
+   /// Return layer name
+   static std::string layerName(CaloLayer layer);
 
  private:
 

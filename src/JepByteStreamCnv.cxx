@@ -1,0 +1,114 @@
+
+#include <string>
+#include <vector>
+
+#include "ByteStreamCnvSvcBase/ByteStreamAddress.h"
+#include "ByteStreamCnvSvcBase/ByteStreamCnvSvcBase.h"
+#include "ByteStreamCnvSvcBase/IByteStreamEventAccess.h"
+#include "ByteStreamCnvSvcBase/ROBDataProviderSvc.h"
+
+#include "ByteStreamData/RawEvent.h"
+#include "ByteStreamData/ROBData.h"
+
+#include "CLIDSvc/tools/ClassID_traits.h"
+
+#include "DataModel/DataVector.h"
+
+#include "GaudiKernel/DataObject.h"
+#include "GaudiKernel/IOpaqueAddress.h"
+#include "GaudiKernel/IRegistry.h"
+#include "GaudiKernel/IService.h"
+#include "GaudiKernel/ISvcLocator.h"
+#include "GaudiKernel/IToolSvc.h"
+#include "GaudiKernel/MsgStream.h"
+
+#include "SGTools/StorableConversions.h"
+
+#include "TrigT1Calo/JetElement.h"
+
+#include "TrigT1CaloByteStream/JepByteStreamCnv.h"
+#include "TrigT1CaloByteStream/JepByteStreamTool.h"
+#include "TrigT1CaloByteStream/JepContainer.h"
+
+JepByteStreamCnv::JepByteStreamCnv( ISvcLocator* svcloc )
+    : Converter( ByteStream_StorageType, classID(), svcloc )
+{
+}
+
+JepByteStreamCnv::~JepByteStreamCnv()
+{
+}
+
+// CLID
+
+const CLID& JepByteStreamCnv::classID()
+{
+  return ClassID_traits<JepContainer>::ID();
+}
+
+//  Init method gets all necessary services etc.
+
+StatusCode JepByteStreamCnv::initialize()
+{
+  StatusCode sc = Converter::initialize();
+  if ( sc.isFailure() )
+    return sc;
+
+  MsgStream log( msgSvc(), "JepByteStreamCnv" );
+  log << MSG::DEBUG << " JepByteStreamCnv in initialize() " << endreq;
+
+  //Get ByteStreamCnvSvc
+  sc = service( "ByteStreamCnvSvc", m_ByteStreamEventAccess );
+  if ( sc.isFailure() ) {
+    log << MSG::ERROR << " Can't get ByteStreamEventAccess interface "
+        << endreq;
+    return sc;
+  }
+
+  // Retrieve Tool
+  IToolSvc* toolSvc;
+  sc = service( "ToolSvc", toolSvc );
+  if ( sc.isFailure() ) {
+    log << MSG::ERROR << " Can't get ToolSvc " << endreq;
+    return sc;
+  }
+
+  // make it a private tool by giving the ByteStreamCnvSvc as parent
+  const std::string toolType = "JepByteStreamTool" ;
+  sc = toolSvc->retrieveTool( toolType, m_tool, m_ByteStreamEventAccess);
+  if ( sc.isFailure() ) {
+    log << MSG::ERROR << " Can't get ByteStreamTool of type "
+        << toolType << endreq;
+    return StatusCode::FAILURE;
+  }
+
+  return StatusCode::SUCCESS;
+}
+
+// createRep should create the bytestream from RDOs.
+
+StatusCode JepByteStreamCnv::createRep( DataObject* pObj,
+                                        IOpaqueAddress*& pAddr )
+{
+  MsgStream log( msgSvc(), "JepByteStreamCnv" );
+  bool debug = msgSvc()->outputLevel("JepByteStreamCnv") <= MSG::DEBUG;
+
+  if (debug) log << MSG::DEBUG << "createRep() called" << endreq;
+
+  RawEventWrite* re = m_ByteStreamEventAccess->getRawEvent();
+
+  JepContainer* jep;
+  if( !SG::fromStorable( pObj, jep ) ) {
+    log << MSG::ERROR << " Cannot cast to JepContainer" << endreq;
+    return StatusCode::FAILURE;
+  }
+
+  const std::string nm = pObj->registry()->name();
+
+  ByteStreamAddress* addr = new ByteStreamAddress( classID(), nm, "" );
+
+  pAddr = addr;
+
+  // Convert to ByteStream
+  return m_tool->convert( jep, re );
+}

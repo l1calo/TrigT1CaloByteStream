@@ -14,34 +14,34 @@
 class PpmErrorBlock : public L1CaloSubBlock {
 
  public:
-   PpmErrorBlock(int pins);
+   PpmErrorBlock();
    virtual ~PpmErrorBlock();
 
    /// Clear all data
    virtual void clear();
 
    /// Store an error word
-   void fillPpmError(int errorWord);
+           void fillPpmError(int chan, int errorWord);
 
    /// Return an error word
-   int  ppmError(int pin) const;
+           int  ppmError(int chan)        const;
 
    //  Return individual error bits
-   bool fpgaCorrupt(int pin)     const;
-   bool bunchMismatch(int pin)   const;
-   bool eventMismatch(int pin)   const;
-   bool asicFull(int pin)        const;
-   bool timeout(int pin)         const;
-   bool mcmAbsent(int pin)       const;
-   bool channelDisabled(int pin) const;
+           bool fpgaCorrupt(int chan)     const;
+           bool bunchMismatch(int chan)   const;
+           bool eventMismatch(int chan)   const;
+           bool asicFull(int chan)        const;
+           bool timeout(int chan)         const;
+           bool mcmAbsent(int chan)       const;
+           bool channelDisabled(int chan) const;
    //  Ditto ORed over all pins
-   bool fpgaCorrupt()     const;
-   bool bunchMismatch()   const;
-   bool eventMismatch()   const;
-   bool asicFull()        const;
-   bool timeout()         const;
-   bool mcmAbsent()       const;
-   bool channelDisabled() const;
+           bool fpgaCorrupt()             const;
+           bool bunchMismatch()           const;
+           bool eventMismatch()           const;
+           bool asicFull()                const;
+           bool timeout()                 const;
+           bool mcmAbsent()               const;
+           bool channelDisabled()         const;
 
    /// Pack data
    virtual bool pack();
@@ -59,16 +59,19 @@ class PpmErrorBlock : public L1CaloSubBlock {
    static const int      s_timeoutBit         = 2;
    static const int      s_mcmAbsentBit       = 1;
    static const int      s_channelDisabledBit = 0;
-   /// Header Word ID for PPM sub-block
-   static const int      s_wordId     = 0xc;
+   /// The number of error fields (G-Link pins)
+   static const int      s_glinkPins          = 16;
    //  Compressed format packing flags
-   static const uint32_t s_flagNoData = 0x0;
-   static const uint32_t s_flagData   = 0x1;
-   static const int      s_flagLen    = 1;
-   static const int      s_dataLen    = 10;
+   static const uint32_t s_flagNoData         = 0x0;
+   static const uint32_t s_flagData           = 0x1;
+   static const int      s_flagLen            = 1;
+   static const int      s_dataLen            = 10;
+
+   /// Return the G-Link pin corresponding to a channel
+   int  pin(int chan) const;
 
    /// Error bit extraction
-   bool errorBit(int pin, int bit) const;
+   bool errorBit(int chan, int bit) const;
    /// Global error bit extraction
    bool errorBit(int bit) const;
 
@@ -81,9 +84,6 @@ class PpmErrorBlock : public L1CaloSubBlock {
    /// unpack uncompressed data
    bool unpackUncompressed();
 
-   /// The number of error fields per block
-   int m_glinkPins;
-
    //  Global error flags
    mutable uint32_t m_globalError;
    mutable bool     m_globalDone;
@@ -93,39 +93,39 @@ class PpmErrorBlock : public L1CaloSubBlock {
 
 };
 
-inline bool PpmErrorBlock::fpgaCorrupt(int pin) const
+inline bool PpmErrorBlock::fpgaCorrupt(int chan) const
 {
-  return errorBit(pin, s_fpgaCorruptBit);
+  return errorBit(chan, s_fpgaCorruptBit);
 }
 
-inline bool PpmErrorBlock::bunchMismatch(int pin) const
+inline bool PpmErrorBlock::bunchMismatch(int chan) const
 {
-  return errorBit(pin, s_bunchMismatchBit);
+  return errorBit(chan, s_bunchMismatchBit);
 }
 
-inline bool PpmErrorBlock::eventMismatch(int pin) const
+inline bool PpmErrorBlock::eventMismatch(int chan) const
 {
-  return errorBit(pin, s_eventMismatchBit);
+  return errorBit(chan, s_eventMismatchBit);
 }
 
-inline bool PpmErrorBlock::asicFull(int pin) const
+inline bool PpmErrorBlock::asicFull(int chan) const
 {
-  return errorBit(pin, s_asicFullBit);
+  return errorBit(chan, s_asicFullBit);
 }
 
-inline bool PpmErrorBlock::timeout(int pin) const
+inline bool PpmErrorBlock::timeout(int chan) const
 {
-  return errorBit(pin, s_timeoutBit);
+  return errorBit(chan, s_timeoutBit);
 }
 
-inline bool PpmErrorBlock::mcmAbsent(int pin) const
+inline bool PpmErrorBlock::mcmAbsent(int chan) const
 {
-  return errorBit(pin, s_mcmAbsentBit);
+  return errorBit(chan, s_mcmAbsentBit);
 }
 
-inline bool PpmErrorBlock::channelDisabled(int pin) const
+inline bool PpmErrorBlock::channelDisabled(int chan) const
 {
-  return errorBit(pin, s_channelDisabledBit);
+  return errorBit(chan, s_channelDisabledBit);
 }
 
 inline bool PpmErrorBlock::fpgaCorrupt() const
@@ -161,6 +161,11 @@ inline bool PpmErrorBlock::mcmAbsent() const
 inline bool PpmErrorBlock::channelDisabled() const
 {
   return errorBit(s_channelDisabledBit);
+}
+
+inline int  PpmErrorBlock::pin(int chan) const
+{
+  return chan % s_glinkPins;
 }
 
 #endif

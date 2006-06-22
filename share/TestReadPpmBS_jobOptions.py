@@ -6,9 +6,7 @@ ByteStreamAddressProviderSvc = Service( "ByteStreamAddressProviderSvc" )
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::TriggerTower>/LVL1TriggerTowers" ]
 # DLLs
 theApp.Dlls += [ "TrigT1CaloByteStream" ]
-theApp.Dlls += [ "TrigT1Calo" ]
 # Algs
-theApp.TopAlg += [ "LVL1::Tester" ]
-Tester = Algorithm( "LVL1::Tester" )
+theApp.TopAlg += [ "PpmTester" ]
+Tester = Algorithm( "PpmTester" )
 Tester.TriggerTowerLocation ="LVL1TriggerTowers"
-Tester.Mode = 1

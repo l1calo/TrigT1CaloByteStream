@@ -1,3 +1,48 @@
+2006-06-22  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-00-06
+        * ChannelCoordinate: Add static method to return layer name as a string.
+        * L1CaloSubBlock: Additional support for JEM/CPM/CMM sub-block types.
+                          Add ability to tell if unpacking hits end of data
+                          (unpackerSuccess()).
+        * PpmByteStreamTool: Many changes, most needed because of changes to
+                             other classes.
+                             Some DEBUG printing changed to VERBOSE.
+        * PpmCrateMappings: Changed to return mapping for one channel at a time
+                            rather than a complete module.
+                            Removed dependance on DataVector.
+                            crates(), modules() and channels() made static.
+        * PpmErrorBlock: Public methods changed to use channel rather than
+                         G-Link pin.
+                         Compressed format removed pending redefinition.
+                         Minor mods due to changes in L1CaloSubBlock.
+        * PpmSortPermutations: Deleted.
+        * PpmSubBlock: Compressed format removed pending redefinition.
+                       channelsPerSubBlock functions added.
+                       Fill function changed to specify channel number
+                       explicitly.
+                       Minor mods due to changes in L1CaloSubBlock.
+        * PpmTester: New algorithm to print complete contents of
+                     TriggerTowers.
+        * New code for Jet/Energy Processor bytestream conversion:
+        * JemCrateMappings: Gives eta/phi mappings for jet elements.
+        * JemJetElement: Class to hold and unpack a jet element dataword.
+        * JemSubBlock: Sub-block class for JEM data (jet elements, jet hit
+                       counts and energy subsums).
+        * JemTester: Algorithm to print out complete contents of JetElements.
+        * JepByteStreamCnv: Converter for JepContainer to bytestream.
+        * JepByteStreamTool: Tool which does the actual conversions, 
+                             currently: JepContainer to bytestream, 
+                             bytestream to JetElements.
+        * JepContainer: Contains all the component collections needed to
+                        build the JEP bytestream.
+        * JepContainerMaker: Algorithm to make JepContainer.
+        * JepReadByteStreamCnv: Template converter for converting component
+                                collections from bytestream.  Currently
+                                only JetElements are implemented.
+        * Also updated: components/TrigT1CaloByteStream_entries.cxx,
+                        share, doc/mainpage.h.
+
 2006-05-08  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-00-05

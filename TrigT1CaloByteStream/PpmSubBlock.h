@@ -6,8 +6,6 @@
 
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 
-class PpmSortPermutations;
-
 /** Sub-Block class for PPM data.
  *
  *  @author Peter Faulkner
@@ -16,16 +14,16 @@ class PpmSortPermutations;
 class PpmSubBlock : public L1CaloSubBlock {
 
  public:
-   PpmSubBlock(int chan, uint16_t minorVersion, PpmSortPermutations* sortPerms);
+   PpmSubBlock();
    virtual ~PpmSubBlock();
 
    /// Clear all data
    virtual void clear();
    /// Store PPM data for later packing
-           void fillPpmData(const std::vector<int>& lut,
-                            const std::vector<int>& fadc,
-                            const std::vector<int>& bcidLut,
-		            const std::vector<int>& bcidFadc);
+           void fillPpmData(int channel, const std::vector<int>& lut,
+                                         const std::vector<int>& fadc,
+                                         const std::vector<int>& bcidLut,
+		                         const std::vector<int>& bcidFadc);
    /// Return unpacked data for given channel
            void ppmData(int channel, std::vector<int>& lut,
                                      std::vector<int>& fadc,
@@ -35,6 +33,10 @@ class PpmSubBlock : public L1CaloSubBlock {
    virtual bool pack();
    /// Unpack data
    virtual bool unpack();
+
+   /// Return the number of channels per sub-block
+   static  int  channelsPerSubBlock(int version, int format);
+           int  channelsPerSubBlock() const;
 
  private:
    //  Data word positions and masks
@@ -47,14 +49,11 @@ class PpmSubBlock : public L1CaloSubBlock {
    static const uint32_t s_bcidLutMask  = 0x7;
    static const uint32_t s_fadcMask     = 0x3ff;
    static const uint32_t s_bcidFadcMask = 0x1;
-   /// Header Word ID for PPM sub-block
-   static const int      s_wordId       = 0xc;
    //  Compressed format packing flags
    static const uint32_t s_flagLutNoData = 0x0;
    static const uint32_t s_flagLutData   = 0x1;
    static const int      s_flagLutLen    = 1;
    static const int      s_dataLutLen    = 11;
-   static const uint16_t s_testMinorVersion = 0x1000;
 
    //  Packing/unpacking for specific formats
    /// Pack compressed data
@@ -69,13 +68,6 @@ class PpmSubBlock : public L1CaloSubBlock {
    bool unpackSuperCompressed();
    /// Unpack uncompressed data
    bool unpackUncompressed();
-
-   /// The number of data channels per block
-   int m_channels;
-   /// The minor version from ROD header
-   uint16_t m_minorVersion;
-   /// Pointer to sort permutation provider
-   PpmSortPermutations* m_sortPerms;
 
    /// Vector for intermediate data
    std::vector<uint32_t> m_datamap;
