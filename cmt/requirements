@@ -9,6 +9,7 @@ use DataModel            DataModel-*            Control
 use GaudiInterface       GaudiInterface-*       External
 use SGTools              SGTools-*              Control
 use TrigT1Calo           TrigT1Calo-*           Trigger/TrigT1
+use TrigT1Interfaces     TrigT1Interfaces-*     Trigger/TrigT1
 
 author Peter Faulkner <P.J.W.Faulkner@bham.ac.uk> 
 

@@ -6,6 +6,8 @@
 
 namespace LVL1 {
   class JetElement;
+  class JEMHits;
+  class JEMEtSums;
 }
 
 /** JEP container for writing bytestream.
@@ -18,21 +20,41 @@ namespace LVL1 {
 class JepContainer {
 
  public:
-   JepContainer(const DataVector<LVL1::JetElement>* jeCollection);
+   JepContainer(const DataVector<LVL1::JetElement>* jeCollection,
+                const DataVector<LVL1::JEMHits>*    hitCollection,
+		const DataVector<LVL1::JEMEtSums>*  etCollection);
 
    /// Return pointer to jet element collection
    const DataVector<LVL1::JetElement>* JetElements() const;
+   /// Return pointer to hit sums collection
+   const DataVector<LVL1::JEMHits>*    JetHits()     const;
+   /// Return pointer to energy sums collection
+   const DataVector<LVL1::JEMEtSums>*  EnergySums()  const;
 
  private:
 
    /// Jet element collection
    const DataVector<LVL1::JetElement>* m_jeCollection;
+   /// Hit sums collection
+   const DataVector<LVL1::JEMHits>*    m_hitCollection;
+   /// Energy sums collection
+   const DataVector<LVL1::JEMEtSums>*  m_etCollection;
 
 };
 
 inline const DataVector<LVL1::JetElement>* JepContainer::JetElements() const
 {
   return m_jeCollection;
+}
+
+inline const DataVector<LVL1::JEMHits>* JepContainer::JetHits() const
+{
+  return m_hitCollection;
+}
+
+inline const DataVector<LVL1::JEMEtSums>* JepContainer::EnergySums() const
+{
+  return m_etCollection;
 }
 
 CLASS_DEF(JepContainer, 1321678566, 1)

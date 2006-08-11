@@ -10,6 +10,8 @@ class StoreGateSvc;
 
 namespace LVL1 {
   class JetElement;
+  class JEMHits;
+  class JEMEtSums;
 }
 
 /** Algorithm to make JEP container to write bytestream.
@@ -28,13 +30,18 @@ class JepContainerMaker : public Algorithm {
    virtual StatusCode finalize();
 
  private:
-   /// Jet element container
    typedef DataVector<LVL1::JetElement> JetElementCollection;
+   typedef DataVector<LVL1::JEMHits>    JetHitsCollection;
+   typedef DataVector<LVL1::JEMEtSums>  EnergySumsCollection;
 
    /// StoreGate service
    StoreGateSvc* m_storeGate;
    /// Jet element container StoreGate key
    std::string m_jetElementLocation;
+   /// Jet hits container StoreGate key
+   std::string m_jemHitsLocation;
+   /// Energy sums container StoreGate key
+   std::string m_jemEtSumsLocation;
    /// JEP container StoreGate key
    std::string m_jepContainerLocation;
 

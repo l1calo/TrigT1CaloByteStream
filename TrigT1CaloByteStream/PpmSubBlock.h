@@ -19,6 +19,9 @@ class PpmSubBlock : public L1CaloSubBlock {
 
    /// Clear all data
    virtual void clear();
+   /// Return reference to compression stats
+   const std::vector<uint32_t>& compStats() const;
+
    /// Store PPM data for later packing
            void fillPpmData(int channel, const std::vector<int>& lut,
                                          const std::vector<int>& fadc,
@@ -49,25 +52,33 @@ class PpmSubBlock : public L1CaloSubBlock {
    static const uint32_t s_bcidLutMask  = 0x7;
    static const uint32_t s_fadcMask     = 0x3ff;
    static const uint32_t s_bcidFadcMask = 0x1;
-   //  Compressed format packing flags
-   static const uint32_t s_flagLutNoData = 0x0;
-   static const uint32_t s_flagLutData   = 0x1;
-   static const int      s_flagLutLen    = 1;
-   static const int      s_dataLutLen    = 11;
+   // For neutral format
+   static const int      s_fullWordLen  = 32;
+   static const int      s_asicChannels = 4;
+   static const int      s_dataBits     = 11;
+   static const int      s_glinkPins    = 16;
+   static const int      s_errorBits    = 10;
 
    //  Packing/unpacking for specific formats
-   /// Pack compressed data
-   bool packCompressed();
+   /// Pack compressed data version 1
+   bool packCompressedV01();
+   /// Pack neutral data
+   bool packNeutral();
    /// Pack super-compressed data
    bool packSuperCompressed();
    /// Pack uncompressed data
    bool packUncompressed();
-   /// Unpack compressed data
-   bool unpackCompressed();
+   /// Unpack compressed data version 1
+   bool unpackCompressedV01();
+   /// Unpack neutral data
+   bool unpackNeutral();
    /// Unpack super-compressed data
    bool unpackSuperCompressed();
    /// Unpack uncompressed data
    bool unpackUncompressed();
+
+   /// Vector for compression statistics
+   std::vector<uint32_t> m_compStats;
 
    /// Vector for intermediate data
    std::vector<uint32_t> m_datamap;

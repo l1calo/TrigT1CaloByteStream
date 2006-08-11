@@ -26,10 +26,12 @@ class JepContainer;
 namespace LVL1 {
   class JetElement;
   class JetElementKey;
+  class JEMHits;
+  class JEMEtSums;
 }
 
-/** Tool to perform ROB fragments to jet elements and JEP container
- *  to raw data conversions.
+/** Tool to perform ROB fragments to jet elements, jet hits and energy sums,
+ *  and JEP container to raw data conversions.
  *
  *  Based on ROD document version 1_06d.
  *
@@ -52,6 +54,12 @@ class JepByteStreamTool : public AlgTool {
    /// Convert ROB fragments to jet elements
    StatusCode convert(const IROBDataProviderSvc::VROBFRAG& robFrags,
                       DataVector<LVL1::JetElement>* jeCollection);
+   /// Convert ROB fragments to jet hits
+   StatusCode convert(const IROBDataProviderSvc::VROBFRAG& robFrags,
+                      DataVector<LVL1::JEMHits>* hitCollection);
+   /// Convert ROB fragments to energy sums
+   StatusCode convert(const IROBDataProviderSvc::VROBFRAG& robFrags,
+                      DataVector<LVL1::JEMEtSums>* etCollection);
 
    /// Convert JepContainer to bytestream
    StatusCode convert(const JepContainer* jep, RawEventWrite* re);
@@ -60,14 +68,20 @@ class JepByteStreamTool : public AlgTool {
    void sourceIDs(std::vector<uint32_t>& vID) const;
 
  private:
-   /// Jet element container
+   enum CollectionType { JET_ELEMENTS, JET_HITS, ENERGY_SUMS };
+
    typedef DataVector<LVL1::JetElement>                  JetElementCollection;
-   /// Jet element map
+   typedef DataVector<LVL1::JEMHits>                     JetHitsCollection;
+   typedef DataVector<LVL1::JEMEtSums>                   EnergySumsCollection;
    typedef std::map<unsigned int, LVL1::JetElement*>     JetElementMap;
-   /// ROB fragments iterator
+   typedef std::map<int, LVL1::JEMHits*>                 JetHitsMap;
+   typedef std::map<int, LVL1::JEMEtSums*>               EnergySumsMap;
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
-   /// ROD pointer
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
+
+   /// Convert bytestream to given container type
+   StatusCode convertBs(const IROBDataProviderSvc::VROBFRAG& robFrags,
+                        CollectionType collection);
 
    /// Print jet element data values
    void printJeData(int channel, const ChannelCoordinate& coord,
@@ -80,9 +94,17 @@ class JepByteStreamTool : public AlgTool {
 
    /// Find a jet element given eta, phi
    LVL1::JetElement* findJetElement(double eta, double phi);
+   /// Find jet hits for given crate, module
+   LVL1::JEMHits*    findJetHits(int crate, int module);
+   /// Find energy sums for given crate, module
+   LVL1::JEMEtSums*  findEnergySums(int crate, int module);
 
    /// Set up jet element map
    void setupJeMap(const JetElementCollection* jeCollection);
+   /// Set up jet hits map
+   void setupHitsMap(const JetHitsCollection* hitCollection);
+   /// Set up energy sums map
+   void setupEtMap(const EnergySumsCollection* enCollection);
 
    /// Get number of slices and triggered slice offset for next slink
    bool slinkSlices(int crate, int module, int modulesPerSlink,
@@ -110,8 +132,18 @@ class JepByteStreamTool : public AlgTool {
    LVL1::JetElementKey* m_elementKey;
    /// Vector for current JEM sub-blocks
    DataVector<JemSubBlock> m_jemBlocks;
+   /// Current jet elements collection
+   JetElementCollection* m_jeCollection;
+   /// Current jet hits collection
+   JetHitsCollection*    m_hitCollection;
+   /// Current energy sums collection
+   EnergySumsCollection* m_etCollection;
    /// Jet element map
    JetElementMap m_jeMap;
+   /// Jet hits map
+   JetHitsMap    m_hitsMap;
+   /// Energy sums map
+   EnergySumsMap m_etMap;
    /// Event assembler
    FullEventAssembler<L1CaloSrcIdMap> m_fea;
 

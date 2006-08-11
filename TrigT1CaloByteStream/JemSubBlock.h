@@ -27,20 +27,21 @@ class JemSubBlock : public L1CaloSubBlock {
    /// Store jet element data
            void fillJetElement(const JemJetElement& jetEle);
    /// Store jet hit counts
-           void setJetHits(int hits);
+           void setJetHits(unsigned int hits);
    /// Store energy subsum data
-           void setEnergySubsums(int ex, int ey, int et);
+           void setEnergySubsums(unsigned int ex, unsigned int ey,
+	                                          unsigned int et);
 
    /// Return jet element for given channel
            JemJetElement jetElement(int channel) const;
    /// Return jet hit counts
-           int  jetHits()   const;
+           unsigned int jetHits() const;
    /// Return energy subsum Ex
-           int  ex()        const;
+           unsigned int ex()      const;
    /// Return energy subsum Ey
-           int  ey()        const;
+           unsigned int ey()      const;
    /// Return energy subsum Et
-           int  et()        const;
+           unsigned int et()      const;
 
    /// Pack data
    virtual bool pack();
@@ -93,22 +94,22 @@ class JemSubBlock : public L1CaloSubBlock {
 
 };
 
-inline int JemSubBlock::jetHits() const
+inline unsigned int JemSubBlock::jetHits() const
 {
   return (m_jetHits >> s_threshBit) & s_threshMask;
 }
 
-inline int JemSubBlock::ex() const
+inline unsigned int JemSubBlock::ex() const
 {
   return (m_energySubsums >> s_exBit) & s_exMask;
 }
 
-inline int JemSubBlock::ey() const
+inline unsigned int JemSubBlock::ey() const
 {
   return (m_energySubsums >> s_eyBit) & s_eyMask;
 }
 
-inline int JemSubBlock::et() const
+inline unsigned int JemSubBlock::et() const
 {
   return (m_energySubsums >> s_etBit) & s_etMask;
 }

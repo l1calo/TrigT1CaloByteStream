@@ -1,3 +1,9 @@
+2006-08-11  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-01-00
+        * PPM bytestream: Added neutral format and compressed format version 1.
+        * JEM bytestream: Added jet hit counts and energy subsums.
+
 2006-06-22  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-00-06

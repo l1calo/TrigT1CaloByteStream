@@ -33,14 +33,22 @@ const InterfaceID& PpmByteStreamTool::interfaceID()
 PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
                                      const std::string& name,
 				     const IInterface*  parent)
-                  : AlgTool(type, name, parent)
+                  : AlgTool(type, name, parent),
+		    m_srcIdMap(0), m_ppmMaps(0), m_towerKey(0),
+		    m_errorBlock(0)
 {
   declareInterface<PpmByteStreamTool>(this);
+
+  declareProperty("PrintCompStats", m_printCompStats = 0);
 
   // Properties for writing bytestream only
   declareProperty("DataVersion", m_version = 1);
   declareProperty("DataFormat", m_dataFormat = 1);
+  declareProperty("CompressionVersion", m_compVers = 1);
   declareProperty("SlinksPerCrate", m_slinks = 4);
+  declareProperty("DefaultSlicesLUT", m_dfltSlicesLut = 1);
+  declareProperty("DefaultSlicesFADC", m_dfltSlicesFadc = 7);
+  declareProperty("ForceSlicesFADC", m_forceSlicesFadc = 0);
 
 }
 
@@ -61,7 +69,6 @@ StatusCode PpmByteStreamTool::initialize()
   m_modules     = m_ppmMaps->modules();
   m_channels    = m_ppmMaps->channels();
   m_towerKey    = new LVL1::TriggerTowerKey();
-  m_errorBlock  = 0;
   return AlgTool::initialize();
 }
 
@@ -69,6 +76,10 @@ StatusCode PpmByteStreamTool::initialize()
 
 StatusCode PpmByteStreamTool::finalize()
 {
+  if (m_printCompStats) {
+    MsgStream log( msgSvc(), name() );
+    printCompStats(log, MSG::INFO);
+  }
   delete m_errorBlock;
   delete m_towerKey;
   delete m_ppmMaps;
@@ -266,6 +277,7 @@ StatusCode PpmByteStreamTool::convert(
 	  log << MSG::ERROR << "Unpacking PPM sub-block failed" << endreq;
 	  return StatusCode::FAILURE;
         }
+	if (m_printCompStats) addCompStats(subBlock->compStats());
         for (int chan = 0; chan < chanPerSubBlock; ++chan) {
           int channel = block*chanPerSubBlock + chan;
   	  std::vector<int> lut;
@@ -425,8 +437,13 @@ StatusCode PpmByteStreamTool::convert(
 	}
         if (chan == 0) {
 	  subBlock.clear();
-	  subBlock.setPpmHeader(m_version, m_dataFormat, channel, crate,
-	                        module, slicesFadc, slicesLut);
+	  if (m_dataFormat == L1CaloSubBlock::COMPRESSED) {
+	    subBlock.setPpmHeader(m_version, m_dataFormat, m_compVers, crate,
+	                          module, slicesFadc, slicesLut);
+          } else {
+	    subBlock.setPpmHeader(m_version, m_dataFormat, channel, crate,
+	                          module, slicesFadc, slicesLut);
+	  }
         }
         LVL1::TriggerTower* tt = 0;
 	ChannelCoordinate coord;
@@ -460,6 +477,7 @@ StatusCode PpmByteStreamTool::convert(
 	                      << endreq;
 	    return StatusCode::FAILURE;
 	  }
+	  if (m_printCompStats) addCompStats(subBlock.compStats());
 	  if (channel != m_channels - 1) {
 	    // Only put errors in last sub-block
 	    subBlock.setStatus(0, false, false, false, false,
@@ -467,11 +485,6 @@ StatusCode PpmByteStreamTool::convert(
 	    subBlock.write(theROD);
 	  } else {
 	    // Last sub-block - write error block
-	    if ( ! errorBlock.pack()) {
-	      log << MSG::ERROR << "PPM error block packing failed"
-	                        << endreq;
-	      return StatusCode::FAILURE;
-	    }
 	    bool glinkTimeout = errorBlock.mcmAbsent() ||
 	                        errorBlock.timeout();
 	    bool daqOverflow = errorBlock.asicFull() ||
@@ -481,9 +494,19 @@ StatusCode PpmByteStreamTool::convert(
 	    subBlock.setStatus(0, glinkTimeout, false, daqOverflow,
 	                       bcnMismatch, false, false);
             subBlock.write(theROD);
-	    errorBlock.setStatus(0, glinkTimeout, false, daqOverflow,
-	                         bcnMismatch, false, false);
-	    errorBlock.write(theROD);
+	    // Neutral format has no error block
+	    // Compressed format error block not defined yet
+	    if (m_dataFormat != L1CaloSubBlock::NEUTRAL &&
+	        m_dataFormat != L1CaloSubBlock::COMPRESSED) {
+	      if ( ! errorBlock.pack()) {
+	        log << MSG::ERROR << "PPM error block packing failed"
+	                          << endreq;
+	        return StatusCode::FAILURE;
+	      }
+	      errorBlock.setStatus(0, glinkTimeout, false, daqOverflow,
+	                           bcnMismatch, false, false);
+	      errorBlock.write(theROD);
+	    }
           }
         }
       }
@@ -495,6 +518,28 @@ StatusCode PpmByteStreamTool::convert(
   m_fea.fill(re, log);
 
   return StatusCode::SUCCESS;
+}
+
+// Add compression stats to totals
+
+void PpmByteStreamTool::addCompStats(const std::vector<uint32_t>& stats)
+{
+  if (stats.empty()) return;
+  int n = stats.size();
+  if (m_compStats.empty()) m_compStats.resize(n);
+  for (int i = 0; i < n; ++i) m_compStats[i] += stats[i];
+}
+
+// Print compression stats
+
+void PpmByteStreamTool::printCompStats(MsgStream& log, MSG::Level level)
+{
+  log << level << "Compression stats format/count: ";
+  int n = m_compStats.size();
+  for (int i = 0; i < n; ++i) {
+    log << level << " " << i << "/" << m_compStats[i];
+  }
+  log << level << endreq;
 }
 
 // Print data values
@@ -585,6 +630,44 @@ LVL1::TriggerTower* PpmByteStreamTool::findTriggerTower(double eta, double phi)
   return tt;
 }
 
+// Modify the number of trigger tower FADC slices
+
+LVL1::TriggerTower* PpmByteStreamTool::modFadcSlices(LVL1::TriggerTower* tt)
+{
+  std::vector<int> emADC;
+  std::vector<int> hadADC;
+  std::vector<int> emBCIDext;
+  std::vector<int> hadBCIDext;
+  std::vector<int> emLUT(tt->emLUT());
+  std::vector<int> hadLUT(tt->hadLUT());
+  std::vector<int> emBCIDvec(tt->emBCIDvec());
+  std::vector<int> hadBCIDvec(tt->hadBCIDvec());
+  int oldsize    = (tt->emADC()).size();
+  int oldsizeHad = (tt->hadADC()).size();
+  if (oldsizeHad > oldsize) oldsize = oldsizeHad;
+  int newsize = m_forceSlicesFadc;
+  if (newsize < oldsize) {
+    int offset = (oldsize - newsize) / 2;
+    for (int i = 0; i < newsize; ++i) {
+      emADC.push_back((tt->emADC())[i + offset]);
+      hadADC.push_back((tt->hadADC())[i + offset]);
+      emBCIDext.push_back((tt->emBCIDext())[i + offset]);
+      hadBCIDext.push_back((tt->hadBCIDext())[i + offset]);
+    }
+    int peak = newsize / 2;
+    unsigned int key = m_towerKey->ttKey(tt->phi(), tt->eta());
+    LVL1::TriggerTower* ttNew = new LVL1::TriggerTower(
+                        tt->phi(), tt->eta(), key, emADC, emLUT,
+			emBCIDext, emBCIDvec, tt->emError(),
+			tt->emPeak(), peak, hadADC, hadLUT,
+			hadBCIDext, hadBCIDvec, tt->hadError(),
+			tt->hadPeak(), peak);
+    m_ttModFadc.push_back(ttNew);
+    return ttNew;
+  }
+  return tt;
+}
+
 // Set up trigger tower maps
 
 void PpmByteStreamTool::setupTTMaps(const TriggerTowerCollection* ttCollection)
@@ -593,10 +676,12 @@ void PpmByteStreamTool::setupTTMaps(const TriggerTowerCollection* ttCollection)
 
   m_ttEmMap.clear();
   m_ttHadMap.clear();
+  if (m_forceSlicesFadc) m_ttModFadc.clear();
   TriggerTowerCollection::const_iterator pos  = ttCollection->begin();
   TriggerTowerCollection::const_iterator pose = ttCollection->end();
   for (; pos != pose; ++pos) {
     LVL1::TriggerTower* tt = *pos;
+    if (m_forceSlicesFadc) tt = modFadcSlices(tt);
     unsigned int key = m_towerKey->ttKey(tt->phi(), tt->eta());
     // Ignore any with zero data
     // EM
@@ -625,9 +710,9 @@ bool PpmByteStreamTool::slinkSlices(int crate, int module,
 		  int& trigLut, int& trigFadc)
 {
   int sliceL = -1;
-  int sliceF =  1;
-  int trigL  =  0;
-  int trigF  =  0;
+  int sliceF =  m_dfltSlicesFadc;
+  int trigL  =  m_dfltSlicesLut/2;
+  int trigF  =  m_dfltSlicesFadc/2;
   for (int mod = module; mod < module + modulesPerSlink; ++mod) {
     for (int chan = 0; chan < m_channels; ++chan) {
       ChannelCoordinate coord;
@@ -664,7 +749,7 @@ bool PpmByteStreamTool::slinkSlices(int crate, int module,
       }
     }
   }
-  if (sliceL < 0) sliceL = 1;
+  if (sliceL < 0) sliceL = m_dfltSlicesLut;
   slicesLut  = sliceL;
   slicesFadc = sliceF;
   trigLut    = trigL;

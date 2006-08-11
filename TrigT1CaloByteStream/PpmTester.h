@@ -39,9 +39,6 @@ class PpmTester : public Algorithm {
    /// Trigger tower map
    typedef std::map<unsigned int, LVL1::TriggerTower*> TriggerTowerMap;
 
-   /// Find a trigger tower given eta, phi
-   LVL1::TriggerTower* findTriggerTower(double eta, double phi);
-
    /// Print the trigger towers
    void printTriggerTowers(MsgStream& log, MSG::Level level);
 

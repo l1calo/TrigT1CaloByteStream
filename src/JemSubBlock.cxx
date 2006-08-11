@@ -64,7 +64,7 @@ void JemSubBlock::fillJetElement(const JemJetElement& jetEle)
 
 // Store jet hit counts
 
-void JemSubBlock::setJetHits(int hits)
+void JemSubBlock::setJetHits(unsigned int hits)
 {
   uint32_t word = 0;
   if (hits) {
@@ -79,7 +79,8 @@ void JemSubBlock::setJetHits(int hits)
 
 // Store energy subsum data
 
-void JemSubBlock::setEnergySubsums(int ex, int ey, int et)
+void JemSubBlock::setEnergySubsums(unsigned int ex, unsigned int ey,
+                                                    unsigned int et)
 {
   uint32_t word = 0;
   word |= (ex & s_exMask) << s_exBit;

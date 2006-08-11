@@ -3,6 +3,10 @@
 #include "StoreGate/StoreGateSvc.h"
 
 #include "TrigT1Calo/JetElement.h"
+#include "TrigT1Calo/JEMHits.h"
+#include "TrigT1Calo/JEMEtSums.h"
+#include "TrigT1Interfaces/TrigT1CaloDefs.h"
+
 #include "TrigT1CaloByteStream/JepContainer.h"
 #include "TrigT1CaloByteStream/JepContainerMaker.h"
 
@@ -12,9 +16,13 @@ JepContainerMaker::JepContainerMaker(const std::string& name,
                                     : Algorithm(name, pSvcLocator)
 {
   declareProperty("JetElementLocation",
-                                m_jetElementLocation = "LVL1JetElements");
+         m_jetElementLocation   = LVL1::TrigT1CaloDefs::JetElementLocation);
+  declareProperty("JEMHitsLocation",
+         m_jemHitsLocation      = LVL1::TrigT1CaloDefs::JEMHitsLocation);
+  declareProperty("JEMEtSumsLocation",
+         m_jemEtSumsLocation    = LVL1::TrigT1CaloDefs::JEMEtSumsLocation);
   declareProperty("JepContainerLocation",
-                                m_jepContainerLocation = "JepContainer");
+         m_jepContainerLocation = "JepContainer");
 }
 
 JepContainerMaker::~JepContainerMaker()
@@ -51,11 +59,28 @@ StatusCode JepContainerMaker::execute()
     jeCollection = 0;
   }
 
-  // Find ...
+  // Find jet hits
+
+  const JetHitsCollection* hitCollection = 0;
+  sc = m_storeGate->retrieve(hitCollection, m_jemHitsLocation);
+  if (sc.isFailure() || !hitCollection || hitCollection->empty()) {
+    log << MSG::DEBUG << "No Jet Hits found" << endreq;
+    hitCollection = 0;
+  }
+
+  // Find Energy Sums
+
+  const EnergySumsCollection* etCollection = 0;
+  sc = m_storeGate->retrieve(etCollection, m_jemEtSumsLocation);
+  if (sc.isFailure() || !etCollection || etCollection->empty()) {
+    log << MSG::DEBUG << "No Energy Sums found" << endreq;
+    etCollection = 0;
+  }
 
   // Create JEP container
 
-  JepContainer* jep = new JepContainer(jeCollection);
+  JepContainer* jep = new JepContainer(jeCollection, hitCollection,
+                                                     etCollection);
   sc = m_storeGate->record(jep, m_jepContainerLocation);
   if (sc != StatusCode::SUCCESS) {
     log << MSG::ERROR << "Error recording JEP container in TDS " << endreq;

@@ -232,12 +232,12 @@ inline int L1CaloSubBlock::timeslices() const
 
 inline int L1CaloSubBlock::slicesFadc() const
 {
-  return slices2();
+  return slices2() > 0 ? slices2() : 5;
 }
 
 inline int L1CaloSubBlock::slicesLut() const
 {
-  return slices1();
+  return slices1() > 0 ? slices1() : 1;
 }
 
 inline int L1CaloSubBlock::cmmSumming() const

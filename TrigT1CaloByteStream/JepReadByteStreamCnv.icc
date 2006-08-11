@@ -22,7 +22,6 @@
 
 #include "SGTools/StorableConversions.h"
 
-#include "TrigT1CaloByteStream/JepReadByteStreamCnv.h"
 #include "TrigT1CaloByteStream/JepByteStreamTool.h"
 
 template <typename Container>
@@ -56,7 +55,7 @@ StatusCode JepReadByteStreamCnv<Container>::initialize()
   MsgStream log( msgSvc(), "JepReadByteStreamCnv" );
   log << MSG::DEBUG << " JepReadByteStreamCnv in initialize() " << endreq;
 
-  //Get ByteStreamCnvSvc
+  // Get ByteStreamCnvSvc
   sc = service( "ByteStreamCnvSvc", m_ByteStreamEventAccess );
   if ( sc.isFailure() ) {
     log << MSG::ERROR << " Can't get ByteStreamEventAccess interface "

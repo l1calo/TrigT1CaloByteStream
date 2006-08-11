@@ -5,15 +5,16 @@
 
 #include "TrigT1Calo/TriggerTower.h"
 #include "TrigT1Calo/TriggerTowerKey.h"
+#include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
 #include "TrigT1CaloByteStream/PpmTester.h"
 
 
 PpmTester::PpmTester(const std::string& name, ISvcLocator* pSvcLocator)
-                     : Algorithm(name, pSvcLocator)
+                     : Algorithm(name, pSvcLocator), m_towerKey(0)
 {
   declareProperty("TriggerTowerLocation",
-                                m_triggerTowerLocation = "LVL1TriggerTowers");
+         m_triggerTowerLocation = LVL1::TrigT1CaloDefs::TriggerTowerLocation);
 }
 
 PpmTester::~PpmTester()
@@ -70,18 +71,6 @@ StatusCode PpmTester::finalize()
   delete m_towerKey;
 
   return StatusCode::SUCCESS;
-}
-
-// Find a trigger tower given eta, phi
-
-LVL1::TriggerTower* PpmTester::findTriggerTower(double eta, double phi)
-{
-  LVL1::TriggerTower* tt = 0;
-  unsigned int key = m_towerKey->ttKey(phi, eta);
-  TriggerTowerMap::const_iterator mapIter;
-  mapIter = m_ttMap.find(key);
-  if (mapIter != m_ttMap.end()) tt = mapIter->second;
-  return tt;
 }
 
 // Print the trigger towers

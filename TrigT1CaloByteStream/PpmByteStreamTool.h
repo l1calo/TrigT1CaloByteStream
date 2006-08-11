@@ -61,14 +61,15 @@ class PpmByteStreamTool : public AlgTool {
    void sourceIDs(std::vector<uint32_t>& vID) const;
 
  private:
-   /// Trigger tower container
    typedef DataVector<LVL1::TriggerTower>                TriggerTowerCollection;
-   /// Trigger tower map
    typedef std::map<unsigned int, LVL1::TriggerTower*>   TriggerTowerMap;
-   /// ROB fragments iterator
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
-   /// ROD pointer
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
+
+   /// Add compression stats to totals
+   void addCompStats(const std::vector<uint32_t>& stats);
+   /// Print compression stats
+   void printCompStats(MsgStream& log, MSG::Level level);
 
    /// Print data values
    void printData(int channel, const ChannelCoordinate& coord,
@@ -88,6 +89,9 @@ class PpmByteStreamTool : public AlgTool {
    /// Find a trigger tower given eta, phi
    LVL1::TriggerTower* findTriggerTower(double eta, double phi);
 
+   /// Modify the number of trigger tower FADC slices
+   LVL1::TriggerTower* modFadcSlices(LVL1::TriggerTower* tt);
+
    /// Set up separate Em and Had trigger tower maps
    void setupTTMaps(const TriggerTowerCollection* ttCollection);
 
@@ -99,6 +103,10 @@ class PpmByteStreamTool : public AlgTool {
    int m_version;
    /// Data compression format
    int m_dataFormat;
+   /// Compression version
+   int m_compVers;
+   /// Compression statistics print flag
+   int m_printCompStats;
    /// Number of channels per module (may not all be used)
    int m_channels;
    /// Number of crates
@@ -107,6 +115,12 @@ class PpmByteStreamTool : public AlgTool {
    int m_modules;
    /// Number of slinks per crate when writing out bytestream
    int m_slinks;
+   /// Default number of LUT slices
+   int m_dfltSlicesLut;
+   /// Default number of FADC slices
+   int m_dfltSlicesFadc;
+   /// Force number of FADC slices
+   int m_forceSlicesFadc;
    /// Sub-detector type
    eformat::SubDetector m_subDetector;
    /// Source ID converter
@@ -119,6 +133,10 @@ class PpmByteStreamTool : public AlgTool {
    PpmErrorBlock* m_errorBlock;
    /// Vector for current PPM sub-blocks
    DataVector<PpmSubBlock> m_ppmBlocks;
+   /// Vector for modified TriggerTowers
+   TriggerTowerCollection m_ttModFadc;
+   /// Vector for compression statistics
+   std::vector<uint32_t> m_compStats;
    /// Trigger tower map for conversion from bytestream
    TriggerTowerMap m_ttMap;
    /// Trigger tower map for conversion EM to bytestream
