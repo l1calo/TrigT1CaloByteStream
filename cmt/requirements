@@ -8,6 +8,7 @@ use DataCollection       DataCollection-*       External
 use DataModel            DataModel-*            Control
 use GaudiInterface       GaudiInterface-*       External
 use SGTools              SGTools-*              Control
+use StoreGate            StoreGate-*            Control
 use TrigT1Calo           TrigT1Calo-*           Trigger/TrigT1
 use TrigT1Interfaces     TrigT1Interfaces-*     Trigger/TrigT1
 
@@ -18,3 +19,6 @@ author Peter Faulkner <P.J.W.Faulkner@bham.ac.uk>
 #
 apply_pattern dual_use_library files="*.cxx"
 apply_pattern declare_joboptions files="*.txt *.py"
+
+private
+macro_append DOXYGEN_FILE_PATTERNS    " *.icc"
