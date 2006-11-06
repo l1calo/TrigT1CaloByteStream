@@ -11,6 +11,7 @@
 #include "TrigT1Calo/JEMEtSums.h"
 
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
+#include "TrigT1CaloByteStream/CmmSubBlock.h"
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
 #include "TrigT1CaloByteStream/JemCrateMappings.h"
@@ -178,14 +179,14 @@ StatusCode JepByteStreamTool::convertBs(
     JemSubBlock subBlock;
     while (payload != payloadEnd) {
       
-      if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::DATA_HEADER) {
+      if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER) {
         log << MSG::ERROR << "Unexpected data sequence" << endreq;
         return StatusCode::FAILURE;
       }
       // Skip CMMs
-      if (L1CaloSubBlock::headerType(*payload) == L1CaloSubBlock::CMM) {
+      if (CmmSubBlock::cmmBlock(*payload)) {
 	if (debug) {
-	  if (L1CaloSubBlock::cmmType(*payload) == L1CaloSubBlock::CMM_JET) {
+	  if (CmmSubBlock::cmmType(*payload) == CmmSubBlock::CMM_JET) {
 	    log << MSG::DEBUG << "CMM-JET block skipped" << endreq;
           } else log << MSG::DEBUG << "CMM-ENERGY block skipped" << endreq;
 	}
@@ -199,12 +200,12 @@ StatusCode JepByteStreamTool::convertBs(
       int crate      = subBlock.crate();
       int module     = subBlock.module();
       int timeslices = subBlock.timeslices();
-      int slice      = subBlock.slice();
+      int sliceNum   = subBlock.slice();
       if (debug) {
         log << MSG::DEBUG << "Crate "          << crate
 	                  << "  Module "       << module
 	                  << "  Total slices " << timeslices
-			  << "  Slice "        << slice       << endreq;
+			  << "  Slice "        << sliceNum    << endreq;
       }
       if (crate != rodCrate) {
         log << MSG::ERROR << "Inconsistent crate number in ROD source ID"
@@ -217,9 +218,9 @@ StatusCode JepByteStreamTool::convertBs(
 	    << trigJem << ", " << timeslices << endreq;
 	return StatusCode::FAILURE;
       }
-      if (timeslices <= slice) {
+      if (timeslices <= sliceNum) {
 	log << MSG::ERROR << "Total slices inconsistent with slice number: "
-	    << timeslices << ", " << slice << endreq;
+	    << timeslices << ", " << sliceNum << endreq;
 	return StatusCode::FAILURE;
       }
       // Unpack sub-block
@@ -230,104 +231,116 @@ StatusCode JepByteStreamTool::convertBs(
 
       // Retrieve required data
 
-      if (collection == JET_ELEMENTS) {
+      int sliceBeg = sliceNum;
+      int sliceEnd = sliceNum + 1;
+      if (subBlock.format() == L1CaloSubBlock::NEUTRAL) {
+        sliceBeg = 0;
+	sliceEnd = timeslices;
+      }
+      for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
 
-        // Loop over jet element channels and fill jet elements
+        if (collection == JET_ELEMENTS) {
 
-        for (int chan = 0; chan < m_channels; ++chan) {
-          JemJetElement jetEle(subBlock.jetElement(chan));
-	  if (jetEle.data()) {
-	    ChannelCoordinate coord;
-	    if (m_jemMaps->mapping(crate, module, chan, coord)) {
-	      double eta = coord.eta();
-	      double phi = coord.phi();
-	      LVL1::JetElement* je = findJetElement(eta, phi);
-	      if ( ! je ) {   // create new jet element
-	        unsigned int key = m_elementKey->jeKey(phi, eta);
-	        std::vector<int> dummy(timeslices);
-	        je = new LVL1::JetElement(phi, eta, dummy, dummy, key,
-	                                  dummy, dummy, dummy, trigJem);
-	        m_jeMap.insert(std::make_pair(key, je));
-	        m_jeCollection->push_back(je);
+          // Loop over jet element channels and fill jet elements
+
+          for (int chan = 0; chan < m_channels; ++chan) {
+            JemJetElement jetEle(subBlock.jetElement(slice, chan));
+	    if (jetEle.data()) {
+	      ChannelCoordinate coord;
+	      if (m_jemMaps->mapping(crate, module, chan, coord)) {
+	        double eta = coord.eta();
+	        double phi = coord.phi();
+	        LVL1::JetElement* je = findJetElement(eta, phi);
+	        if ( ! je ) {   // create new jet element
+	          unsigned int key = m_elementKey->jeKey(phi, eta);
+	          std::vector<int> dummy(timeslices);
+	          je = new LVL1::JetElement(phi, eta, dummy, dummy, key,
+	                                    dummy, dummy, dummy, trigJem);
+	          m_jeMap.insert(std::make_pair(key, je));
+	          m_jeCollection->push_back(je);
+                }
+	        je->addSlice(slice, jetEle.emData(), jetEle.hadData(),
+	                            jetEle.emParity(), jetEle.hadParity(),
+	  	    	            jetEle.linkError());
+	        if (debug) {
+	          log << MSG::VERBOSE << "Slice=" << slice << "/";
+	          printJeData(chan, coord,
+		                    std::vector<int>(1,jetEle.emData()),
+	                            std::vector<int>(1,jetEle.hadData()),
+		           	    std::vector<int>(1,jetEle.emParity()),
+				    std::vector<int>(1,jetEle.hadParity()),
+				    std::vector<int>(1,jetEle.linkError()),
+				    log, MSG::VERBOSE);
+                }
+              } else {
+	        log << MSG::WARNING
+	            << "Non-zero data but no channel mapping for channel "
+	  	    << chan << endreq;
               }
-	      je->addSlice(slice, jetEle.emData(), jetEle.hadData(),
-	                          jetEle.emParity(), jetEle.hadParity(),
-	  		          jetEle.linkError());
-	      if (debug) {
-	        log << MSG::VERBOSE << "Slice=" << slice << "/";
-	        printJeData(chan, coord, std::vector<int>(1,jetEle.emData()),
-	                                 std::vector<int>(1,jetEle.hadData()),
-		           	         std::vector<int>(1,jetEle.emParity()),
-				         std::vector<int>(1,jetEle.hadParity()),
-				         std::vector<int>(1,jetEle.linkError()),
-				         log, MSG::VERBOSE);
-              }
+            } else if (debug) {
+	      log << MSG::VERBOSE << "No jet element data for channel "
+	                          << chan << " slice " << slice << endreq;
+            }
+          }
+        } else if (collection == JET_HITS) {
+
+          // Get jet hits
+
+          unsigned int hits = subBlock.jetHits(slice);
+	  if (hits) {
+	    LVL1::JEMHits* jh = findJetHits(crate, module);
+	    if ( ! jh ) {   // create new jet hits
+	      std::vector<unsigned int> hitsVec(timeslices);
+	      hitsVec[slice] = hits;
+	      jh = new LVL1::JEMHits(crate, module, hitsVec, trigJem);
+	      m_hitsMap.insert(std::make_pair(crate*m_modules+module, jh));
+	      m_hitCollection->push_back(jh);
             } else {
-	      log << MSG::WARNING
-	          << "Non-zero data but no channel mapping for channel "
-	  	  << chan << endreq;
+	      std::vector<unsigned int> hitsVec(jh->JetHitsVec());
+	      hitsVec[slice] = hits;
+	      jh->addJetHits(hitsVec);
             }
           } else if (debug) {
-	    log << MSG::VERBOSE << "No jet element data for channel "
-	                        << chan << endreq;
+	    log << MSG::VERBOSE << "No jet hits data for crate/module/slice "
+	                        << crate << "/" << module << "/" << slice
+				<< endreq;
           }
-        }
-      } else if (collection == JET_HITS) {
+        } else if (collection == ENERGY_SUMS) {
 
-        // Get jet hits
+          // Get energy subsums
 
-	unsigned int hits = subBlock.jetHits();
-	if (hits) {
-	  LVL1::JEMHits* jh = findJetHits(crate, module);
-	  if ( ! jh ) {   // create new jet hits
-	    std::vector<unsigned int> hitsVec(timeslices);
-	    hitsVec[slice] = hits;
-	    jh = new LVL1::JEMHits(crate, module, hitsVec, trigJem);
-	    m_hitsMap.insert(std::make_pair(crate*m_modules+module, jh));
-	    m_hitCollection->push_back(jh);
-          } else {
-	    std::vector<unsigned int> hitsVec(jh->JetHitsVec());
-	    hitsVec[slice] = hits;
-	    jh->addJetHits(hitsVec);
-          }
-        } else if (debug) {
-	  log << MSG::VERBOSE << "No jet hits data for crate/module "
-	                      << crate << "/" << module << endreq;
-        }
-      } else if (collection == ENERGY_SUMS) {
-
-        // Get energy subsums
-
-	unsigned int ex = subBlock.ex();
-	unsigned int ey = subBlock.ey();
-	unsigned int et = subBlock.et();
-	if (ex | ey | et) {
-	  LVL1::JEMEtSums* sums = findEnergySums(crate, module);
-	  if ( ! sums ) {   // create new energy sums
-	    std::vector<unsigned int> exVec(timeslices);
-	    std::vector<unsigned int> eyVec(timeslices);
-	    std::vector<unsigned int> etVec(timeslices);
-	    exVec[slice] = ex;
-	    eyVec[slice] = ey;
-	    etVec[slice] = et;
-	    sums = new LVL1::JEMEtSums(crate, module, etVec, exVec, eyVec,
-	                                                            trigJem);
-            m_etMap.insert(std::make_pair(crate*m_modules+module, sums));
-	    m_etCollection->push_back(sums);
-          } else {
-	    std::vector<unsigned int> exVec(sums->ExVec());
-	    std::vector<unsigned int> eyVec(sums->EyVec());
-	    std::vector<unsigned int> etVec(sums->EtVec());
-	    exVec[slice] = ex;
-	    eyVec[slice] = ey;
-	    etVec[slice] = et;
-	    sums->addEx(exVec);
-	    sums->addEy(eyVec);
-	    sums->addEt(etVec);
-          }
-        } else if (debug) {
-	  log << MSG::VERBOSE << "No energy sums data for crate/module "
-	                      << crate << "/" << module << endreq;
+	  unsigned int ex = subBlock.ex(slice);
+	  unsigned int ey = subBlock.ey(slice);
+	  unsigned int et = subBlock.et(slice);
+	  if (ex | ey | et) {
+	    LVL1::JEMEtSums* sums = findEnergySums(crate, module);
+	    if ( ! sums ) {   // create new energy sums
+	      std::vector<unsigned int> exVec(timeslices);
+	      std::vector<unsigned int> eyVec(timeslices);
+	      std::vector<unsigned int> etVec(timeslices);
+	      exVec[slice] = ex;
+	      eyVec[slice] = ey;
+	      etVec[slice] = et;
+	      sums = new LVL1::JEMEtSums(crate, module, etVec, exVec, eyVec,
+	                                                              trigJem);
+              m_etMap.insert(std::make_pair(crate*m_modules+module, sums));
+	      m_etCollection->push_back(sums);
+            } else {
+	      std::vector<unsigned int> exVec(sums->ExVec());
+	      std::vector<unsigned int> eyVec(sums->EyVec());
+	      std::vector<unsigned int> etVec(sums->EtVec());
+	      exVec[slice] = ex;
+	      eyVec[slice] = ey;
+	      etVec[slice] = et;
+	      sums->addEx(exVec);
+	      sums->addEy(eyVec);
+	      sums->addEt(etVec);
+            }
+          } else if (debug) {
+	    log << MSG::VERBOSE << "No energy sums data for crate/module/slice "
+	                        << crate << "/" << module << "/" << slice
+				<< endreq;
+	  }
         }
       }
     }
@@ -403,7 +416,7 @@ StatusCode JepByteStreamTool::convert(const JepContainer* jep,
         log << MSG::DEBUG << "Module " << module << endreq;
       }
 
-      // Create a sub-block for each slice
+      // Create a sub-block for each slice (except Neutral format)
 
       m_jemBlocks.clear();
       for (int slice = 0; slice < timeslices; ++slice) {
@@ -411,6 +424,7 @@ StatusCode JepByteStreamTool::convert(const JepContainer* jep,
 	subBlock->setJemHeader(m_version, m_dataFormat, slice,
 	                       crate, module, timeslices);
         m_jemBlocks.push_back(subBlock);
+	if (m_dataFormat == L1CaloSubBlock::NEUTRAL) break;
       }
 
       // Find jet elements corresponding to each eta/phi pair and fill
@@ -439,10 +453,12 @@ StatusCode JepByteStreamTool::convert(const JepContainer* jep,
 	    hadParity.resize(timeslices);
 	    linkError.resize(timeslices);
             for (int slice = 0; slice < timeslices; ++slice) {
-              JemSubBlock* subBlock = m_jemBlocks[slice];
+	      int index = slice;
+	      if (m_dataFormat == L1CaloSubBlock::NEUTRAL) index = 0;
+              JemSubBlock* subBlock = m_jemBlocks[index];
 	      JemJetElement jetEle(chan, emData[slice], hadData[slice],
 	                  emParity[slice], hadParity[slice], linkError[slice]);
-              subBlock->fillJetElement(jetEle);
+              subBlock->fillJetElement(slice, jetEle);
 	    }
           }
         }
@@ -455,8 +471,10 @@ StatusCode JepByteStreamTool::convert(const JepContainer* jep,
         std::vector<unsigned int> vec(hits->JetHitsVec());
 	vec.resize(timeslices);
         for (int slice = 0; slice < timeslices; ++slice) {
-	  JemSubBlock* subBlock = m_jemBlocks[slice];
-	  subBlock->setJetHits(vec[slice]);
+	  int index = slice;
+	  if (m_dataFormat == L1CaloSubBlock::NEUTRAL) index = 0;
+	  JemSubBlock* subBlock = m_jemBlocks[index];
+	  subBlock->setJetHits(slice, vec[slice]);
         }
       }
       LVL1::JEMEtSums* et = findEnergySums(crate, module);
@@ -468,8 +486,11 @@ StatusCode JepByteStreamTool::convert(const JepContainer* jep,
 	eyVec.resize(timeslices);
 	etVec.resize(timeslices);
 	for (int slice = 0; slice < timeslices; ++slice) {
-	  JemSubBlock* subBlock = m_jemBlocks[slice];
-	  subBlock->setEnergySubsums(exVec[slice], eyVec[slice], etVec[slice]);
+	  int index = slice;
+	  if (m_dataFormat == L1CaloSubBlock::NEUTRAL) index = 0;
+	  JemSubBlock* subBlock = m_jemBlocks[index];
+	  subBlock->setEnergySubsums(slice, exVec[slice], eyVec[slice],
+	                                                  etVec[slice]);
         }
       }
       

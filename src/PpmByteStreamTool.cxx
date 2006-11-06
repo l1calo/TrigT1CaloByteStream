@@ -13,7 +13,6 @@
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
 #include "TrigT1CaloByteStream/PpmByteStreamTool.h"
 #include "TrigT1CaloByteStream/PpmCrateMappings.h"
-#include "TrigT1CaloByteStream/PpmErrorBlock.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
 
 // Interface ID (copied blind from other examples)
@@ -162,7 +161,7 @@ StatusCode PpmByteStreamTool::convert(
 
     int chanPerSubBlock = 0;
     if (payload != payloadEnd) {
-      if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::DATA_HEADER) {
+      if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER) {
         log << MSG::ERROR << "Missing Sub-block header" << endreq;
         return StatusCode::FAILURE;
       }
@@ -203,7 +202,8 @@ StatusCode PpmByteStreamTool::convert(
       int module = 0;
       m_ppmBlocks.clear();
       for (int block = 0; block < numSubBlocks; ++block) {
-        if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::DATA_HEADER) {
+        if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER
+	                           || PpmSubBlock::errorBlock(*payload)) {
           log << MSG::ERROR << "Unexpected data sequence" << endreq;
 	  return StatusCode::FAILURE;
         }
@@ -248,9 +248,10 @@ StatusCode PpmByteStreamTool::convert(
       delete m_errorBlock;
       m_errorBlock = 0;
       if (payload != payloadEnd) {
-        if (L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::ERROR_HEADER) {
+        if (L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::HEADER
+	                            && PpmSubBlock::errorBlock(*payload)) {
 	  if (debug) log << MSG::DEBUG << "Error block found" << endreq;
-	  m_errorBlock = new PpmErrorBlock();
+	  m_errorBlock = new PpmSubBlock();
 	  payload = m_errorBlock->read(payload, payloadEnd);
           if (m_errorBlock->crate() != crate) {
 	    log << MSG::ERROR << "Inconsistent crate number in error block"
@@ -273,6 +274,8 @@ StatusCode PpmByteStreamTool::convert(
 
       for (int block = 0; block < numSubBlocks; ++block) {
         PpmSubBlock* subBlock = m_ppmBlocks[block];
+	subBlock->setLutOffset(trigLut);
+	subBlock->setFadcOffset(trigFadc);
         if ( !subBlock->unpack()) {
 	  log << MSG::ERROR << "Unpacking PPM sub-block failed" << endreq;
 	  return StatusCode::FAILURE;
@@ -284,7 +287,7 @@ StatusCode PpmByteStreamTool::convert(
 	  std::vector<int> fadc;
 	  std::vector<int> bcidLut;
 	  std::vector<int> bcidFadc;
-	  subBlock->ppmData(chan, lut, fadc, bcidLut, bcidFadc);
+	  subBlock->ppmData(channel, lut, fadc, bcidLut, bcidFadc);
 	  if (lut.size() < size_t(trigLut + 1)) {
 	    log << MSG::ERROR << "Triggered LUT slice from header "
 	        << "inconsistent with number of slices: "
@@ -299,6 +302,7 @@ StatusCode PpmByteStreamTool::convert(
           }
 	  int error = 0;
 	  if (m_errorBlock) error = m_errorBlock->ppmError(channel);
+	  else error = subBlock->ppmError(channel);
 
 	  // Only save non-zero data
 
@@ -376,10 +380,12 @@ StatusCode PpmByteStreamTool::convert(
                       << m_version << "/" << m_dataFormat << endreq;
     return StatusCode::FAILURE;
   }
-  PpmErrorBlock errorBlock;
+  PpmSubBlock errorBlock;
 
   int slicesLut  = 1;
   int slicesFadc = 1;
+  int trigLut    = 0;
+  int trigFadc   = 0;
   int modulesPerSlink = m_modules / m_slinks;
   for (int crate=0; crate < m_crates; ++crate) {
     for (int module=0; module < m_modules; ++module) {
@@ -395,8 +401,6 @@ StatusCode PpmByteStreamTool::convert(
         }
 	// Get number of slices and triggered slice offsets
 	// for this slink
-	int trigLut  = 0;
-	int trigFadc = 0;
 	if ( ! slinkSlices(crate, module, modulesPerSlink,
 	                   slicesLut, slicesFadc, trigLut, trigFadc)) {
 	  log << MSG::ERROR << "Inconsistent number of slices or "
@@ -427,13 +431,13 @@ StatusCode PpmByteStreamTool::convert(
       // Find trigger towers corresponding to each eta/phi pair and fill
       // sub-blocks
 
+      bool upstreamError = false;
       for (int channel=0; channel < m_channels; ++channel) {
 	int chan = channel % chanPerSubBlock;
-        if (channel == 0) {
+        if (channel == 0 && m_dataFormat == L1CaloSubBlock::UNCOMPRESSED) {
           errorBlock.clear();
-	  errorBlock.setPpmHeader(m_version, m_dataFormat,
-	                          L1CaloSubBlock::errorMarker(),
-	                          crate, module, slicesFadc, slicesLut);
+	  errorBlock.setPpmErrorHeader(m_version, m_dataFormat, crate,
+	                               module, slicesFadc, slicesLut);
 	}
         if (chan == 0) {
 	  subBlock.clear();
@@ -444,6 +448,8 @@ StatusCode PpmByteStreamTool::convert(
 	    subBlock.setPpmHeader(m_version, m_dataFormat, channel, crate,
 	                          module, slicesFadc, slicesLut);
 	  }
+	  subBlock.setLutOffset(trigLut);
+	  subBlock.setFadcOffset(trigFadc);
         }
         LVL1::TriggerTower* tt = 0;
 	ChannelCoordinate coord;
@@ -468,7 +474,12 @@ StatusCode PpmByteStreamTool::convert(
 	                         tt->hadBCIDvec(), tt->hadBCIDext(), err,
 				 log, MSG::VERBOSE);
           }
-	  if (err) errorBlock.fillPpmError(channel, err);
+	  if (err) {
+	    if (m_dataFormat == L1CaloSubBlock::UNCOMPRESSED) {
+	      errorBlock.fillPpmError(channel, err);
+	    } else subBlock.fillPpmError(channel, err);
+	    if (err >> 2) upstreamError = true;
+          }
         }
         if (chan == chanPerSubBlock - 1) {
 	  // output the packed sub-block
@@ -481,30 +492,43 @@ StatusCode PpmByteStreamTool::convert(
 	  if (channel != m_channels - 1) {
 	    // Only put errors in last sub-block
 	    subBlock.setStatus(0, false, false, false, false,
-	                                        false, false);
+	                                 false, false, false);
 	    subBlock.write(theROD);
 	  } else {
 	    // Last sub-block - write error block
-	    bool glinkTimeout = errorBlock.mcmAbsent() ||
-	                        errorBlock.timeout();
-	    bool daqOverflow = errorBlock.asicFull() ||
-	                       errorBlock.fpgaCorrupt();
-	    bool bcnMismatch = errorBlock.eventMismatch() ||
-	                       errorBlock.bunchMismatch();
-	    subBlock.setStatus(0, glinkTimeout, false, daqOverflow,
-	                       bcnMismatch, false, false);
+	    bool glinkTimeout = false;
+	    bool daqOverflow  = false;
+	    bool bcnMismatch  = false;
+	    bool glinkParity  = false;
+	    if (m_dataFormat == L1CaloSubBlock::UNCOMPRESSED) {
+	      glinkTimeout = errorBlock.mcmAbsent() ||
+	                     errorBlock.timeout();
+	      daqOverflow  = errorBlock.asicFull() ||
+	                     errorBlock.fpgaCorrupt();
+	      bcnMismatch  = errorBlock.eventMismatch() ||
+	                     errorBlock.bunchMismatch();
+	      glinkParity  = errorBlock.glinkParity();
+	    } else {
+	      glinkTimeout = subBlock.mcmAbsent() ||
+	                     subBlock.timeout();
+	      daqOverflow  = subBlock.asicFull() ||
+	                     subBlock.fpgaCorrupt();
+	      bcnMismatch  = subBlock.eventMismatch() ||
+	                     subBlock.bunchMismatch();
+	      glinkParity  = subBlock.glinkParity();
+	    }
+	    subBlock.setStatus(0, glinkTimeout, false, upstreamError,
+	                       daqOverflow, bcnMismatch, false, glinkParity);
             subBlock.write(theROD);
-	    // Neutral format has no error block
-	    // Compressed format error block not defined yet
-	    if (m_dataFormat != L1CaloSubBlock::NEUTRAL &&
-	        m_dataFormat != L1CaloSubBlock::COMPRESSED) {
+	    // Only uncompressed format has a separate error block
+	    if (m_dataFormat == L1CaloSubBlock::UNCOMPRESSED) {
 	      if ( ! errorBlock.pack()) {
 	        log << MSG::ERROR << "PPM error block packing failed"
 	                          << endreq;
 	        return StatusCode::FAILURE;
 	      }
-	      errorBlock.setStatus(0, glinkTimeout, false, daqOverflow,
-	                           bcnMismatch, false, false);
+	      errorBlock.setStatus(0, glinkTimeout, false, upstreamError, 
+	                       daqOverflow, bcnMismatch, false, glinkParity);
 	      errorBlock.write(theROD);
 	    }
           }

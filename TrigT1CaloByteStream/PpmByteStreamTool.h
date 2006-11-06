@@ -21,7 +21,6 @@ class ChannelCoordinate;
 class IInterface;
 class InterfaceID;
 class PpmCrateMappings;
-class PpmErrorBlock;
 class PpmSubBlock;
 namespace LVL1 {
   class TriggerTower;
@@ -130,7 +129,7 @@ class PpmByteStreamTool : public AlgTool {
    /// Trigger tower key provider
    LVL1::TriggerTowerKey* m_towerKey;
    /// Current error block
-   PpmErrorBlock* m_errorBlock;
+   PpmSubBlock* m_errorBlock;
    /// Vector for current PPM sub-blocks
    DataVector<PpmSubBlock> m_ppmBlocks;
    /// Vector for modified TriggerTowers

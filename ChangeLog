@@ -1,3 +1,14 @@
+2006-11-06  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-01-02
+        * PPM bytestream: Updated neutral and compressed formats. Moved
+                          compressed format utilities to separate classes.
+                          Merged PpmErrorBlock into PpmSubBlock.
+        * JEM bytestream: Added neutral format.
+        * L1CaloSubBlock: Moved some functionality to derived classes,
+                          including new class CmmSubBlock.
+                          Added neutral format packing utilities.
+
 2006-10-17  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-01-01

@@ -13,7 +13,7 @@ Inputs to Processors, version 1.6<br>
 Steve Hillier's online decoder, mainly L1CaloBsDecoderTemplate.h as of
 November 2005.<br>
 ATLAS L1Calo Pre-processor compressed Slink data formats, D.P.C.Sankey,
-July 4 2006 with private email.<br>
+Version 1.1, October 17, 2006.<br>
 ATLAS Level-1 Calorimeter Trigger: Jet/Energy Processor Module,
 Project Specification, version 1.0<br>
 Private communications from Steve Hillier.<br>

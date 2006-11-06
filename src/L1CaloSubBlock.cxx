@@ -5,7 +5,6 @@
 
 const int      L1CaloSubBlock::s_headerBit;
 const int      L1CaloSubBlock::s_statusBit;
-const uint32_t L1CaloSubBlock::s_errorMarker;
 const uint32_t L1CaloSubBlock::s_headerMask;
 const uint32_t L1CaloSubBlock::s_statusMask;
 const uint32_t L1CaloSubBlock::s_headerVal;
@@ -27,19 +26,12 @@ const uint32_t L1CaloSubBlock::s_crateMask;
 const uint32_t L1CaloSubBlock::s_moduleMask;
 const uint32_t L1CaloSubBlock::s_slices2Mask;
 const uint32_t L1CaloSubBlock::s_slices1Mask;
-const uint32_t L1CaloSubBlock::s_wordIdVal;
-const uint32_t L1CaloSubBlock::s_cmmWordIdVal;
-
-const int      L1CaloSubBlock::s_cmmSummingBit;
-const int      L1CaloSubBlock::s_cmmFirmwareBit;
-const int      L1CaloSubBlock::s_cmmPositionBit;
-const uint32_t L1CaloSubBlock::s_cmmSummingMask;
-const uint32_t L1CaloSubBlock::s_cmmFirmwareMask;
-const uint32_t L1CaloSubBlock::s_cmmPositionMask;
+const uint32_t L1CaloSubBlock::s_neutralHeaderMask;
 
 const int      L1CaloSubBlock::s_failingBcnBit;
 const int      L1CaloSubBlock::s_glinkTimeoutBit;
 const int      L1CaloSubBlock::s_glinkDownBit;
+const int      L1CaloSubBlock::s_upstreamErrorBit;
 const int      L1CaloSubBlock::s_daqOverflowBit;
 const int      L1CaloSubBlock::s_bcnMismatchBit;
 const int      L1CaloSubBlock::s_glinkProtocolBit;
@@ -51,12 +43,17 @@ const int      L1CaloSubBlock::s_maxStreamedBits;
 const uint32_t L1CaloSubBlock::s_maxWordMask;
 const uint32_t L1CaloSubBlock::s_maxStreamedMask;
 
+const int      L1CaloSubBlock::s_maxPins;
+const uint32_t L1CaloSubBlock::s_glinkDavSet;
+
 L1CaloSubBlock::L1CaloSubBlock() : m_header(0), m_trailer(0),
                                    m_bitword(0), m_currentBit(0),
-				   m_unpackerFlag(false)
+				   m_maxBits(s_maxWordBits),
+				   m_maxMask(s_maxWordMask),
+				   m_unpackerFlag(false),
+				   m_currentPinBit(s_maxPins),
+				   m_dataWords(0)
 {
-  m_maxBits = s_maxWordBits;
-  m_maxMask = s_maxWordMask;
 }
 
 L1CaloSubBlock::~L1CaloSubBlock()
@@ -72,7 +69,27 @@ void L1CaloSubBlock::clear()
   m_bitword = 0;
   m_currentBit = 0;
   m_unpackerFlag = false;
+  m_dataWords = 0;
+  m_currentPinBit.assign(s_maxPins, 0);
+  m_dataWords = 0;
   m_data.clear();
+}
+
+// Store header data
+
+void L1CaloSubBlock::setHeader(int wordId, int version, int format, int seqno,
+                               int crate, int module, int slices2, int slices1)
+{
+  uint32_t word = 0;
+  word |= (wordId  & s_wordIdMask)  << s_wordIdBit;
+  word |= (version & s_versionMask) << s_versionBit;
+  word |= (format  & s_formatMask)  << s_formatBit;
+  word |= (seqno   & s_seqnoMask)   << s_seqnoBit;
+  word |= (crate   & s_crateMask)   << s_crateBit;
+  word |= (module  & s_moduleMask)  << s_moduleBit;
+  word |= (slices2 & s_slices2Mask) << s_slices2Bit;
+  word |= (slices1 & s_slices1Mask) << s_slices1Bit;
+  m_header = word;
 }
 
 // Input complete packed sub-block from ROD vector
@@ -81,17 +98,22 @@ OFFLINE_FRAGMENTS_NAMESPACE::PointerType L1CaloSubBlock::read(
                         const OFFLINE_FRAGMENTS_NAMESPACE::PointerType beg,
 			const OFFLINE_FRAGMENTS_NAMESPACE::PointerType end)
 {
+  m_dataWords = 0;
+  m_unpackerFlag = true;
   OFFLINE_FRAGMENTS_NAMESPACE::PointerType pos(beg);
   OFFLINE_FRAGMENTS_NAMESPACE::PointerType pose(end);
   for (; pos != pose; ++pos) {
     uint32_t word = *pos;
     SubBlockWordType type = wordType(word);
-    if (type == DATA_HEADER || type == ERROR_HEADER) {
+    if (type == HEADER) {
       if (m_header) return pos;
       m_header = word;
     }
-    else if (type == ERROR_STATUS) m_trailer = word;
-    else m_data.push_back(word);
+    else if (type == STATUS) m_trailer = word;
+    else {
+      m_data.push_back(word);
+      ++m_dataWords;
+    }
   }
   return pose;
 }
@@ -101,7 +123,9 @@ OFFLINE_FRAGMENTS_NAMESPACE::PointerType L1CaloSubBlock::read(
 void L1CaloSubBlock::write(
                   FullEventAssembler<L1CaloSrcIdMap>::RODDATA* theROD) const
 {
-  theROD->push_back(m_header);
+  uint32_t header = m_header;
+  if (format() == NEUTRAL) header &= s_neutralHeaderMask;
+  theROD->push_back(header);
   std::vector<uint32_t>::const_iterator pos;
   for (pos = m_data.begin(); pos != m_data.end(); ++pos) {
     theROD->push_back(*pos);
@@ -109,54 +133,17 @@ void L1CaloSubBlock::write(
   if (m_trailer) theROD->push_back(m_trailer);
 }
 
-// Store PPM header
-
-void L1CaloSubBlock::setPpmHeader(int version, int format, int seqno, int crate,
-                                  int module, int slicesFadc, int slicesLut)
-{
-  setHeader(s_wordIdVal, version, format, seqno, crate, module,
-                                                 slicesFadc, slicesLut);
-}
-
-// Store JEM header
-
-void L1CaloSubBlock::setJemHeader(int version, int format, int slice, int crate,
-                                  int module, int timeslices)
-{
-  setHeader(s_wordIdVal, version, format, slice, crate, module, 0, timeslices);
-}
-
-// Store CPM header
-
-void L1CaloSubBlock::setCpmHeader(int version, int format, int slice, int crate,
-                                  int module, int timeslices)
-{
-  setHeader(s_wordIdVal, version, format, slice, crate, module, 0, timeslices);
-}
-
-// Store CMM header
-
-void L1CaloSubBlock::setCmmHeader(int version, int format, int slice, int crate,
-                     int summing, int firmware, int position, int timeslices)
-{
-  int module = 0;
-  module |= (summing  & s_cmmSummingMask)  << s_cmmSummingBit;
-  module |= (firmware & s_cmmFirmwareMask) << s_cmmFirmwareBit;
-  module |= (position & s_cmmPositionMask) << s_cmmPositionBit;
-  setHeader(s_cmmWordIdVal, version, format, slice, crate, module, 0,
-                                                           timeslices);
-}
-
 // Store error status trailer
 
 void L1CaloSubBlock::setStatus(uint32_t failingBCN, bool glinkTimeout,
-     bool glinkDown, bool daqOverflow, bool bcnMismatch,
+     bool glinkDown, bool upstreamError, bool daqOverflow, bool bcnMismatch,
      bool glinkProtocol, bool glinkParity)
 {
   uint32_t word = 0;
   word |= (failingBCN & s_failingBcnMask) << s_failingBcnBit;
   word |= glinkTimeout  << s_glinkTimeoutBit;
   word |= glinkDown     << s_glinkDownBit;
+  word |= upstreamError << s_upstreamErrorBit;
   word |= daqOverflow   << s_daqOverflowBit;
   word |= bcnMismatch   << s_bcnMismatchBit;
   word |= glinkProtocol << s_glinkProtocolBit;
@@ -212,6 +199,7 @@ void L1CaloSubBlock::packer(uint32_t datum, int nbits)
     if (m_currentBit >= m_maxBits) {
       m_bitword &= m_maxMask;
       m_data.push_back(m_bitword);
+      ++m_dataWords;
       int bitsLeft = m_currentBit - m_maxBits;
       if (bitsLeft > 0) {
         m_bitword = (datum & mask) >> (nbits - bitsLeft);
@@ -231,6 +219,7 @@ void L1CaloSubBlock::packerFlush()
   if (m_currentBit > 0) {
     m_bitword &= m_maxMask;
     m_data.push_back(m_bitword);
+    ++m_dataWords;
     m_bitword = 0;
     m_currentBit = 0;
   }
@@ -291,76 +280,73 @@ void L1CaloSubBlock::unpackerInit()
   if (m_dataPos != m_dataPosEnd) m_bitword = *m_dataPos;
 }
 
-// Static function to return PPM error marker for seqno field
+// Pack given neutral data from given pin
 
-int L1CaloSubBlock::errorMarker()
+void L1CaloSubBlock::packerNeutral(int pin, uint32_t datum, int nbits)
 {
-  return s_errorMarker;
+  if (pin >= 0 && pin < s_maxPins && nbits > 0) {
+    if (m_currentPinBit[pin] + nbits > m_dataWords) {
+      m_dataWords = m_currentPinBit[pin] + nbits;
+      m_data.resize(m_dataWords, s_glinkDavSet);
+    }
+    for (int bit = 0; bit < nbits; ++bit) {
+      m_data[m_currentPinBit[pin] + bit] |= ((datum >> bit) & 0x1) << pin;
+    }
+    m_currentPinBit[pin] += nbits;
+  }
+}
+
+// Unpack given number of bits of neutral data for given pin
+
+uint32_t L1CaloSubBlock::unpackerNeutral(int pin, int nbits)
+{
+  uint32_t word = 0;
+  if (pin >= 0 && pin < s_maxPins && nbits > 0
+               && m_currentPinBit[pin] + nbits <= m_dataWords) {
+    for (int bit = 0; bit < nbits; ++bit) {
+      word |= ((m_data[m_currentPinBit[pin] + bit] >> pin) & 0x1) << bit;
+    }
+    m_currentPinBit[pin] += nbits;
+  } else m_unpackerFlag = false;
+  return word;
 }
 
 // Static function to determine word type
 
 L1CaloSubBlock::SubBlockWordType L1CaloSubBlock::wordType(uint32_t word)
 {
-  SubBlockWordType type = DATA_WORD;
+  SubBlockWordType type = DATA;
   if (((word >> s_headerBit) & s_headerMask) == s_headerVal) {
-    if (((word >> s_statusBit) & s_statusMask) == s_statusVal) {
-      type = ERROR_STATUS;
-    } else if (((word >> s_seqnoBit) & s_seqnoMask) == s_errorMarker) {
-      type = ERROR_HEADER;
-    } else type = DATA_HEADER;
+    if (((word >> s_statusBit) & s_statusMask) == s_statusVal) type = STATUS;
+    else type = HEADER;
   }
   return type;
 }
 
-// Static function to determine header type
+// Return wordID field from given header word
 
-L1CaloSubBlock::SubBlockHeadType L1CaloSubBlock::headerType(uint32_t word)
+int L1CaloSubBlock::wordId(uint32_t word)
 {
-  SubBlockHeadType type = PPM_JEM_CPM;
-  if (((word >> s_wordIdBit) & s_wordIdMask) == s_cmmWordIdVal) {
-    type = CMM;
-  }
-  return type;
+  return (word >> s_wordIdBit) & s_wordIdMask;
 }
 
-// Static function to determine CMM type
+// Return data format from given header word
 
-L1CaloSubBlock::CmmFirmwareCode L1CaloSubBlock::cmmType(uint32_t word)
+int L1CaloSubBlock::format(uint32_t word)
 {
-  CmmFirmwareCode type;
-  int module = (word   >> s_moduleBit)      & s_moduleMask;
-  int code   = (module >> s_cmmFirmwareBit) & s_cmmFirmwareMask;
-  switch (code) {
-    case CMM_CP:
-      type = CMM_CP;
-      break;
-    case CMM_JET:
-      type = CMM_JET;
-      break;
-    case CMM_ENERGY:
-      type = CMM_ENERGY;
-      break;
-    default:
-      type = CMM_UNKNOWN;
-      break;
-  }
-  return type;
+  return (word >> s_formatBit) & s_formatMask;
 }
 
-// Store header data
+// Return seqno field from given header word
 
-void L1CaloSubBlock::setHeader(int wordId, int version, int format, int seqno,
-                               int crate, int module, int slices2, int slices1)
+int L1CaloSubBlock::seqno(uint32_t word)
 {
-  uint32_t word = 0;
-  word |= (wordId  & s_wordIdMask)  << s_wordIdBit;
-  word |= (version & s_versionMask) << s_versionBit;
-  word |= (format  & s_formatMask)  << s_formatBit;
-  word |= (seqno   & s_seqnoMask)   << s_seqnoBit;
-  word |= (crate   & s_crateMask)   << s_crateBit;
-  word |= (module  & s_moduleMask)  << s_moduleBit;
-  word |= (slices2 & s_slices2Mask) << s_slices2Bit;
-  word |= (slices1 & s_slices1Mask) << s_slices1Bit;
-  m_header = word;
+  return (word >> s_seqnoBit) & s_seqnoMask;
+}
+
+// Return module field from given header word
+
+int L1CaloSubBlock::module(uint32_t word)
+{
+  return (word >> s_moduleBit) & s_moduleMask;
 }
