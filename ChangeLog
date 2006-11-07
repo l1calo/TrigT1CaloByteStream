@@ -1,3 +1,8 @@
+2006-11-07  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-01-03
+        * Tidy up includes in compression utilities.
+
 2006-11-06  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-01-02

@@ -1,8 +1,6 @@
 #ifndef TRIGT1CALOBYTESTREAM_PPMCOMPRESSIONV01_H
 #define TRIGT1CALOBYTESTREAM_PPMCOMPRESSIONV01_H
 
-#include <stdint.h>
-#include <vector>
 
 /** PPM Compressed Format Version 1 packing and unpacking utilities.
  *
@@ -28,18 +26,18 @@ class PpmCompressionV01 {
    static bool unpack(PpmSubBlock& subBlock);
 
  private:
-   static const int      s_formats      = 7;
-   static const int      s_pedestal     = 20;
-   static const int      s_lowerRange   = 12;
-   static const int      s_upperRange   = 3;
-   static const int      s_peakOnly     = 4;
-   static const int      s_lutDataBits  = 8;
-   static const int      s_lutBcidBits  = 3;
-   static const int      s_fadcDataBits = 10;
-   static const int      s_glinkPins    = 16;
-   static const int      s_statusBits   = 5;
-   static const int      s_errorBits    = 6;
-   static const uint32_t s_statusMask   = 0x1f;
+   static const int s_formats      = 7;
+   static const int s_pedestal     = 20;
+   static const int s_lowerRange   = 12;
+   static const int s_upperRange   = 3;
+   static const int s_peakOnly     = 4;
+   static const int s_lutDataBits  = 8;
+   static const int s_lutBcidBits  = 3;
+   static const int s_fadcDataBits = 10;
+   static const int s_glinkPins    = 16;
+   static const int s_statusBits   = 5;
+   static const int s_errorBits    = 6;
+   static const int s_statusMask   = 0x1f;
 
 };
 

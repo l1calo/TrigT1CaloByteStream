@@ -1,16 +1,19 @@
 
+#include <stdint.h>
+#include <vector>
+
 #include "TrigT1CaloByteStream/PpmCompressionV00.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
 
 // Static constants
 
-const int      PpmCompressionV00::s_formats;
-const int      PpmCompressionV00::s_pedestal;
-const int      PpmCompressionV00::s_lowerRange;
-const int      PpmCompressionV00::s_upperRange;
-const int      PpmCompressionV00::s_peakOnly;
-const int      PpmCompressionV00::s_lutDataBits;
-const int      PpmCompressionV00::s_lutBcidBits;
+const int PpmCompressionV00::s_formats;
+const int PpmCompressionV00::s_pedestal;
+const int PpmCompressionV00::s_lowerRange;
+const int PpmCompressionV00::s_upperRange;
+const int PpmCompressionV00::s_peakOnly;
+const int PpmCompressionV00::s_lutDataBits;
+const int PpmCompressionV00::s_lutBcidBits;
 
 // Pack data
 

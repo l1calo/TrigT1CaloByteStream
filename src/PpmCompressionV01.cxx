@@ -1,21 +1,25 @@
 
+#include <stdint.h>
+#include <algorithm>
+#include <vector>
+
 #include "TrigT1CaloByteStream/PpmCompressionV01.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
 
 // Static constants
 
-const int      PpmCompressionV01::s_formats;
-const int      PpmCompressionV01::s_pedestal;
-const int      PpmCompressionV01::s_lowerRange;
-const int      PpmCompressionV01::s_upperRange;
-const int      PpmCompressionV01::s_peakOnly;
-const int      PpmCompressionV01::s_lutDataBits;
-const int      PpmCompressionV01::s_lutBcidBits;
-const int      PpmCompressionV01::s_fadcDataBits;
-const int      PpmCompressionV01::s_glinkPins;
-const int      PpmCompressionV01::s_statusBits;
-const int      PpmCompressionV01::s_errorBits;
-const uint32_t PpmCompressionV01::s_statusMask;
+const int PpmCompressionV01::s_formats;
+const int PpmCompressionV01::s_pedestal;
+const int PpmCompressionV01::s_lowerRange;
+const int PpmCompressionV01::s_upperRange;
+const int PpmCompressionV01::s_peakOnly;
+const int PpmCompressionV01::s_lutDataBits;
+const int PpmCompressionV01::s_lutBcidBits;
+const int PpmCompressionV01::s_fadcDataBits;
+const int PpmCompressionV01::s_glinkPins;
+const int PpmCompressionV01::s_statusBits;
+const int PpmCompressionV01::s_errorBits;
+const int PpmCompressionV01::s_statusMask;
 
 // Pack data
 
