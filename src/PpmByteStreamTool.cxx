@@ -507,7 +507,7 @@ StatusCode PpmByteStreamTool::convert(
 	                     errorBlock.fpgaCorrupt();
 	      bcnMismatch  = errorBlock.eventMismatch() ||
 	                     errorBlock.bunchMismatch();
-	      glinkParity  = errorBlock.glinkParity();
+	      glinkParity  = errorBlock.glinkPinParity();
 	    } else {
 	      glinkTimeout = subBlock.mcmAbsent() ||
 	                     subBlock.timeout();
@@ -515,7 +515,7 @@ StatusCode PpmByteStreamTool::convert(
 	                     subBlock.fpgaCorrupt();
 	      bcnMismatch  = subBlock.eventMismatch() ||
 	                     subBlock.bunchMismatch();
-	      glinkParity  = subBlock.glinkParity();
+	      glinkParity  = subBlock.glinkPinParity();
 	    }
 	    subBlock.setStatus(0, glinkTimeout, false, upstreamError,
 	                       daqOverflow, bcnMismatch, false, glinkParity);

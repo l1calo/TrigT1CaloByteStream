@@ -53,7 +53,7 @@ class PpmSubBlock : public L1CaloSubBlock {
            int  ppmPinError(int pin)      const;
 
    //  Return individual error bits
-	   bool glinkParity(int chan)     const;
+	   bool glinkPinParity(int chan)  const;
            bool fpgaCorrupt(int chan)     const;
 	   bool bunchMismatch(int chan)   const;
 	   bool eventMismatch(int chan)   const;
@@ -66,7 +66,7 @@ class PpmSubBlock : public L1CaloSubBlock {
 	   bool channelDisabledC(int pin) const;
 	   bool channelDisabledD(int pin) const;
    //  Ditto ORed over all pins
-	   bool glinkParity()             const;
+	   bool glinkPinParity()          const;
            bool fpgaCorrupt()             const;
 	   bool bunchMismatch()           const;
 	   bool eventMismatch()           const;
@@ -84,11 +84,6 @@ class PpmSubBlock : public L1CaloSubBlock {
    //  Return triggered slice offsets
            int  lutOffset()               const;
 	   int  fadcOffset()              const;
-
-   /// Set the Bunch Crossing number (neutral format only)
-           void setBunchCrossing(int bc);
-   /// Return the Bunch Crossing number (neutral format only)
-           int  bunchCrossing()           const;
 
    /// Pack data
    virtual bool pack();
@@ -125,11 +120,11 @@ class PpmSubBlock : public L1CaloSubBlock {
    static const int      s_glinkPins         = 16;
    static const int      s_asicChannels      = 4;
    static const int      s_dataBits          = 11;
-   static const int      s_errorBits         = 11;
+   static const int      s_errorBits         = 10;
    static const int      s_bunchCrossingBits = 12;
    //  Error word masks and bit positions
    static const uint32_t s_errorMask          = 0x7ff;
-   static const int      s_glinkParityBit     = 10;
+   static const int      s_glinkPinParityBit  = 10;
    static const int      s_fpgaCorruptBit     = 9;
    static const int      s_bunchMismatchBit   = 8;
    static const int      s_eventMismatchBit   = 7;
@@ -174,9 +169,6 @@ class PpmSubBlock : public L1CaloSubBlock {
    int m_lutOffset;
    int m_fadcOffset;
 
-   /// Bunch Crossing number (neutral format only)
-   int m_bunchCrossing;
-
    /// Vector for compression statistics
    std::vector<uint32_t> m_compStats;
 
@@ -188,9 +180,9 @@ class PpmSubBlock : public L1CaloSubBlock {
 
 };
 
-inline bool PpmSubBlock::glinkParity(int chan) const
+inline bool PpmSubBlock::glinkPinParity(int chan) const
 {
-  return errorBit(pin(chan), s_glinkParityBit);
+  return errorBit(pin(chan), s_glinkPinParityBit);
 }
 
 inline bool PpmSubBlock::fpgaCorrupt(int chan) const
@@ -248,9 +240,9 @@ inline bool PpmSubBlock::channelDisabledD(int pin) const
   return errorBit(pin, s_channelDisabledBit + 3);
 }
 
-inline bool PpmSubBlock::glinkParity() const
+inline bool PpmSubBlock::glinkPinParity() const
 {
-  return errorBit(s_glinkParityBit);
+  return errorBit(s_glinkPinParityBit);
 }
 
 inline bool PpmSubBlock::fpgaCorrupt() const
@@ -321,16 +313,6 @@ inline int PpmSubBlock::lutOffset() const
 inline int PpmSubBlock::fadcOffset() const
 {
   return (m_fadcOffset < 0) ? slicesFadc()/2 : m_fadcOffset;
-}
-
-inline void PpmSubBlock::setBunchCrossing(int bc)
-{
-  m_bunchCrossing = bc;
-}
-
-inline int PpmSubBlock::bunchCrossing() const
-{
-  return m_bunchCrossing;
 }
 
 inline const std::vector<uint32_t>& PpmSubBlock::compStats() const

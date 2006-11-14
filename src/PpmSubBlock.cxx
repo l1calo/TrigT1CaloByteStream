@@ -26,7 +26,7 @@ const int      PpmSubBlock::s_errorBits;
 const int      PpmSubBlock::s_bunchCrossingBits;
 
 const uint32_t PpmSubBlock::s_errorMask;
-const int      PpmSubBlock::s_glinkParityBit;
+const int      PpmSubBlock::s_glinkPinParityBit;
 const int      PpmSubBlock::s_fpgaCorruptBit;
 const int      PpmSubBlock::s_bunchMismatchBit;
 const int      PpmSubBlock::s_eventMismatchBit;
@@ -36,8 +36,7 @@ const int      PpmSubBlock::s_mcmAbsentBit;
 const int      PpmSubBlock::s_channelDisabledBit;
 
 PpmSubBlock::PpmSubBlock() : m_globalError(0), m_globalDone(false),
-                             m_lutOffset(-1), m_fadcOffset(-1),
-			     m_bunchCrossing(0)
+                             m_lutOffset(-1), m_fadcOffset(-1)
 {
 }
 
@@ -54,7 +53,6 @@ void PpmSubBlock::clear()
   m_globalDone    = false;
   m_lutOffset     = -1;
   m_fadcOffset    = -1;
-  m_bunchCrossing = 0;
   m_datamap.clear();
   m_errormap.clear();
 }
@@ -321,7 +319,7 @@ bool PpmSubBlock::packNeutral()
   // Bunch crossing number
   for (int pin = 0; pin < s_glinkPins; ++pin) {
     uint32_t bc = 0;
-    if (pin < s_bunchCrossingBits) bc = (m_bunchCrossing >> pin) & 0x1;
+    if (pin < s_bunchCrossingBits) bc = (bunchCrossing() >> pin) & 0x1;
     packerNeutral(pin, bc, 1);
   }
   // Data
@@ -339,6 +337,7 @@ bool PpmSubBlock::packNeutral()
   pos = m_errormap.begin();
   for (int pin = 0; pin < s_glinkPins; ++pin) {
     packerNeutral(pin, *pos, s_errorBits);
+    packerNeutralParity(pin);
     ++pos;
   }
   return true;
@@ -386,11 +385,12 @@ bool PpmSubBlock::unpackNeutral()
   int slices = slicesLut() + slicesFadc();
   m_datamap.clear();
   // Bunch Crossing number
-  m_bunchCrossing = 0;
+  int bunchCrossing = 0;
   for (int pin = 0; pin < s_glinkPins; ++pin) {
     int bc = unpackerNeutral(pin, 1);
-    if (pin < s_bunchCrossingBits) m_bunchCrossing |= bc << pin;
+    if (pin < s_bunchCrossingBits) bunchCrossing |= bc << pin;
   }
+  setBunchCrossing(bunchCrossing);
   // Data
   for (int asic = 0; asic < s_asicChannels; ++asic) {
     for (int pin = 0; pin < s_glinkPins; ++pin) {
@@ -403,7 +403,9 @@ bool PpmSubBlock::unpackNeutral()
   // Errors
   m_errormap.clear();
   for (int pin = 0; pin < s_glinkPins; ++pin) {
-    m_errormap.push_back(unpackerNeutral(pin, s_errorBits));
+    uint32_t error = unpackerNeutral(pin, s_errorBits);
+    error |= unpackerNeutralParityError(pin) << s_errorBits;
+    m_errormap.push_back(error);
   }
   return rc;
 }

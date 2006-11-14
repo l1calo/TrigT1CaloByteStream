@@ -43,7 +43,7 @@ const int      JemSubBlock::s_hitPaddingBits;
 const int      JemSubBlock::s_glinkBitsPerSlice;
 
 
-JemSubBlock::JemSubBlock() : m_bunchCrossing(0)
+JemSubBlock::JemSubBlock()
 {
   m_channels = JemCrateMappings::channels();
 }
@@ -60,7 +60,6 @@ void JemSubBlock::clear()
   m_jeData.clear();
   m_jetHits.clear();
   m_energySubsums.clear();
-  m_bunchCrossing = 0;
 }
 
 // Store JEM header
@@ -278,16 +277,19 @@ bool JemSubBlock::packNeutral()
     // Jet Hits and Energy Sums with parity bits
     ++lastpin;
     packerNeutral(lastpin, jetHits(slice), s_jetHitsBits);
-    packerNeutral(lastpin, s_jetParity, 1);
+    packerNeutral(lastpin, parityBit(1, jetHits(slice), s_jetHitsBits), 1);
     packerNeutral(lastpin, ex(slice), s_energyBits);
     packerNeutral(lastpin, ey(slice), s_energyBits);
     packerNeutral(lastpin, et(slice), s_energyBits);
-    packerNeutral(lastpin, s_energyParity, 1);
+    int parity =  parityBit(1, ex(slice), s_energyBits);
+    parity = parityBit(parity, ey(slice), s_energyBits);
+    parity = parityBit(parity, et(slice), s_energyBits);
+    packerNeutral(lastpin, parity, 1);
     // Bunch Crossing number and padding
-    packerNeutral(lastpin, m_bunchCrossing, s_bunchCrossingBits);
+    packerNeutral(lastpin, bunchCrossing(), s_bunchCrossingBits);
     packerNeutral(lastpin, 0, s_hitPaddingBits);
-    // G-Link parity errors
-    for (int pin = 0; pin <= lastpin; ++pin) packerNeutral(pin, 0, 1);
+    // G-Link parity
+    for (int pin = 0; pin <= lastpin; ++pin) packerNeutralParity(pin);
   }
   return true;
 }
@@ -346,10 +348,10 @@ bool JemSubBlock::unpackNeutral()
     setEnergySubsums(slice, ex, ey, et);
     unpackerNeutral(lastpin, 1); // parity bit
     // Bunch Crossing number and padding
-    m_bunchCrossing = unpackerNeutral(lastpin, s_bunchCrossingBits);
+    setBunchCrossing(unpackerNeutral(lastpin, s_bunchCrossingBits));
     unpackerNeutral(lastpin, s_hitPaddingBits);
     // G-Link parity errors
-    for (int pin = 0; pin <= lastpin; ++pin) unpackerNeutral(pin, 1);
+    for (int pin = 0; pin <= lastpin; ++pin) unpackerNeutralParityError(pin);
   }
   return unpackerSuccess();
 }

@@ -12,6 +12,8 @@ const uint32_t CmmSubBlock::s_cmmSummingMask;
 const uint32_t CmmSubBlock::s_cmmFirmwareMask;
 const uint32_t CmmSubBlock::s_cmmPositionMask;
 
+const int      CmmSubBlock::s_glinkBitsPerSlice;
+
 CmmSubBlock::CmmSubBlock()
 {
 }
@@ -31,6 +33,17 @@ void CmmSubBlock::setCmmHeader(int version, int format, int slice, int crate,
   module |= (position & s_cmmPositionMask) << s_cmmPositionBit;
   setHeader(s_wordIdVal, version, format, slice, crate, module, 0,
                                                            timeslices);
+}
+
+// Return number of timeslices
+
+int CmmSubBlock::timeslices() const
+{
+  int slices = slices1();
+  if (slices == 0 && format() == NEUTRAL) {
+    slices = dataWords() / s_glinkBitsPerSlice;
+  }
+  return slices;
 }
 
 // Static function to determine CMM type

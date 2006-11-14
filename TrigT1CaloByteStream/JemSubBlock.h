@@ -48,10 +48,6 @@ class JemSubBlock : public L1CaloSubBlock {
    /// Return number of timeslices
            int  timeslices()               const;
 
-   //  Bunch Crossing number (neutral format only)
-           void setBunchCrossing(int bc);
-	   int  bunchCrossing()            const;
-
    /// Pack data
    virtual bool pack();
    /// Unpack data
@@ -118,20 +114,8 @@ class JemSubBlock : public L1CaloSubBlock {
    std::vector<uint32_t> m_energySubsums;
    /// Number of jet element channels
    int m_channels;
-   /// Bunch Crossing number (neutral format only)
-   int m_bunchCrossing;
 
 };
-
-inline void JemSubBlock::setBunchCrossing(int bc)
-{
-  m_bunchCrossing = bc;
-}
-
-inline int JemSubBlock::bunchCrossing() const
-{
-  return m_bunchCrossing;
-}
 
 inline int JemSubBlock::sourceId(uint32_t word) const
 {

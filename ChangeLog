@@ -1,3 +1,12 @@
+2006-11-14  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-01-04
+        * Neutral format: Moved bunch crossing functions to L1CaloSubBlock
+                          from derived classes.  Added proper treatment of
+                          parity bits.
+        * PpmSubBlock: Changed functions named glinkParity to glinkPinParity
+                       to remove name clash with function in L1CaloSubBlock.
+
 2006-11-07  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-01-03
@@ -96,6 +105,6 @@
 	* L1CaloSrcIdMap.cxx: Eliminate file scope using statement.
 	* PpmByteStreamTool.cxx: Add extra check when finding channels per
 	                         sub-block in input data in case of missing
-				 error block.
+	 		         error block.
         * PpmSortPermutations.h .cxx: make function totalPerms const,
 	                              eliminate unnecessary variable.

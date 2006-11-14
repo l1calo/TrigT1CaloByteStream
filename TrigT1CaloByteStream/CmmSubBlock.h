@@ -22,14 +22,15 @@ class CmmSubBlock : public L1CaloSubBlock {
    CmmSubBlock();
    virtual ~CmmSubBlock();
 
-   ///  Return CMM specific header data
-   int cmmSumming()  const;
-   int cmmFirmware() const;
-   int cmmPosition() const;
-
    /// Store CMM header
    void setCmmHeader(int version, int format, int slice, int crate,
                      int summing, int firmware, int position, int timeslices);
+
+   //   Return CMM specific header data
+   int cmmSumming()  const;
+   int cmmFirmware() const;
+   int cmmPosition() const;
+   int timeslices()  const;
 
    /// CMM differentiation (CMM_CP, CMM_JET, or CMM_ENERGY)
    static CmmFirmwareCode cmmType(uint32_t word);
@@ -46,6 +47,8 @@ class CmmSubBlock : public L1CaloSubBlock {
    static const uint32_t s_cmmSummingMask   = 0x1;
    static const uint32_t s_cmmFirmwareMask  = 0x3;
    static const uint32_t s_cmmPositionMask  = 0x1;
+   /// Needed for neutral format
+   static const int      s_glinkBitsPerSlice = 35;
 
 };
 

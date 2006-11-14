@@ -47,11 +47,13 @@ const int      L1CaloSubBlock::s_maxPins;
 const uint32_t L1CaloSubBlock::s_glinkDavSet;
 
 L1CaloSubBlock::L1CaloSubBlock() : m_header(0), m_trailer(0),
+                                   m_bunchCrossing(0),
                                    m_bitword(0), m_currentBit(0),
 				   m_maxBits(s_maxWordBits),
 				   m_maxMask(s_maxWordMask),
 				   m_unpackerFlag(false),
 				   m_currentPinBit(s_maxPins),
+				   m_oddParity(s_maxPins, 1),
 				   m_dataWords(0)
 {
 }
@@ -66,11 +68,13 @@ void L1CaloSubBlock::clear()
 {
   m_header = 0;
   m_trailer = 0;
+  m_bunchCrossing = 0;
   m_bitword = 0;
   m_currentBit = 0;
   m_unpackerFlag = false;
   m_dataWords = 0;
   m_currentPinBit.assign(s_maxPins, 0);
+  m_oddParity.assign(s_maxPins, 1);
   m_dataWords = 0;
   m_data.clear();
 }
@@ -187,6 +191,16 @@ int L1CaloSubBlock::minBits(uint32_t datum)
   return nbits;
 }
 
+// Return the parity bit for given data
+
+int L1CaloSubBlock::parityBit(int init, uint32_t datum, int nbits)
+{
+  // set init to 0/1 for even/odd parity
+  int parity = init;
+  for (int bit = 0; bit < nbits; ++bit) parity ^= (datum >> bit) & 0x1;
+  return parity;
+}
+
 // Pack given data into given number of bits
 
 void L1CaloSubBlock::packer(uint32_t datum, int nbits)
@@ -291,8 +305,19 @@ void L1CaloSubBlock::packerNeutral(int pin, uint32_t datum, int nbits)
     }
     for (int bit = 0; bit < nbits; ++bit) {
       m_data[m_currentPinBit[pin] + bit] |= ((datum >> bit) & 0x1) << pin;
+      m_oddParity[pin] ^= (datum >> bit) & 0x1;
     }
     m_currentPinBit[pin] += nbits;
+  }
+}
+
+// Pack current G-Link parity bit for given pin
+
+void L1CaloSubBlock::packerNeutralParity(int pin)
+{
+  if (pin >= 0 && pin < s_maxPins) {
+    packerNeutral(pin, m_oddParity[pin], 1);
+    m_oddParity[pin] = 1;
   }
 }
 
@@ -305,10 +330,25 @@ uint32_t L1CaloSubBlock::unpackerNeutral(int pin, int nbits)
                && m_currentPinBit[pin] + nbits <= m_dataWords) {
     for (int bit = 0; bit < nbits; ++bit) {
       word |= ((m_data[m_currentPinBit[pin] + bit] >> pin) & 0x1) << bit;
+      m_oddParity[pin] ^= (word >> bit) & 0x1;
     }
     m_currentPinBit[pin] += nbits;
   } else m_unpackerFlag = false;
   return word;
+}
+
+// Unpack and test G-Link parity bit for given pin
+
+bool L1CaloSubBlock::unpackerNeutralParityError(int pin)
+{
+  bool error = true;
+  if (pin >= 0 && pin < s_maxPins) {
+    int parity = m_oddParity[pin];
+    int bit    = unpackerNeutral(pin, 1);
+    m_oddParity[pin] = 1;
+    error = !(bit == parity);
+  }
+  return error;
 }
 
 // Static function to determine word type

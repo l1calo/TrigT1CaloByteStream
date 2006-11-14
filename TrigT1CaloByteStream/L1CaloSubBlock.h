@@ -56,6 +56,11 @@ class L1CaloSubBlock {
    bool     glinkProtocol()  const;
    bool     glinkParity()    const;
 
+   /// Set the Bunch Crossing number (neutral format only)
+   void setBunchCrossing(int bc);
+   /// Return the Bunch Crossing number (neutral format only)
+   int  bunchCrossing()      const;
+
    /// Input complete packed sub-block from ROD array
    // (OFFLINE_FRAGMENTS_NAMESPACE::PointerType = uint32_t*)
    OFFLINE_FRAGMENTS_NAMESPACE::PointerType read(
@@ -90,6 +95,8 @@ class L1CaloSubBlock {
    //  Packing utilities
    /// Return the minimum number of bits needed for given data
    int      minBits(uint32_t datum);
+   /// Return the parity bit for given data
+   int      parityBit(int init, uint32_t datum, int nbits);
    /// Pack given data into given number of bits
    void     packer(uint32_t datum, int nbits);
    /// Flush the current data word padded with zeros
@@ -106,8 +113,12 @@ class L1CaloSubBlock {
    //  Neutral format packing utilities
    /// Pack given neutral data from given pin
    void     packerNeutral(int pin, uint32_t datum, int nbits);
+   /// Pack current G-Link parity bit for given pin
+   void     packerNeutralParity(int pin);
    /// Unpack given number of bits of neutral data for given pin
    uint32_t unpackerNeutral(int pin, int nbits);
+   /// Unpack and test G-Link parity bit for given pin
+   bool     unpackerNeutralParityError(int pin);
 
  private:
    //  Constants.
@@ -159,6 +170,8 @@ class L1CaloSubBlock {
    uint32_t m_header;
    /// Sub-Block Status Trailer
    uint32_t m_trailer;
+   /// Bunch Crossing number (neutral format only)
+   int m_bunchCrossing;
    //  Used for bit-packing
    uint32_t m_bitword;
    int      m_currentBit;
@@ -167,8 +180,9 @@ class L1CaloSubBlock {
    bool     m_unpackerFlag;
    std::vector<uint32_t>::const_iterator m_dataPos;
    std::vector<uint32_t>::const_iterator m_dataPosEnd;
-   /// Used for neutral bit packing
+   //  Used for neutral bit packing
    std::vector<int> m_currentPinBit;
+   std::vector<int> m_oddParity;
    /// Current number of data words
    int      m_dataWords;
    /// Sub-Block data
@@ -264,6 +278,16 @@ inline bool L1CaloSubBlock::glinkProtocol() const
 inline bool L1CaloSubBlock::glinkParity() const
 {
   return m_trailer & (0x1 << s_glinkParityBit);
+}
+
+inline void L1CaloSubBlock::setBunchCrossing(int bc)
+{
+  m_bunchCrossing = bc;
+}
+
+inline int L1CaloSubBlock::bunchCrossing() const
+{
+  return m_bunchCrossing;
 }
 
 inline void L1CaloSubBlock::setStreamed()
