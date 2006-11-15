@@ -65,8 +65,8 @@ class JemSubBlock : public L1CaloSubBlock {
    //  Jet hit counts bit positions and masks
    static const int      s_threshBit       = 0;
    static const int      s_sourceIdBit     = 25;
-   static const int      s_jetParityBit    = 24;
-   static const int      s_jetParity       = 0x0;
+   static const int      s_jetIndicatorBit = 24;
+   static const int      s_jetIndicator    = 0x0;
    static const int      s_mainThreshId    = 20;
    static const int      s_mainFwdThreshId = 21;
    static const int      s_threshWordId    = 0x2;
@@ -76,8 +76,8 @@ class JemSubBlock : public L1CaloSubBlock {
    static const int      s_exBit           = 0;
    static const int      s_eyBit           = 8;
    static const int      s_etBit           = 16;
-   static const int      s_energyParityBit = 24;
-   static const int      s_energyParity    = 0x1;
+   static const int      s_sumIndicatorBit = 24;
+   static const int      s_sumIndicator    = 0x1;
    static const int      s_subsumId        = 22;
    static const uint32_t s_exMask          = 0xff;
    static const uint32_t s_eyMask          = 0xff;

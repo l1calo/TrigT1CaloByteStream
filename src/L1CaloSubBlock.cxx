@@ -305,9 +305,9 @@ void L1CaloSubBlock::packerNeutral(int pin, uint32_t datum, int nbits)
     }
     for (int bit = 0; bit < nbits; ++bit) {
       m_data[m_currentPinBit[pin] + bit] |= ((datum >> bit) & 0x1) << pin;
-      m_oddParity[pin] ^= (datum >> bit) & 0x1;
     }
     m_currentPinBit[pin] += nbits;
+    m_oddParity[pin] = parityBit(m_oddParity[pin], datum, nbits);
   }
 }
 
@@ -330,9 +330,9 @@ uint32_t L1CaloSubBlock::unpackerNeutral(int pin, int nbits)
                && m_currentPinBit[pin] + nbits <= m_dataWords) {
     for (int bit = 0; bit < nbits; ++bit) {
       word |= ((m_data[m_currentPinBit[pin] + bit] >> pin) & 0x1) << bit;
-      m_oddParity[pin] ^= (word >> bit) & 0x1;
     }
     m_currentPinBit[pin] += nbits;
+    m_oddParity[pin] = parityBit(m_oddParity[pin], word, nbits);
   } else m_unpackerFlag = false;
   return word;
 }

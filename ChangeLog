@@ -1,3 +1,8 @@
+2006-11-15  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-01-05
+        * JemSubBlock, L1CaloSubBlock: Minor cosmetic changes.
+
 2006-11-14  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-01-04

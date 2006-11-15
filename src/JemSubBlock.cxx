@@ -1,4 +1,3 @@
-#include <utility>
 
 #include "TrigT1CaloByteStream/JemCrateMappings.h"
 #include "TrigT1CaloByteStream/JemSubBlock.h"
@@ -15,8 +14,8 @@ const uint32_t JemSubBlock::s_dataIdMask;
 
 const int      JemSubBlock::s_threshBit;
 const int      JemSubBlock::s_sourceIdBit;
-const int      JemSubBlock::s_jetParityBit;
-const int      JemSubBlock::s_jetParity;
+const int      JemSubBlock::s_jetIndicatorBit;
+const int      JemSubBlock::s_jetIndicator;
 const int      JemSubBlock::s_mainThreshId;
 const int      JemSubBlock::s_mainFwdThreshId;
 const int      JemSubBlock::s_threshWordId;
@@ -26,8 +25,8 @@ const uint32_t JemSubBlock::s_sourceIdMask;
 const int      JemSubBlock::s_exBit;
 const int      JemSubBlock::s_eyBit;
 const int      JemSubBlock::s_etBit;
-const int      JemSubBlock::s_energyParityBit;
-const int      JemSubBlock::s_energyParity;
+const int      JemSubBlock::s_sumIndicatorBit;
+const int      JemSubBlock::s_sumIndicator;
 const int      JemSubBlock::s_subsumId;
 const uint32_t JemSubBlock::s_exMask;
 const uint32_t JemSubBlock::s_eyMask;
@@ -92,7 +91,7 @@ void JemSubBlock::setJetHits(int slice, unsigned int hits)
     if (JemCrateMappings::forward(module())) sourceId = s_mainFwdThreshId;
     uint32_t word = 0;
     word |= (hits           & s_threshMask)   << s_threshBit;
-    word |=  s_jetParity                      << s_jetParityBit;
+    word |=  s_jetIndicator                   << s_jetIndicatorBit;
     word |= (sourceId       & s_sourceIdMask) << s_sourceIdBit;
     word |=  s_threshWordId                   << s_dataIdBit;
     resize(m_jetHits);
@@ -110,7 +109,7 @@ void JemSubBlock::setEnergySubsums(int slice, unsigned int ex,
   word |= (ey & s_eyMask) << s_eyBit;
   word |= (et & s_etMask) << s_etBit;
   if (word) {
-    word |= s_energyParity << s_energyParityBit;
+    word |= s_sumIndicator << s_sumIndicatorBit;
     word |= s_subsumId     << s_sourceIdBit;
     word |= s_threshWordId << s_dataIdBit;
     resize(m_energySubsums);
