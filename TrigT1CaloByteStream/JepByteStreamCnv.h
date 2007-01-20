@@ -5,7 +5,6 @@
 #include "GaudiKernel/CnvFactory.h"
 #include "GaudiKernel/Converter.h"
 #include "GaudiKernel/StatusCode.h"
-#include "GaudiKernel/svcType_t.h"
 
 class DataObject;
 class IByteStreamEventAccess;
@@ -15,7 +14,7 @@ class ISvcLocator;
 class JepByteStreamTool;
 
 // Externals
-extern svcType_t ByteStream_StorageType;
+extern long ByteStream_StorageType;
 
 /** ByteStream converter for JEP container
  *
@@ -39,8 +38,8 @@ public:
   virtual StatusCode createRep(DataObject* pObj, IOpaqueAddress*& pAddr);
 
   //  Storage type and class ID
-  virtual svcType_t repSvcType() const { return ByteStream_StorageType;}
-  static const svcType_t storageType(){ return ByteStream_StorageType; }
+  virtual long repSvcType() const { return ByteStream_StorageType;}
+  static const long storageType(){ return ByteStream_StorageType; }
   static const CLID& classID();
 
 private:

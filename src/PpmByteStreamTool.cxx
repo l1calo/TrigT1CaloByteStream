@@ -3,7 +3,6 @@
 #include <utility>
 
 #include "GaudiKernel/IInterface.h"
-#include "GaudiKernel/ToolFactory.h"
 
 #include "TrigT1Calo/TriggerTower.h"
 #include "TrigT1Calo/TriggerTowerKey.h"
@@ -18,9 +17,6 @@
 // Interface ID (copied blind from other examples)
 
 static const InterfaceID IID_IPpmByteStreamTool("PpmByteStreamTool", 1, 1);
-
-static ToolFactory<PpmByteStreamTool> s_factory;
-const IToolFactory& PpmByteStreamToolFactory = s_factory;
 
 const InterfaceID& PpmByteStreamTool::interfaceID()
 {

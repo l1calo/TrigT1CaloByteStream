@@ -3,7 +3,6 @@
 #include <utility>
 
 #include "GaudiKernel/IInterface.h"
-#include "GaudiKernel/ToolFactory.h"
 
 #include "TrigT1Calo/JetElement.h"
 #include "TrigT1Calo/JetElementKey.h"
@@ -22,9 +21,6 @@
 // Interface ID
 
 static const InterfaceID IID_IJepByteStreamTool("JepByteStreamTool", 1, 1);
-
-static ToolFactory<JepByteStreamTool> s_factory;
-const IToolFactory& JepByteStreamToolFactory = s_factory;
 
 const InterfaceID& JepByteStreamTool::interfaceID()
 {

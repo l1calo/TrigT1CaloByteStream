@@ -14,6 +14,9 @@
 #include "TrigT1CaloByteStream/JepReadByteStreamCnv.h"
 #include "TrigT1CaloByteStream/PpmByteStreamCnv.h"
 
+#include "TrigT1CaloByteStream/JepByteStreamTool.h"
+#include "TrigT1CaloByteStream/PpmByteStreamTool.h"
+
 typedef DataVector<LVL1::JetElement> JetElementCollection;
 typedef DataVector<LVL1::JEMHits>    JetHitsCollection;
 typedef DataVector<LVL1::JEMEtSums>  EnergySumsCollection;
@@ -30,6 +33,9 @@ DECLARE_CONVERTER_FACTORY( JepReadESByteStreamCnvT )
 DECLARE_ALGORITHM_FACTORY( PpmTester )
 DECLARE_ALGORITHM_FACTORY( JemTester )
 DECLARE_ALGORITHM_FACTORY( JepContainerMaker )
+
+DECLARE_TOOL_FACTORY( JepByteStreamTool )
+DECLARE_TOOL_FACTORY( PpmByteStreamTool )
 
 DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
 {
