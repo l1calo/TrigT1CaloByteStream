@@ -36,7 +36,8 @@ const int      PpmSubBlock::s_mcmAbsentBit;
 const int      PpmSubBlock::s_channelDisabledBit;
 
 PpmSubBlock::PpmSubBlock() : m_globalError(0), m_globalDone(false),
-                             m_lutOffset(-1), m_fadcOffset(-1)
+                             m_lutOffset(-1), m_fadcOffset(-1),
+			     m_pedestal(20)
 {
 }
 

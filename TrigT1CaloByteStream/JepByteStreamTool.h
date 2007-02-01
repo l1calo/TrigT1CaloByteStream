@@ -18,22 +18,26 @@
 #include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
 
 class ChannelCoordinate;
+class CmmEnergySubBlock;
+class CmmJetSubBlock;
 class IInterface;
 class InterfaceID;
 class JemCrateMappings;
 class JemSubBlock;
-class JepContainer;
 namespace LVL1 {
-  class JetElement;
-  class JetElementKey;
+  class CMMJetHits;
+  class CMMEtSums;
   class JEMHits;
   class JEMEtSums;
+  class JEPBSCollection;
+  class JetElement;
+  class JetElementKey;
 }
 
 /** Tool to perform ROB fragments to jet elements, jet hits and energy sums,
  *  and JEP container to raw data conversions.
  *
- *  Based on ROD document version 1_06d.
+ *  Based on ROD document version 1_09h.
  *
  *  @author Peter Faulkner
  */
@@ -60,28 +64,46 @@ class JepByteStreamTool : public AlgTool {
    /// Convert ROB fragments to energy sums
    StatusCode convert(const IROBDataProviderSvc::VROBFRAG& robFrags,
                       DataVector<LVL1::JEMEtSums>* etCollection);
+   /// Convert ROB fragments to CMM jet hits
+   StatusCode convert(const IROBDataProviderSvc::VROBFRAG& robFrags,
+                      DataVector<LVL1::CMMJetHits>* hitCollection);
+   /// Convert ROB fragments to CMM energy sums
+   StatusCode convert(const IROBDataProviderSvc::VROBFRAG& robFrags,
+                      DataVector<LVL1::CMMEtSums>* etCollection);
 
-   /// Convert JepContainer to bytestream
-   StatusCode convert(const JepContainer* jep, RawEventWrite* re);
+   /// Convert JEP Container to bytestream
+   StatusCode convert(const LVL1::JEPBSCollection* jep, RawEventWrite* re);
 
    /// Fill a vector with all possible Source Identifiers
    void sourceIDs(std::vector<uint32_t>& vID) const;
 
  private:
-   enum CollectionType { JET_ELEMENTS, JET_HITS, ENERGY_SUMS };
+   enum CollectionType { JET_ELEMENTS, JET_HITS, ENERGY_SUMS,
+                                       CMM_HITS, CMM_SUMS };
 
    typedef DataVector<LVL1::JetElement>                  JetElementCollection;
    typedef DataVector<LVL1::JEMHits>                     JetHitsCollection;
    typedef DataVector<LVL1::JEMEtSums>                   EnergySumsCollection;
+   typedef DataVector<LVL1::CMMJetHits>                  CmmHitsCollection;
+   typedef DataVector<LVL1::CMMEtSums>                   CmmSumsCollection;
    typedef std::map<unsigned int, LVL1::JetElement*>     JetElementMap;
    typedef std::map<int, LVL1::JEMHits*>                 JetHitsMap;
    typedef std::map<int, LVL1::JEMEtSums*>               EnergySumsMap;
+   typedef std::map<int, LVL1::CMMJetHits*>              CmmHitsMap;
+   typedef std::map<int, LVL1::CMMEtSums*>               CmmSumsMap;
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
 
    /// Convert bytestream to given container type
    StatusCode convertBs(const IROBDataProviderSvc::VROBFRAG& robFrags,
                         CollectionType collection);
+   /// Unpack CMM-Energy sub-block
+   StatusCode decodeCmmEnergy(CmmEnergySubBlock& subBlock, int trigCmm);
+   /// Unpack CMM-Jet sub-block
+   StatusCode decodeCmmJet(CmmJetSubBlock& subBlock, int trigCmm);
+   /// Unpack JEM sub-block
+   StatusCode decodeJem(JemSubBlock& subBlock, int trigJem,
+                                               CollectionType collection);
 
    /// Print jet element data values
    void printJeData(int channel, const ChannelCoordinate& coord,
@@ -98,6 +120,10 @@ class JepByteStreamTool : public AlgTool {
    LVL1::JEMHits*    findJetHits(int crate, int module);
    /// Find energy sums for given crate, module
    LVL1::JEMEtSums*  findEnergySums(int crate, int module);
+   /// Find CMM hits for given crate, data ID
+   LVL1::CMMJetHits* findCmmHits(int crate, int dataID);
+   /// Find CMM energy sums for given crate, data ID
+   LVL1::CMMEtSums*  findCmmSums(int crate, int dataID);
 
    /// Set up jet element map
    void setupJeMap(const JetElementCollection* jeCollection);
@@ -105,10 +131,16 @@ class JepByteStreamTool : public AlgTool {
    void setupHitsMap(const JetHitsCollection* hitCollection);
    /// Set up energy sums map
    void setupEtMap(const EnergySumsCollection* enCollection);
+   /// Set up CMM hits map
+   void setupCmmHitsMap(const CmmHitsCollection* hitCollection);
+   /// Set up CMM energy sums map
+   void setupCmmEtMap(const CmmSumsCollection* enCollection);
 
    /// Get number of slices and triggered slice offset for next slink
    bool slinkSlices(int crate, int module, int modulesPerSlink,
                     int& timeslices, int& trigJem);
+   /// Get number of CMM slices and triggered slice offset for current crate
+   bool slinkSlicesCmm(int crate, int& timeslices, int& trigCmm);
 
    /// Sub_block header version
    int m_version;
@@ -118,7 +150,7 @@ class JepByteStreamTool : public AlgTool {
    int m_channels;
    /// Number of crates
    int m_crates;
-   /// Number of modules per crate
+   /// Number of JEM modules per crate
    int m_modules;
    /// Number of slinks per crate when writing out bytestream
    int m_slinks;
@@ -132,18 +164,30 @@ class JepByteStreamTool : public AlgTool {
    LVL1::JetElementKey* m_elementKey;
    /// Vector for current JEM sub-blocks
    DataVector<JemSubBlock> m_jemBlocks;
+   /// Vector for current CMM-Energy sub-blocks
+   DataVector<CmmEnergySubBlock> m_cmmEnergyBlocks;
+   /// Vector for current CMM-Jet sub-blocks
+   DataVector<CmmJetSubBlock> m_cmmJetBlocks;
    /// Current jet elements collection
    JetElementCollection* m_jeCollection;
    /// Current jet hits collection
    JetHitsCollection*    m_hitCollection;
    /// Current energy sums collection
    EnergySumsCollection* m_etCollection;
+   /// Current CMM hits collection
+   CmmHitsCollection*    m_cmmHitCollection;
+   /// Current CMM energy sums collection
+   CmmSumsCollection*    m_cmmEtCollection;
    /// Jet element map
    JetElementMap m_jeMap;
    /// Jet hits map
    JetHitsMap    m_hitsMap;
    /// Energy sums map
    EnergySumsMap m_etMap;
+   /// CMM hits map
+   CmmHitsMap    m_cmmHitsMap;
+   /// CMM energy sums map
+   CmmSumsMap    m_cmmEtMap;
    /// Event assembler
    FullEventAssembler<L1CaloSrcIdMap> m_fea;
 

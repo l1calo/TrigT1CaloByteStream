@@ -18,6 +18,8 @@ class CmmSubBlock : public L1CaloSubBlock {
  public:
    enum CmmFirmwareCode { CMM_CP = 0, CMM_JET = 1, CMM_ENERGY = 2,
                           CMM_UNKNOWN = 3 };
+   enum CmmSummingCode  { CRATE = 0, SYSTEM = 1 };
+   enum CmmPositions    { LEFT = 0, RIGHT = 1 };
 
    CmmSubBlock();
    virtual ~CmmSubBlock();

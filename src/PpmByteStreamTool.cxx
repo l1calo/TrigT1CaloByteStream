@@ -14,7 +14,7 @@
 #include "TrigT1CaloByteStream/PpmCrateMappings.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
 
-// Interface ID (copied blind from other examples)
+// Interface ID
 
 static const InterfaceID IID_IPpmByteStreamTool("PpmByteStreamTool", 1, 1);
 
@@ -35,6 +35,7 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
   declareInterface<PpmByteStreamTool>(this);
 
   declareProperty("PrintCompStats", m_printCompStats = 0);
+  declareProperty("PedestalValue", m_pedestal = 20);
 
   // Properties for writing bytestream only
   declareProperty("DataVersion", m_version = 1);
@@ -137,11 +138,11 @@ StatusCode PpmByteStreamTool::convert(
     // First word is User Header
     L1CaloUserHeader userHeader(*payload);
     int headerWords = userHeader.words();
-    if (headerWords != 1) {
-      log << MSG::ERROR << "Unexpected number of user header words: "
+    if (headerWords != 1 && debug) {
+      log << MSG::DEBUG << "Unexpected number of user header words: "
           << headerWords << endreq;
-      return StatusCode::FAILURE;
     }
+    for (int i = 0; i < headerWords; ++i) ++payload;
     // triggered slice offsets
     int trigLut  = userHeader.ppmLut();
     int trigFadc = userHeader.ppmFadc();
@@ -151,7 +152,6 @@ StatusCode PpmByteStreamTool::convert(
       log << MSG::DEBUG << "FADC triggered slice offset: " << trigFadc
                         << endreq;
     }
-    ++payload;
 
     // Find the number of channels per sub-block
 
@@ -189,7 +189,7 @@ StatusCode PpmByteStreamTool::convert(
     // Loop over PPMs
 
     payload = payloadBeg;
-    ++payload;
+    for (int i = 0; i < headerWords; ++i) ++payload;
     while (payload != payloadEnd) {
 
       // Get all sub-blocks for one PPM
@@ -272,6 +272,7 @@ StatusCode PpmByteStreamTool::convert(
         PpmSubBlock* subBlock = m_ppmBlocks[block];
 	subBlock->setLutOffset(trigLut);
 	subBlock->setFadcOffset(trigFadc);
+	subBlock->setPedestal(m_pedestal);
         if ( !subBlock->unpack()) {
 	  log << MSG::ERROR << "Unpacking PPM sub-block failed" << endreq;
 	  return StatusCode::FAILURE;
@@ -355,7 +356,7 @@ StatusCode PpmByteStreamTool::convert(
   // Clear the event assembler
 
   m_fea.clear();
-  uint16_t minorVersion = 0x1000; // Not known yet
+  uint16_t minorVersion = 0x1001;
   m_fea.setRodMinorVersion(minorVersion);
 
   // Pointer to ROD data vector
@@ -446,6 +447,7 @@ StatusCode PpmByteStreamTool::convert(
 	  }
 	  subBlock.setLutOffset(trigLut);
 	  subBlock.setFadcOffset(trigFadc);
+	  subBlock.setPedestal(m_pedestal);
         }
         LVL1::TriggerTower* tt = 0;
 	ChannelCoordinate coord;

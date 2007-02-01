@@ -27,7 +27,6 @@ class PpmCompressionV00 {
 
  private:
    static const int s_formats      = 6;
-   static const int s_pedestal     = 20;
    static const int s_lowerRange   = 12;
    static const int s_upperRange   = 3;
    static const int s_peakOnly     = 4;

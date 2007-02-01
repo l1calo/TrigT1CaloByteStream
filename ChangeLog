@@ -1,3 +1,8 @@
+2007-02-01  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-01-07
+	* Added CPM and CMM bytestreams.
+
 2007-01-20 David Quarrie <David.Quarrie@cern.ch>
 
 	* Backwards compatible Gaudi v19 changes

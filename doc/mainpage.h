@@ -7,22 +7,25 @@ Level-1 Calorimeter Trigger sub-detectors.<p>
 
 The code is based on the following documents/sources:<p>
 
-ATLAS Level-1 Calorimeter Trigger-Read-out Driver, version 1.06d<br>
+ATLAS Level-1 Calorimeter Trigger-Read-out Driver, version 1.09h<br>
 Level-1 Calorimeter Trigger: Cable Mappings and Crate Layouts from Analogue
 Inputs to Processors, version 1.6<br>
 Steve Hillier's online decoder, mainly L1CaloBsDecoderTemplate.h as of
 November 2005.<br>
+Private communications from Steve Hillier.<br>
 ATLAS L1Calo Pre-processor compressed Slink data formats, D.P.C.Sankey,
 Version 1.1, October 17, 2006.<br>
 ATLAS Level-1 Calorimeter Trigger: Jet/Energy Processor Module,
 Project Specification, version 1.0<br>
-Private communications from Steve Hillier.<br>
+ATLAS Level-1 Calorimeter Trigger: Cluster Processor Module,
+Project Specification, version 2.03<br>
+ATLAS Calorimeter First Level Trigger: Common Merger Module,
+Project Specification, version 1.7.8<br>
 I could find no helpful documentation on the details of the bytestream
 converter so I followed existing implementations, notably
 TrigT1ResultByteStream and LArByteStream.<p>
 
-Implemented so far: PPM DAQ neutral, uncompressed and compressed formats.
-                    JEM DAQ jet elements, jet hits and Et sums.
+Implemented so far: PPM, CPM, JEM, CMM-CP, CMM-Jet, CMM-Energy DAQ.
 
 @author Peter Faulkner
 

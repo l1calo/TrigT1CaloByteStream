@@ -26,7 +26,6 @@ const uint32_t L1CaloSubBlock::s_crateMask;
 const uint32_t L1CaloSubBlock::s_moduleMask;
 const uint32_t L1CaloSubBlock::s_slices2Mask;
 const uint32_t L1CaloSubBlock::s_slices1Mask;
-const uint32_t L1CaloSubBlock::s_neutralHeaderMask;
 
 const int      L1CaloSubBlock::s_failingBcnBit;
 const int      L1CaloSubBlock::s_glinkTimeoutBit;
@@ -127,9 +126,7 @@ OFFLINE_FRAGMENTS_NAMESPACE::PointerType L1CaloSubBlock::read(
 void L1CaloSubBlock::write(
                   FullEventAssembler<L1CaloSrcIdMap>::RODDATA* theROD) const
 {
-  uint32_t header = m_header;
-  if (format() == NEUTRAL) header &= s_neutralHeaderMask;
-  theROD->push_back(header);
+  theROD->push_back(m_header);
   std::vector<uint32_t>::const_iterator pos;
   for (pos = m_data.begin(); pos != m_data.end(); ++pos) {
     theROD->push_back(*pos);

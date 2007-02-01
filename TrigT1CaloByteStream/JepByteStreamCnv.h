@@ -34,7 +34,7 @@ public:
   ~JepByteStreamCnv();
 
   virtual StatusCode initialize();
-  /// Create ByteStream from JepContainer
+  /// Create ByteStream from JEP Container
   virtual StatusCode createRep(DataObject* pObj, IOpaqueAddress*& pAddr);
 
   //  Storage type and class ID

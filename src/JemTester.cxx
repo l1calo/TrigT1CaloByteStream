@@ -3,10 +3,12 @@
 
 #include "StoreGate/StoreGateSvc.h"
 
+#include "TrigT1Calo/CMMEtSums.h"
+#include "TrigT1Calo/CMMJetHits.h"
+#include "TrigT1Calo/JEMEtSums.h"
+#include "TrigT1Calo/JEMHits.h"
 #include "TrigT1Calo/JetElement.h"
 #include "TrigT1Calo/JetElementKey.h"
-#include "TrigT1Calo/JEMHits.h"
-#include "TrigT1Calo/JEMEtSums.h"
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
 #include "TrigT1CaloByteStream/JemCrateMappings.h"
@@ -22,11 +24,17 @@ JemTester::JemTester(const std::string& name, ISvcLocator* pSvcLocator)
            m_jemHitsLocation    = LVL1::TrigT1CaloDefs::JEMHitsLocation);
   declareProperty("JEMEtSumsLocation",
            m_jemEtSumsLocation  = LVL1::TrigT1CaloDefs::JEMEtSumsLocation);
+  declareProperty("CMMJetHitsLocation",
+           m_cmmJetLocation     = LVL1::TrigT1CaloDefs::CMMJetHitsLocation);
+  declareProperty("CMMEtSumsLocation",
+           m_cmmEnergyLocation  = LVL1::TrigT1CaloDefs::CMMEtSumsLocation);
 
   // By default print everything
   declareProperty("JetElementPrint", m_jetElementPrint = 1);
   declareProperty("JEMHitsPrint",    m_jemHitsPrint    = 1);
   declareProperty("JEMEtSumsPrint",  m_jemEtSumsPrint  = 1);
+  declareProperty("CMMJetHitsPrint", m_cmmHitsPrint    = 1);
+  declareProperty("CMMEtSumsPrint",  m_cmmEtSumsPrint  = 1);
 
   m_modules = JemCrateMappings::modules();
 }
@@ -115,6 +123,46 @@ StatusCode JemTester::execute()
       // Print the energy sums
 
       printEnergySums(log, MSG::INFO);
+    }
+  }
+
+  if (m_cmmHitsPrint) {
+
+    // Find CMM hits
+
+    const CmmJetCollection* hitCollection = 0;
+    StatusCode sc = m_storeGate->retrieve(hitCollection, m_cmmJetLocation);
+    if (sc.isFailure() || !hitCollection || hitCollection->empty()) {
+      log << MSG::INFO << "No CMM Hits found" << endreq;
+    } else {
+
+      // Order by crate, dataID
+
+      setupCmmHitsMap(hitCollection);
+
+      // Print the CMM hits
+
+      printCmmHits(log, MSG::INFO);
+    }
+  }
+
+  if (m_cmmEtSumsPrint) {
+
+    // Find CMM energy sums
+
+    const CmmEnergyCollection* etCollection = 0;
+    StatusCode sc = m_storeGate->retrieve(etCollection, m_cmmEnergyLocation);
+    if (sc.isFailure() || !etCollection || etCollection->empty()) {
+      log << MSG::INFO << "No CMM Energy Sums found" << endreq;
+    } else {
+
+      // Order by crate, dataID
+
+      setupCmmEtMap(etCollection);
+
+      // Print the CMM energy sums
+
+      printCmmSums(log, MSG::INFO);
     }
   }
 
@@ -208,6 +256,76 @@ void JemTester::printEnergySums(MsgStream& log, MSG::Level level)
   }
 }
 
+// Print the CMM hits
+
+void JemTester::printCmmHits(MsgStream& log, MSG::Level level)
+{
+  log << level << "Number of CMM Hits = " << m_cmmHitsMap.size() << endreq;
+  CmmHitsMap::const_iterator mapIter = m_cmmHitsMap.begin();
+  CmmHitsMap::const_iterator mapEnd  = m_cmmHitsMap.end();
+  for (; mapIter != mapEnd; ++mapIter) {
+    LVL1::CMMJetHits* jh = mapIter->second;
+    int dataID = jh->dataID();
+    log << level
+        << "crate/dataID/peak/hits/error: "
+	<< jh->crate() << "/" << dataID << "/" << jh->peak() << "/";
+    int words = 8;
+    int bits  = 3;
+    unsigned int mask = 0x7;
+    if (dataID == 0 || dataID == 7 || dataID == 8 || dataID == 15) {
+      words = 12;
+      bits  = 2;
+      mask  = 0x3;
+    } else if (dataID == LVL1::CMMJetHits::REMOTE_FORWARD ||
+               dataID == LVL1::CMMJetHits::LOCAL_FORWARD  ||
+	       dataID == LVL1::CMMJetHits::TOTAL_FORWARD) {
+      bits  = 2;
+      mask  = 0x3;
+    } else if (dataID == LVL1::CMMJetHits::ET_MAP) {
+      words = 1;
+      bits  = 4;
+      mask  = 0xf;
+    }
+    std::vector<unsigned int>::const_iterator pos;
+    std::vector<unsigned int>::const_iterator posb = (jh->HitsVec()).begin();
+    std::vector<unsigned int>::const_iterator pose = (jh->HitsVec()).end();
+    for (pos = posb; pos != pose; ++pos) {
+      if (pos != posb) log << level << ",";
+      unsigned int hits = *pos;
+      for (int i = 0; i < words; ++i) {
+        if (i != 0) log << level << ":";
+	unsigned int thr = (hits >> bits*i) & mask;
+        log << level << thr;
+      }
+    }
+    log << level << "/";
+    printVec(jh->ErrorVec(), log, level);
+    log << level << endreq;
+  }
+}
+
+// Print CMM energy sums
+
+void JemTester::printCmmSums(MsgStream& log, MSG::Level level)
+{
+  log << level << "Number of CMM Energy Sums = " << m_cmmEtMap.size() << endreq;
+  CmmSumsMap::const_iterator mapIter = m_cmmEtMap.begin();
+  CmmSumsMap::const_iterator mapEnd  = m_cmmEtMap.end();
+  for (; mapIter != mapEnd; ++mapIter) {
+    LVL1::CMMEtSums* et = mapIter->second;
+    log << level
+        << "crate/dataID/peak/Ex/Ey/Et/ExErr/EyErr/EtErr: "
+	<< et->crate() << "/" << et->dataID() << "/" << et->peak() << "/";
+    printVecU(et->ExVec(), log, level);
+    printVecU(et->EyVec(), log, level);
+    printVecU(et->EtVec(), log, level);
+    printVec(et->ExErrorVec(), log, level);
+    printVec(et->EyErrorVec(), log, level);
+    printVec(et->EtErrorVec(), log, level);
+    log << level << endreq;
+  }
+}
+
 // Print a vector
 
 void JemTester::printVec(const std::vector<int>& vec, MsgStream& log,
@@ -278,6 +396,38 @@ void JemTester::setupEtMap(const EnergySumsCollection* etCollection)
       LVL1::JEMEtSums* sums = *pos;
       int key = m_modules * sums->crate() + sums->module();
       m_etMap.insert(std::make_pair(key, sums));
+    }
+  }
+}
+
+// Set up CMM hits map
+
+void JemTester::setupCmmHitsMap(const CmmJetCollection* hitCollection)
+{
+  m_cmmHitsMap.clear();
+  if (hitCollection) {
+    CmmJetCollection::const_iterator pos  = hitCollection->begin();
+    CmmJetCollection::const_iterator pose = hitCollection->end();
+    for (; pos != pose; ++pos) {
+      LVL1::CMMJetHits* hits = *pos;
+      int key = hits->crate()*100 + hits->dataID();
+      m_cmmHitsMap.insert(std::make_pair(key, hits));
+    }
+  }
+}
+
+// Set up CMM energy sums map
+
+void JemTester::setupCmmEtMap(const CmmEnergyCollection* etCollection)
+{
+  m_cmmEtMap.clear();
+  if (etCollection) {
+    CmmEnergyCollection::const_iterator pos  = etCollection->begin();
+    CmmEnergyCollection::const_iterator pose = etCollection->end();
+    for (; pos != pose; ++pos) {
+      LVL1::CMMEtSums* sums = *pos;
+      int key = sums->crate()*100 + sums->dataID();
+      m_cmmEtMap.insert(std::make_pair(key, sums));
     }
   }
 }

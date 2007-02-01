@@ -136,7 +136,7 @@ class L1CaloSubBlock {
    static const int      s_seqnoBit         = 16;
    static const int      s_crateBit         = 12;
    static const int      s_moduleBit        = 8;
-   static const int      s_slices2Bit       = 4;
+   static const int      s_slices2Bit       = 3;
    static const int      s_slices1Bit       = 0;
    static const uint32_t s_wordIdMask       = 0xf;
    static const uint32_t s_versionMask      = 0x7;
@@ -144,9 +144,8 @@ class L1CaloSubBlock {
    static const uint32_t s_seqnoMask        = 0x3f;
    static const uint32_t s_crateMask        = 0xf;
    static const uint32_t s_moduleMask       = 0xf;
-   static const uint32_t s_slices2Mask      = 0xf;
-   static const uint32_t s_slices1Mask      = 0xf;
-   static const uint32_t s_neutralHeaderMask= 0xffc0ff00;
+   static const uint32_t s_slices2Mask      = 0x1f;
+   static const uint32_t s_slices1Mask      = 0x7;
    //  Status word data positions and masks
    static const int      s_failingBcnBit    = 22;
    static const int      s_glinkTimeoutBit  = 7;
@@ -282,7 +281,7 @@ inline bool L1CaloSubBlock::glinkParity() const
 
 inline void L1CaloSubBlock::setBunchCrossing(int bc)
 {
-  m_bunchCrossing = bc;
+  if (bc) m_bunchCrossing = bc;
 }
 
 inline int L1CaloSubBlock::bunchCrossing() const

@@ -78,12 +78,14 @@ class PpmSubBlock : public L1CaloSubBlock {
 	   bool channelDisabledC()        const;
 	   bool channelDisabledD()        const;
 
-   //  Set triggered slice offsets
+   //  Set triggered slice offsets, pedestal value
            void setLutOffset(int offset);
 	   void setFadcOffset(int offset);
-   //  Return triggered slice offsets
+	   void setPedestal(int pedval);
+   //  Return triggered slice offsets, pedestal value
            int  lutOffset()               const;
 	   int  fadcOffset()              const;
+	   int  pedestal()                const;
 
    /// Pack data
    virtual bool pack();
@@ -165,9 +167,10 @@ class PpmSubBlock : public L1CaloSubBlock {
    mutable uint32_t m_globalError;
    mutable bool     m_globalDone;
 
-   //  Triggered slice offsets
+   //  Triggered slice offsets, pedestal value
    int m_lutOffset;
    int m_fadcOffset;
+   int m_pedestal;
 
    /// Vector for compression statistics
    std::vector<uint32_t> m_compStats;
@@ -305,6 +308,11 @@ inline void PpmSubBlock::setFadcOffset(int offset)
   m_fadcOffset = offset;
 }
 
+inline void PpmSubBlock::setPedestal(int pedval)
+{
+  m_pedestal = pedval;
+}
+
 inline int PpmSubBlock::lutOffset() const
 {
   return (m_lutOffset < 0) ? slicesLut()/2 : m_lutOffset;
@@ -313,6 +321,11 @@ inline int PpmSubBlock::lutOffset() const
 inline int PpmSubBlock::fadcOffset() const
 {
   return (m_fadcOffset < 0) ? slicesFadc()/2 : m_fadcOffset;
+}
+
+inline int PpmSubBlock::pedestal() const
+{
+  return m_pedestal;
 }
 
 inline const std::vector<uint32_t>& PpmSubBlock::compStats() const

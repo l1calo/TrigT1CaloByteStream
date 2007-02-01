@@ -30,7 +30,7 @@ namespace LVL1 {
 /** Tool to perform ROB fragments to trigger towers and trigger towers
  *  to raw data conversions.
  *
- *  Based on ROD document version 1_06d.
+ *  Based on ROD document version 1_09h.
  *
  *  @author Peter Faulkner
  */
@@ -120,6 +120,8 @@ class PpmByteStreamTool : public AlgTool {
    int m_dfltSlicesFadc;
    /// Force number of FADC slices
    int m_forceSlicesFadc;
+   /// Pedestal value
+   int m_pedestal;
    /// Sub-detector type
    eformat::SubDetector m_subDetector;
    /// Source ID converter

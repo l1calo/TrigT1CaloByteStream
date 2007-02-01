@@ -11,16 +11,19 @@
 class StoreGateSvc;
 
 namespace LVL1 {
+  class CMMEtSums;
+  class CMMJetHits;
+  class JEMEtSums;
+  class JEMHits;
   class JetElement;
   class JetElementKey;
-  class JEMHits;
-  class JEMEtSums;
 }
 
 /** Algorithm to test JEM component bytestream conversions.
  *
  *  Just prints out the contents of the JetElement objects,
  *  JEMHits objects and JEMEtSums objects.
+ *  Now also includes CMMJetHits and CMMEtSums.
  *
  *  Run before writing bytestream and after reading it and compare.
  *
@@ -41,9 +44,13 @@ class JemTester : public Algorithm {
    typedef DataVector<LVL1::JetElement>              JetElementCollection;
    typedef DataVector<LVL1::JEMHits>                 JetHitsCollection;
    typedef DataVector<LVL1::JEMEtSums>               EnergySumsCollection;
+   typedef DataVector<LVL1::CMMJetHits>              CmmJetCollection;
+   typedef DataVector<LVL1::CMMEtSums>               CmmEnergyCollection;
    typedef std::map<unsigned int, LVL1::JetElement*> JetElementMap;
    typedef std::map<int, LVL1::JEMHits*>             JetHitsMap;
    typedef std::map<int, LVL1::JEMEtSums*>           EnergySumsMap;
+   typedef std::map<int, LVL1::CMMJetHits*>          CmmHitsMap;
+   typedef std::map<int, LVL1::CMMEtSums*>           CmmSumsMap;
 
    /// Print the jet elements
    void printJetElements(MsgStream& log, MSG::Level level);
@@ -51,6 +58,10 @@ class JemTester : public Algorithm {
    void printJetHits(MsgStream& log, MSG::Level level);
    /// Print the energy sums
    void printEnergySums(MsgStream& log, MSG::Level level);
+   /// Print the CMM hits
+   void printCmmHits(MsgStream& log, MSG::Level level);
+   /// Print the CMM energy sums
+   void printCmmSums(MsgStream& log, MSG::Level level);
 
    /// Print a vector
    void printVec(const std::vector<int>& vec, MsgStream& log,
@@ -65,6 +76,10 @@ class JemTester : public Algorithm {
    void setupHitsMap(const JetHitsCollection* hitCollection);
    /// Set up energy sums map
    void setupEtMap(const EnergySumsCollection* etCollection);
+   /// Set up CMM hits map
+   void setupCmmHitsMap(const CmmJetCollection* hitCollection);
+   /// Set up CMM energy sums map
+   void setupCmmEtMap(const CmmEnergyCollection* etCollection);
 
    /// Jet element key provider
    LVL1::JetElementKey* m_elementKey;
@@ -76,12 +91,20 @@ class JemTester : public Algorithm {
    std::string m_jemHitsLocation;
    /// Energy sums container StoreGate key
    std::string m_jemEtSumsLocation;
+   /// CMM hits container StoreGate key
+   std::string m_cmmJetLocation;
+   /// CMM energy sums container StoreGate key
+   std::string m_cmmEnergyLocation;
    /// Jet element print flag
    int m_jetElementPrint;
    /// Jet hits print flag
    int m_jemHitsPrint;
    /// Energy sums print flag
    int m_jemEtSumsPrint;
+   /// CMM hits print flag
+   int m_cmmHitsPrint;
+   /// CMM energy sums print flag
+   int m_cmmEtSumsPrint;
    /// Number of JEM modules per crate
    int m_modules;
 
@@ -91,6 +114,10 @@ class JemTester : public Algorithm {
    JetHitsMap    m_hitsMap;
    /// Energy sums map
    EnergySumsMap m_etMap;
+   /// CMM hits map
+   CmmHitsMap    m_cmmHitsMap;
+   /// CMM energy sums map
+   CmmSumsMap    m_cmmEtMap;
 
 };
 

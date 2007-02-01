@@ -1,5 +1,5 @@
-#ifndef TRIGT1CALOBYTESTREAM_JEPREADBYTESTREAMCNV_H
-#define TRIGT1CALOBYTESTREAM_JEPREADBYTESTREAMCNV_H
+#ifndef TRIGT1CALOBYTESTREAM_CPBYTESTREAMCNV_H
+#define TRIGT1CALOBYTESTREAM_CPBYTESTREAMCNV_H
 
 #include "GaudiKernel/ClassID.h"
 #include "GaudiKernel/CnvFactory.h"
@@ -11,32 +11,31 @@ class IByteStreamEventAccess;
 class IOpaqueAddress;
 class IROBDataProviderSvc;
 class ISvcLocator;
-class JepByteStreamTool;
+class CpByteStreamTool;
 
 // Externals
 extern long ByteStream_StorageType;
 
-/** ByteStream converter for JEP component containers.
+/** ByteStream converter for CP container
  *
  *  @author Peter Faulkner
  */
 
-template <typename Container>
-class JepReadByteStreamCnv: public Converter {
+class CpByteStreamCnv: public Converter {
 
-  friend class CnvFactory<JepReadByteStreamCnv<Container> >;
+  friend class CnvFactory<CpByteStreamCnv>;
 
 protected:
 
-  JepReadByteStreamCnv(ISvcLocator* svcloc);
+  CpByteStreamCnv(ISvcLocator* svcloc);
 
 public:
 
-  ~JepReadByteStreamCnv();
+  ~CpByteStreamCnv();
 
   virtual StatusCode initialize();
-  /// Create Container from ByteStream
-  virtual StatusCode createObj(IOpaqueAddress* pAddr, DataObject*& pObj);
+  /// Create ByteStream from Cp Container
+  virtual StatusCode createRep(DataObject* pObj, IOpaqueAddress*& pAddr);
 
   //  Storage type and class ID
   virtual long repSvcType() const { return ByteStream_StorageType;}
@@ -45,14 +44,12 @@ public:
 
 private:
 
-  /// Tool that does the actual work
-  JepByteStreamTool* m_tool;
+  //  Tool that does the actual work
+  CpByteStreamTool* m_tool;
 
   IROBDataProviderSvc* m_robDataProvider;
   IByteStreamEventAccess* m_ByteStreamEventAccess;
 
 };
-
-#include "TrigT1CaloByteStream/JepReadByteStreamCnv.icc"
 
 #endif

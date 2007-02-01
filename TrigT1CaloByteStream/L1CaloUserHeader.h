@@ -15,8 +15,8 @@ class L1CaloUserHeader {
 
  public:
 
-   /// Constructor - default just sets number of header words
-   L1CaloUserHeader(uint32_t header = 0x1);
+   /// Constructor - default just sets word ID and number of header words
+   L1CaloUserHeader(uint32_t header = 0xf0000001);
 
    /// Return packed header
    uint32_t header() const;
