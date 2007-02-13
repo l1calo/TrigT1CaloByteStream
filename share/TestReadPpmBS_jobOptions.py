@@ -1,13 +1,5 @@
 # Test PPM bytestream to TriggerTower conversion
-# Specify the Converters
-ByteStreamCnvSvc = Service( "ByteStreamCnvSvc" )
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::TriggerTower>" ]
-ByteStreamCnvSvc.PpmByteStreamTool.PrintCompStats = 0
-ByteStreamAddressProviderSvc = Service( "ByteStreamAddressProviderSvc" )
-ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::TriggerTower>/LVL1TriggerTowers" ]
-# DLLs
-theApp.Dlls += [ "TrigT1CaloByteStream" ]
-# Algs
+include ( "TrigT1CaloByteStream/ReadPpmBS_jobOptions.py" )
 theApp.TopAlg += [ "PpmTester" ]
-Tester = Algorithm( "PpmTester" )
-Tester.TriggerTowerLocation ="LVL1TriggerTowers"
+PpmTester = Algorithm( "PpmTester" )
+PpmTester.TriggerTowerLocation ="LVL1TriggerTowers"
