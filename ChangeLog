@@ -1,3 +1,7 @@
+2007-02-22  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Change default pedestal value to 10 to match TrigT1Calo.
+
 2007-02-13  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-01-08

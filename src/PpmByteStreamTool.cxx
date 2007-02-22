@@ -35,7 +35,7 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
   declareInterface<PpmByteStreamTool>(this);
 
   declareProperty("PrintCompStats", m_printCompStats = 0);
-  declareProperty("PedestalValue", m_pedestal = 20);
+  declareProperty("PedestalValue", m_pedestal = 10);
 
   // Properties for writing bytestream only
   declareProperty("DataVersion", m_version = 1);
