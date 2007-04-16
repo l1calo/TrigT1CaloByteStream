@@ -20,12 +20,10 @@ Project Specification, version 1.0<br>
 ATLAS Level-1 Calorimeter Trigger: Cluster Processor Module,
 Project Specification, version 2.03<br>
 ATLAS Calorimeter First Level Trigger: Common Merger Module,
-Project Specification, version 1.7.8<br>
-I could find no helpful documentation on the details of the bytestream
-converter so I followed existing implementations, notably
-TrigT1ResultByteStream and LArByteStream.<p>
+Project Specification, version 1.7.8<p>
 
-Implemented so far: PPM, CPM, JEM, CMM-CP, CMM-Jet, CMM-Energy DAQ.
+Implemented so far: PPM, CPM, JEM, CMM-CP, CMM-Jet, CMM-Energy DAQ;
+                    CPM RoI, JEM Jet RoI, CMM-Jet-Et RoI, CMM-Energy RoI.
 
 @author Peter Faulkner
 

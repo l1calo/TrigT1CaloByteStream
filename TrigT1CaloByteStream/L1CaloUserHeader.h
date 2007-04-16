@@ -40,8 +40,12 @@ class L1CaloUserHeader {
    void setPpmLut(int offset);
    void setPpmFadc(int offset);
 
+   /// Test for valid header word
+   static bool isValid(uint32_t word);
+
  private:
    //  Packed word bit positions
+   static const int s_wordIdBit  = 28;
    static const int s_jepCmmBit  = 24;
    static const int s_cpCmmBit   = 20;
    static const int s_jemBit     = 16;
@@ -95,32 +99,32 @@ inline int L1CaloUserHeader::ppmFadc() const
   return (m_header >> s_ppmFadcBit) & s_mask;
 }
 
-inline void L1CaloUserHeader::setJepCmm(int offset)
+inline void L1CaloUserHeader::setJepCmm(const int offset)
 {
   m_header |= (s_mask & offset) << s_jepCmmBit;
 }
 
-inline void L1CaloUserHeader::setCpCmm(int offset)
+inline void L1CaloUserHeader::setCpCmm(const int offset)
 {
   m_header |= (s_mask & offset) << s_cpCmmBit;
 }
 
-inline void L1CaloUserHeader::setJem(int offset)
+inline void L1CaloUserHeader::setJem(const int offset)
 {
   m_header |= (s_mask & offset) << s_jemBit;
 }
 
-inline void L1CaloUserHeader::setCpm(int offset)
+inline void L1CaloUserHeader::setCpm(const int offset)
 {
   m_header |= (s_mask & offset) << s_cpmBit;
 }
 
-inline void L1CaloUserHeader::setPpmLut(int offset)
+inline void L1CaloUserHeader::setPpmLut(const int offset)
 {
   m_header |= (s_mask & offset) << s_ppmLutBit;
 }
 
-inline void L1CaloUserHeader::setPpmFadc(int offset)
+inline void L1CaloUserHeader::setPpmFadc(const int offset)
 {
   m_header |= (s_mask & offset) << s_ppmFadcBit;
 }

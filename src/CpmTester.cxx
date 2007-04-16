@@ -6,6 +6,7 @@
 #include "TrigT1Calo/CMMCPHits.h"
 #include "TrigT1Calo/CPMHits.h"
 #include "TrigT1Calo/CPMTower.h"
+#include "TrigT1Calo/CPMRoI.h"
 #include "TrigT1Calo/TriggerTowerKey.h"
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
@@ -22,11 +23,14 @@ CpmTester::CpmTester(const std::string& name, ISvcLocator* pSvcLocator)
            m_cpmHitsLocation   = LVL1::TrigT1CaloDefs::CPMHitsLocation);
   declareProperty("CMMCPHitsLocation",
            m_cmmCpHitsLocation = LVL1::TrigT1CaloDefs::CMMCPHitsLocation);
+  declareProperty("CPMRoILocation",
+           m_cpmRoiLocation    = LVL1::TrigT1CaloDefs::CPMRoILocation);
 
   // By default print everything
   declareProperty("CPMTowerPrint",  m_cpmTowerPrint  = 1);
   declareProperty("CPMHitsPrint",   m_cpmHitsPrint   = 1);
   declareProperty("CMMCPHitsPrint", m_cmmCpHitsPrint = 1);
+  declareProperty("CPMRoIPrint",    m_cpmRoiPrint    = 1);
 
   m_modules = CpmCrateMappings::modules();
 }
@@ -118,6 +122,26 @@ StatusCode CpmTester::execute()
     }
   }
 
+  if (m_cpmRoiPrint) {
+
+    // Find CPM RoIs
+
+    const CpmRoiCollection* roiCollection = 0;
+    StatusCode sc = m_storeGate->retrieve(roiCollection, m_cpmRoiLocation);
+    if (sc.isFailure() || !roiCollection || roiCollection->empty()) {
+      log << MSG::INFO << "No CPM RoIs found" << endreq;
+    } else {
+
+      // Order by RoI word
+
+      setupCpmRoiMap(roiCollection);
+
+      // Print the CPM RoIs
+
+      printCpmRois(log, MSG::INFO);
+    }
+  }
+
   return StatusCode::SUCCESS;
 }
 
@@ -132,15 +156,14 @@ StatusCode CpmTester::finalize()
 
 // Print the CPM towers
 
-void CpmTester::printCpmTowers(MsgStream& log, MSG::Level level)
+void CpmTester::printCpmTowers(MsgStream& log, const MSG::Level level) const
 {
   log << level << "Number of CPM towers = " << m_ttMap.size() << endreq;
   CpmTowerMap::const_iterator mapIter = m_ttMap.begin();
   CpmTowerMap::const_iterator mapEnd  = m_ttMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
-    LVL1::CPMTower* tt = mapIter->second;
+    const LVL1::CPMTower* const tt = mapIter->second;
     log << level
-        //<< "key/eta/phi/peak/em/had/emErr/hadErr/linkErr: "
         << "key/eta/phi/peak/em/had/emErr/hadErr: "
         << mapIter->first << "/" << tt->eta() << "/" << tt->phi() << "/"
 	<< tt->peak() << "/";
@@ -149,20 +172,19 @@ void CpmTester::printCpmTowers(MsgStream& log, MSG::Level level)
     printVec(tt->hadEnergyVec(), log, level);
     printVec(tt->emErrorVec(),   log, level);
     printVec(tt->hadErrorVec(),  log, level);
-    //printVec(tt->linkErrorVec(), log, level);
     log << level << endreq;
   }
 }
 
 // Print the CPM hits
 
-void CpmTester::printCpmHits(MsgStream& log, MSG::Level level)
+void CpmTester::printCpmHits(MsgStream& log, const MSG::Level level) const
 {
   log << level << "Number of CPM Hits = " << m_hitsMap.size() << endreq;
   CpmHitsMap::const_iterator mapIter = m_hitsMap.begin();
   CpmHitsMap::const_iterator mapEnd  = m_hitsMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
-    LVL1::CPMHits* ch = mapIter->second;
+    const LVL1::CPMHits* const ch = mapIter->second;
     log << level
         << "crate/module/peak/hits0/hits1: "
 	<< ch->crate() << "/" << ch->module() << "/" << ch->peak() << "/";
@@ -175,13 +197,13 @@ void CpmTester::printCpmHits(MsgStream& log, MSG::Level level)
 
 // Print the CMM-CP hits
 
-void CpmTester::printCmmCpHits(MsgStream& log, MSG::Level level)
+void CpmTester::printCmmCpHits(MsgStream& log, const MSG::Level level) const
 {
   log << level << "Number of CMM-CP Hits = " << m_cmmHitsMap.size() << endreq;
   CmmCpHitsMap::const_iterator mapIter = m_cmmHitsMap.begin();
   CmmCpHitsMap::const_iterator mapEnd  = m_cmmHitsMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
-    LVL1::CMMCPHits* ch = mapIter->second;
+    const LVL1::CMMCPHits* const ch = mapIter->second;
     log << level
         << "crate/dataID/peak/hits0/hits1/err0/err1: "
 	<< ch->crate() << "/" << ch->dataID() << "/" << ch->peak() << "/";
@@ -194,10 +216,27 @@ void CpmTester::printCmmCpHits(MsgStream& log, MSG::Level level)
   }
 }
 
+// Print the CPM RoIs
+
+void CpmTester::printCpmRois(MsgStream& log, const MSG::Level level) const
+{
+  log << level << "Number of CPM RoIs = " << m_roiMap.size() << endreq;
+  CpmRoiMap::const_iterator mapIter = m_roiMap.begin();
+  CpmRoiMap::const_iterator mapEnd  = m_roiMap.end();
+  for (; mapIter != mapEnd; ++mapIter) {
+    const LVL1::CPMRoI* const roi = mapIter->second;
+    log << level << "crate/cpm/chip/loc/hits/error: "
+	<< roi->crate()    << "/" << roi->cpm() << "/" << roi->chip() << "/"
+	<< roi->location() << "/";
+    MSG::hex(log) << level << roi->hits() << "/" << roi->error() << "/";
+    MSG::dec(log) << level << endreq;
+  }
+}
+
 // Print a vector
 
 void CpmTester::printVec(const std::vector<int>& vec, MsgStream& log,
-                                                      MSG::Level level)
+                                                const MSG::Level level) const
 {
   std::vector<int>::const_iterator pos;
   for (pos = vec.begin(); pos != vec.end(); ++pos) {
@@ -209,8 +248,8 @@ void CpmTester::printVec(const std::vector<int>& vec, MsgStream& log,
 
 // Print a vector of hits
 
-void CpmTester::printVecH(const std::vector<unsigned int>& vec, MsgStream& log,
-                                                           MSG::Level level)
+void CpmTester::printVecH(const std::vector<unsigned int>& vec,
+                          MsgStream& log, const MSG::Level level) const
 {
   const int words = 8;
   const int bits  = 3;
@@ -220,10 +259,10 @@ void CpmTester::printVecH(const std::vector<unsigned int>& vec, MsgStream& log,
   std::vector<unsigned int>::const_iterator pose = vec.end();
   for (pos = posb; pos != pose; ++pos) {
     if (pos != posb) log << level << ",";
-    unsigned int hits = *pos;
+    const unsigned int hits = *pos;
     for (int i = 0; i < words; ++i) {
       if (i != 0) log << level << ":";
-      unsigned int thr = (hits >> (bits*i)) & mask;
+      const unsigned int thr = (hits >> (bits*i)) & mask;
       log << level << thr;
     }
   }
@@ -232,15 +271,15 @@ void CpmTester::printVecH(const std::vector<unsigned int>& vec, MsgStream& log,
 
 // Set up CPM tower map
 
-void CpmTester::setupCpmTowerMap(const CpmTowerCollection* ttCollection)
+void CpmTester::setupCpmTowerMap(const CpmTowerCollection* const ttCollection)
 {
   m_ttMap.clear();
   if (ttCollection) {
     CpmTowerCollection::const_iterator pos  = ttCollection->begin();
     CpmTowerCollection::const_iterator pose = ttCollection->end();
     for (; pos != pose; ++pos) {
-      LVL1::CPMTower* tt = *pos;
-      unsigned int key = m_towerKey->ttKey(tt->phi(), tt->eta());
+      const LVL1::CPMTower* const tt = *pos;
+      const unsigned int key = m_towerKey->ttKey(tt->phi(), tt->eta());
       m_ttMap.insert(std::make_pair(key, tt));
     }
   }
@@ -248,15 +287,15 @@ void CpmTester::setupCpmTowerMap(const CpmTowerCollection* ttCollection)
 
 // Set up CPM hits map
 
-void CpmTester::setupCpmHitsMap(const CpmHitsCollection* hitCollection)
+void CpmTester::setupCpmHitsMap(const CpmHitsCollection* const hitCollection)
 {
   m_hitsMap.clear();
   if (hitCollection) {
     CpmHitsCollection::const_iterator pos  = hitCollection->begin();
     CpmHitsCollection::const_iterator pose = hitCollection->end();
     for (; pos != pose; ++pos) {
-      LVL1::CPMHits* hits = *pos;
-      int key = m_modules * hits->crate() + hits->module() - 1;
+      const LVL1::CPMHits* const hits = *pos;
+      const int key = m_modules * hits->crate() + hits->module() - 1;
       m_hitsMap.insert(std::make_pair(key, hits));
     }
   }
@@ -264,16 +303,33 @@ void CpmTester::setupCpmHitsMap(const CpmHitsCollection* hitCollection)
 
 // Set up CMM-CP hits map
 
-void CpmTester::setupCmmCpHitsMap(const CmmCpHitsCollection* hitCollection)
+void CpmTester::setupCmmCpHitsMap(const CmmCpHitsCollection*
+                                                       const hitCollection)
 {
   m_cmmHitsMap.clear();
   if (hitCollection) {
     CmmCpHitsCollection::const_iterator pos  = hitCollection->begin();
     CmmCpHitsCollection::const_iterator pose = hitCollection->end();
     for (; pos != pose; ++pos) {
-      LVL1::CMMCPHits* hits = *pos;
-      int key = hits->crate()*100 + hits->dataID();
+      const LVL1::CMMCPHits* const hits = *pos;
+      const int key = hits->crate()*100 + hits->dataID();
       m_cmmHitsMap.insert(std::make_pair(key, hits));
+    }
+  }
+}
+
+// Set up CPM RoI map
+
+void CpmTester::setupCpmRoiMap(const CpmRoiCollection* const roiCollection)
+{
+  m_roiMap.clear();
+  if (roiCollection) {
+    CpmRoiCollection::const_iterator pos  = roiCollection->begin();
+    CpmRoiCollection::const_iterator pose = roiCollection->end();
+    for (; pos != pose; ++pos) {
+      const LVL1::CPMRoI* const roi = *pos;
+      const uint32_t key = roi->roiWord();
+      m_roiMap.insert(std::make_pair(key, roi));
     }
   }
 }

@@ -5,8 +5,10 @@
 
 #include "TrigT1Calo/CMMEtSums.h"
 #include "TrigT1Calo/CMMJetHits.h"
+#include "TrigT1Calo/CMMRoI.h"
 #include "TrigT1Calo/JEMEtSums.h"
 #include "TrigT1Calo/JEMHits.h"
+#include "TrigT1Calo/JEMRoI.h"
 #include "TrigT1Calo/JetElement.h"
 #include "TrigT1Calo/JetElementKey.h"
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
@@ -28,6 +30,10 @@ JemTester::JemTester(const std::string& name, ISvcLocator* pSvcLocator)
            m_cmmJetLocation     = LVL1::TrigT1CaloDefs::CMMJetHitsLocation);
   declareProperty("CMMEtSumsLocation",
            m_cmmEnergyLocation  = LVL1::TrigT1CaloDefs::CMMEtSumsLocation);
+  declareProperty("JEMRoILocation",
+           m_jemRoiLocation     = LVL1::TrigT1CaloDefs::JEMRoILocation);
+  declareProperty("CMMRoILocation",
+           m_cmmRoiLocation     = LVL1::TrigT1CaloDefs::CMMRoILocation);
 
   // By default print everything
   declareProperty("JetElementPrint", m_jetElementPrint = 1);
@@ -35,6 +41,8 @@ JemTester::JemTester(const std::string& name, ISvcLocator* pSvcLocator)
   declareProperty("JEMEtSumsPrint",  m_jemEtSumsPrint  = 1);
   declareProperty("CMMJetHitsPrint", m_cmmHitsPrint    = 1);
   declareProperty("CMMEtSumsPrint",  m_cmmEtSumsPrint  = 1);
+  declareProperty("JEMRoIPrint",     m_jemRoiPrint     = 1);
+  declareProperty("CMMRoIPrint",     m_cmmRoiPrint     = 1);
 
   m_modules = JemCrateMappings::modules();
 }
@@ -166,6 +174,42 @@ StatusCode JemTester::execute()
     }
   }
 
+  if (m_jemRoiPrint) {
+
+    // Find JEM RoIs
+
+    const JemRoiCollection* jrCollection = 0;
+    StatusCode sc = m_storeGate->retrieve(jrCollection, m_jemRoiLocation);
+    if (sc.isFailure() || !jrCollection || jrCollection->empty()) {
+      log << MSG::INFO << "No JEM RoIs found" << endreq;
+    } else {
+
+      // Order by RoI word
+
+      setupJemRoiMap(jrCollection);
+
+      // Print the JEM RoIs
+
+      printJemRois(log, MSG::INFO);
+    }
+  }
+
+  if (m_cmmRoiPrint) {
+
+    // Find CMM RoIs
+
+    const LVL1::CMMRoI* crCollection = 0;
+    StatusCode sc = m_storeGate->retrieve(crCollection, m_cmmRoiLocation);
+    if (sc.isFailure() || !crCollection) {
+      log << MSG::INFO << "No CMM RoIs found" << endreq;
+    } else {
+
+      // Print the CMM RoIs
+
+      printCmmRois(crCollection, log, MSG::INFO);
+    }
+  }
+
   return StatusCode::SUCCESS;
 }
 
@@ -180,13 +224,13 @@ StatusCode JemTester::finalize()
 
 // Print the jet elements
 
-void JemTester::printJetElements(MsgStream& log, MSG::Level level)
+void JemTester::printJetElements(MsgStream& log, const MSG::Level level) const
 {
   log << level << "Number of Jet Elements = " << m_jeMap.size() << endreq;
   JetElementMap::const_iterator mapIter = m_jeMap.begin();
   JetElementMap::const_iterator mapEnd  = m_jeMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
-    LVL1::JetElement* je = mapIter->second;
+    const LVL1::JetElement* const je = mapIter->second;
     log << level
         << "key/eta/phi/peak/em/had/emErr/hadErr/linkErr: "
         << mapIter->first << "/" << je->eta() << "/" << je->phi() << "/"
@@ -203,13 +247,13 @@ void JemTester::printJetElements(MsgStream& log, MSG::Level level)
 
 // Print the jet hits
 
-void JemTester::printJetHits(MsgStream& log, MSG::Level level)
+void JemTester::printJetHits(MsgStream& log, const MSG::Level level) const
 {
   log << level << "Number of Jet Hits = " << m_hitsMap.size() << endreq;
   JetHitsMap::const_iterator mapIter = m_hitsMap.begin();
   JetHitsMap::const_iterator mapEnd  = m_hitsMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
-    LVL1::JEMHits* jh = mapIter->second;
+    const LVL1::JEMHits* const jh = mapIter->second;
     log << level
         << "crate/module/peak/hits: "
 	<< jh->crate() << "/" << jh->module() << "/" << jh->peak() << "/";
@@ -226,10 +270,10 @@ void JemTester::printJetHits(MsgStream& log, MSG::Level level)
     std::vector<unsigned int>::const_iterator pose = (jh->JetHitsVec()).end();
     for (pos = posb; pos != pose; ++pos) {
       if (pos != posb) log << level << ",";
-      unsigned int hits = *pos;
+      const unsigned int hits = *pos;
       for (int i = 0; i < words; ++i) {
         if (i != 0) log << level << ":";
-	unsigned int thr = (hits >> bits*i) & mask;
+	const unsigned int thr = (hits >> bits*i) & mask;
         log << level << thr;
       }
     }
@@ -239,13 +283,13 @@ void JemTester::printJetHits(MsgStream& log, MSG::Level level)
 
 // Print energy sums
 
-void JemTester::printEnergySums(MsgStream& log, MSG::Level level)
+void JemTester::printEnergySums(MsgStream& log, const MSG::Level level) const
 {
   log << level << "Number of Energy Sums = " << m_etMap.size() << endreq;
   EnergySumsMap::const_iterator mapIter = m_etMap.begin();
   EnergySumsMap::const_iterator mapEnd  = m_etMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
-    LVL1::JEMEtSums* et = mapIter->second;
+    const LVL1::JEMEtSums* const et = mapIter->second;
     log << level
         << "crate/module/peak/Ex/Ey/Et: "
 	<< et->crate() << "/" << et->module() << "/" << et->peak() << "/";
@@ -258,14 +302,14 @@ void JemTester::printEnergySums(MsgStream& log, MSG::Level level)
 
 // Print the CMM hits
 
-void JemTester::printCmmHits(MsgStream& log, MSG::Level level)
+void JemTester::printCmmHits(MsgStream& log, const MSG::Level level) const
 {
   log << level << "Number of CMM Hits = " << m_cmmHitsMap.size() << endreq;
   CmmHitsMap::const_iterator mapIter = m_cmmHitsMap.begin();
   CmmHitsMap::const_iterator mapEnd  = m_cmmHitsMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
-    LVL1::CMMJetHits* jh = mapIter->second;
-    int dataID = jh->dataID();
+    const LVL1::CMMJetHits* const jh = mapIter->second;
+    const int dataID = jh->dataID();
     log << level
         << "crate/dataID/peak/hits/error: "
 	<< jh->crate() << "/" << dataID << "/" << jh->peak() << "/";
@@ -291,10 +335,10 @@ void JemTester::printCmmHits(MsgStream& log, MSG::Level level)
     std::vector<unsigned int>::const_iterator pose = (jh->HitsVec()).end();
     for (pos = posb; pos != pose; ++pos) {
       if (pos != posb) log << level << ",";
-      unsigned int hits = *pos;
+      const unsigned int hits = *pos;
       for (int i = 0; i < words; ++i) {
         if (i != 0) log << level << ":";
-	unsigned int thr = (hits >> bits*i) & mask;
+	const unsigned int thr = (hits >> bits*i) & mask;
         log << level << thr;
       }
     }
@@ -306,15 +350,14 @@ void JemTester::printCmmHits(MsgStream& log, MSG::Level level)
 
 // Print CMM energy sums
 
-void JemTester::printCmmSums(MsgStream& log, MSG::Level level)
+void JemTester::printCmmSums(MsgStream& log, const MSG::Level level) const
 {
   log << level << "Number of CMM Energy Sums = " << m_cmmEtMap.size() << endreq;
   CmmSumsMap::const_iterator mapIter = m_cmmEtMap.begin();
   CmmSumsMap::const_iterator mapEnd  = m_cmmEtMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
-    LVL1::CMMEtSums* et = mapIter->second;
-    log << level
-        << "crate/dataID/peak/Ex/Ey/Et/ExErr/EyErr/EtErr: "
+    const LVL1::CMMEtSums* const et = mapIter->second;
+    log << level << "crate/dataID/peak/Ex/Ey/Et/ExErr/EyErr/EtErr: "
 	<< et->crate() << "/" << et->dataID() << "/" << et->peak() << "/";
     printVecU(et->ExVec(), log, level);
     printVecU(et->EyVec(), log, level);
@@ -326,10 +369,41 @@ void JemTester::printCmmSums(MsgStream& log, MSG::Level level)
   }
 }
 
+// Print the JEM RoIs
+
+void JemTester::printJemRois(MsgStream& log, const MSG::Level level) const
+{
+  log << level << "Number of JEM RoIs = " << m_roiMap.size() << endreq;
+  JemRoiMap::const_iterator mapIter = m_roiMap.begin();
+  JemRoiMap::const_iterator mapEnd  = m_roiMap.end();
+  for (; mapIter != mapEnd; ++mapIter) {
+    const LVL1::JEMRoI* const roi = mapIter->second;
+    log << level << "crate/jem/frame/loc/fwd/hits/error: "
+        << roi->crate() << "/" << roi->jem() << "/" << roi->frame() << "/"
+	<< roi->location() << "/" << roi->forward() << "/";
+    MSG::hex(log) << level << roi->hits() << "/" << roi->error() << "/";
+    MSG::dec(log) << level << endreq;
+  }
+}
+
+// Print the CMM RoIs
+
+void JemTester::printCmmRois(const LVL1::CMMRoI* const roi, MsgStream& log,
+                                                 const MSG::Level level) const
+{
+  log << level << "jetEtHits/sumEtHits/missingEtHits/Ex/Ey/Et;error: ";
+  MSG::hex(log) << level << roi->jetEtHits() << ";" << roi->jetEtError() << "/"
+                << roi->sumEtHits() << ";" << roi->sumEtError() << "/"
+		<< roi->missingEtHits() << ";" << roi->missingEtError() << "/";
+  MSG::dec(log) << level << roi->ex() << ";" << roi->exError() << "/"
+                         << roi->ey() << ";" << roi->eyError() << "/"
+                         << roi->et() << ";" << roi->etError() << "/" << endreq;
+}
+
 // Print a vector
 
 void JemTester::printVec(const std::vector<int>& vec, MsgStream& log,
-                                                      MSG::Level level)
+                                                const MSG::Level level) const
 {
   std::vector<int>::const_iterator pos;
   for (pos = vec.begin(); pos != vec.end(); ++pos) {
@@ -342,7 +416,7 @@ void JemTester::printVec(const std::vector<int>& vec, MsgStream& log,
 // Print a vector (unsigned)
 
 void JemTester::printVecU(const std::vector<unsigned int>& vec, MsgStream& log,
-                                                           MSG::Level level)
+                                                  const MSG::Level level) const
 {
   std::vector<unsigned int>::const_iterator pos;
   for (pos = vec.begin(); pos != vec.end(); ++pos) {
@@ -354,15 +428,15 @@ void JemTester::printVecU(const std::vector<unsigned int>& vec, MsgStream& log,
 
 // Set up jet element map
 
-void JemTester::setupJeMap(const JetElementCollection* jeCollection)
+void JemTester::setupJeMap(const JetElementCollection* const jeCollection)
 {
   m_jeMap.clear();
   if (jeCollection) {
     JetElementCollection::const_iterator pos = jeCollection->begin();
     JetElementCollection::const_iterator pose = jeCollection->end();
     for (; pos != pose; ++pos) {
-      LVL1::JetElement* je = *pos;
-      unsigned int key = m_elementKey->jeKey(je->phi(), je->eta());
+      const LVL1::JetElement* const je = *pos;
+      const unsigned int key = m_elementKey->jeKey(je->phi(), je->eta());
       m_jeMap.insert(std::make_pair(key, je));
     }
   }
@@ -370,15 +444,15 @@ void JemTester::setupJeMap(const JetElementCollection* jeCollection)
 
 // Set up jet hits map
 
-void JemTester::setupHitsMap(const JetHitsCollection* hitCollection)
+void JemTester::setupHitsMap(const JetHitsCollection* const hitCollection)
 {
   m_hitsMap.clear();
   if (hitCollection) {
     JetHitsCollection::const_iterator pos  = hitCollection->begin();
     JetHitsCollection::const_iterator pose = hitCollection->end();
     for (; pos != pose; ++pos) {
-      LVL1::JEMHits* hits = *pos;
-      int key = m_modules * hits->crate() + hits->module();
+      const LVL1::JEMHits* const hits = *pos;
+      const int key = m_modules * hits->crate() + hits->module();
       m_hitsMap.insert(std::make_pair(key, hits));
     }
   }
@@ -386,15 +460,15 @@ void JemTester::setupHitsMap(const JetHitsCollection* hitCollection)
 
 // Set up energy sums map
 
-void JemTester::setupEtMap(const EnergySumsCollection* etCollection)
+void JemTester::setupEtMap(const EnergySumsCollection* const etCollection)
 {
   m_etMap.clear();
   if (etCollection) {
     EnergySumsCollection::const_iterator pos  = etCollection->begin();
     EnergySumsCollection::const_iterator pose = etCollection->end();
     for (; pos != pose; ++pos) {
-      LVL1::JEMEtSums* sums = *pos;
-      int key = m_modules * sums->crate() + sums->module();
+      const LVL1::JEMEtSums* const sums = *pos;
+      const int key = m_modules * sums->crate() + sums->module();
       m_etMap.insert(std::make_pair(key, sums));
     }
   }
@@ -402,15 +476,15 @@ void JemTester::setupEtMap(const EnergySumsCollection* etCollection)
 
 // Set up CMM hits map
 
-void JemTester::setupCmmHitsMap(const CmmJetCollection* hitCollection)
+void JemTester::setupCmmHitsMap(const CmmJetCollection* const hitCollection)
 {
   m_cmmHitsMap.clear();
   if (hitCollection) {
     CmmJetCollection::const_iterator pos  = hitCollection->begin();
     CmmJetCollection::const_iterator pose = hitCollection->end();
     for (; pos != pose; ++pos) {
-      LVL1::CMMJetHits* hits = *pos;
-      int key = hits->crate()*100 + hits->dataID();
+      const LVL1::CMMJetHits* const hits = *pos;
+      const int key = hits->crate()*100 + hits->dataID();
       m_cmmHitsMap.insert(std::make_pair(key, hits));
     }
   }
@@ -418,16 +492,32 @@ void JemTester::setupCmmHitsMap(const CmmJetCollection* hitCollection)
 
 // Set up CMM energy sums map
 
-void JemTester::setupCmmEtMap(const CmmEnergyCollection* etCollection)
+void JemTester::setupCmmEtMap(const CmmEnergyCollection* const etCollection)
 {
   m_cmmEtMap.clear();
   if (etCollection) {
     CmmEnergyCollection::const_iterator pos  = etCollection->begin();
     CmmEnergyCollection::const_iterator pose = etCollection->end();
     for (; pos != pose; ++pos) {
-      LVL1::CMMEtSums* sums = *pos;
-      int key = sums->crate()*100 + sums->dataID();
+      const LVL1::CMMEtSums* const sums = *pos;
+      const int key = sums->crate()*100 + sums->dataID();
       m_cmmEtMap.insert(std::make_pair(key, sums));
+    }
+  }
+}
+
+// Set up JEM RoI map
+
+void JemTester::setupJemRoiMap(const JemRoiCollection* const jrCollection)
+{
+  m_roiMap.clear();
+  if (jrCollection) {
+    JemRoiCollection::const_iterator pos  = jrCollection->begin();
+    JemRoiCollection::const_iterator pose = jrCollection->end();
+    for (; pos != pose; ++pos) {
+      const LVL1::JEMRoI* const roi = *pos;
+      const uint32_t key = roi->roiWord();
+      m_roiMap.insert(std::make_pair(key, roi));
     }
   }
 }

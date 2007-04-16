@@ -60,8 +60,10 @@ void PpmSubBlock::clear()
 
 // Store PPM header
 
-void PpmSubBlock::setPpmHeader(int version, int format, int seqno, int crate,
-                               int module, int slicesFadc, int slicesLut)
+void PpmSubBlock::setPpmHeader(const int version, const int format,
+                               const int seqno, const int crate,
+                               const int module, const int slicesFadc,
+			       const int slicesLut)
 {
   setHeader(s_wordIdVal, version, format, seqno, crate, module,
                                                  slicesFadc, slicesLut);
@@ -69,8 +71,9 @@ void PpmSubBlock::setPpmHeader(int version, int format, int seqno, int crate,
 
 // Store PPM error block header
 
-void PpmSubBlock::setPpmErrorHeader(int version, int format, int crate,
-                                    int module, int slicesFadc, int slicesLut)
+void PpmSubBlock::setPpmErrorHeader(const int version, const int format,
+                                    const int crate, const int module,
+				    const int slicesFadc, const int slicesLut)
 {
   setHeader(s_wordIdVal, version, format, s_errorMarker, crate, module,
                                                  slicesFadc, slicesLut);
@@ -98,15 +101,15 @@ int PpmSubBlock::slicesLut() const
 
 // Store PPM data for later packing
 
-void PpmSubBlock::fillPpmData(int chan, const std::vector<int>& lut,
-                                        const std::vector<int>& fadc,
-				        const std::vector<int>& bcidLut,
-				        const std::vector<int>& bcidFadc)
+void PpmSubBlock::fillPpmData(const int chan, const std::vector<int>& lut,
+                                              const std::vector<int>& fadc,
+				              const std::vector<int>& bcidLut,
+				              const std::vector<int>& bcidFadc)
 {
-  int sliceL = slicesLut();
-  int sliceF = slicesFadc();
-  int slices = sliceL + sliceF;
-  int chanPerSubBlock = channelsPerSubBlock();
+  const int sliceL = slicesLut();
+  const int sliceF = slicesFadc();
+  const int slices = sliceL + sliceF;
+  const int chanPerSubBlock = channelsPerSubBlock();
   int dataSize = m_datamap.size();
   if (dataSize == 0) {
     dataSize = slices * chanPerSubBlock;
@@ -121,7 +124,8 @@ void PpmSubBlock::fillPpmData(int chan, const std::vector<int>& lut,
     }
     offset += sliceL;
     for (int pos = 0; pos < sliceF; ++pos) {
-      uint32_t datum = (fadc[pos] & s_fadcMask) << s_fadcBit;
+      const int adc = (fadc[pos] > 0) ? fadc[pos] : 0;
+      uint32_t datum = (adc & s_fadcMask) << s_fadcBit;
       datum |= (bcidFadc[pos] & s_bcidFadcMask) << s_bcidFadcBit;
       m_datamap[offset + pos] = datum;
     }
@@ -130,29 +134,29 @@ void PpmSubBlock::fillPpmData(int chan, const std::vector<int>& lut,
 
 // Return unpacked data for given channel
 
-void PpmSubBlock::ppmData(int chan, std::vector<int>& lut,
-                                    std::vector<int>& fadc,
-				    std::vector<int>& bcidLut,
-				    std::vector<int>& bcidFadc) const
+void PpmSubBlock::ppmData(const int chan, std::vector<int>& lut,
+                                          std::vector<int>& fadc,
+				          std::vector<int>& bcidLut,
+				          std::vector<int>& bcidFadc) const
 {
   lut.clear();
   fadc.clear();
   bcidLut.clear();
   bcidFadc.clear();
-  int sliceL = slicesLut();
-  int sliceF = slicesFadc();
+  const int sliceL = slicesLut();
+  const int sliceF = slicesFadc();
   int beg = (chan % channelsPerSubBlock()) * (sliceL + sliceF);
   int end = beg + sliceL;
   if (size_t(end + sliceF) <= m_datamap.size()) {
     for (int pos = beg; pos < end; ++pos) {
-      uint32_t word = m_datamap[pos];
+      const uint32_t word = m_datamap[pos];
       lut.push_back((word >> s_lutBit) & s_lutMask);
       bcidLut.push_back((word >> s_bcidLutBit) & s_bcidLutMask);
     }
     beg += sliceL;
     end += sliceF;
     for (int pos = beg; pos < end; ++pos) {
-      uint32_t word = m_datamap[pos];
+      const uint32_t word = m_datamap[pos];
       fadc.push_back((word >> s_fadcBit) & s_fadcMask);
       bcidFadc.push_back((word >> s_bcidFadcBit) & s_bcidFadcMask);
     }
@@ -166,18 +170,18 @@ void PpmSubBlock::ppmData(int chan, std::vector<int>& lut,
 
 // Store an error word corresponding to a data channel
 
-void PpmSubBlock::fillPpmError(int chan, int errorWord)
+void PpmSubBlock::fillPpmError(const int chan, const int errorWord)
 {
   if (m_errormap.empty()) m_errormap.resize(s_glinkPins);
   // Expand one ASIC channel disabled bit to four
-  uint32_t chanDisabled = (errorWord & 0x1) << asic(chan);
+  const uint32_t chanDisabled = (errorWord & 0x1) << asic(chan);
   m_errormap[pin(chan)] |= (((errorWord >> 1) << s_asicChannels)
                                               | chanDisabled) & s_errorMask;
 }
 
 // Store an error word corresponding to a G-Link pin
 
-void PpmSubBlock::fillPpmPinError(int pin, int errorWord)
+void PpmSubBlock::fillPpmPinError(const int pin, const int errorWord)
 {
   if (m_errormap.empty()) m_errormap.resize(s_glinkPins);
   m_errormap[pin] = errorWord & s_errorMask;
@@ -185,7 +189,7 @@ void PpmSubBlock::fillPpmPinError(int pin, int errorWord)
 
 // Return the error word for a data channel
 
-int PpmSubBlock::ppmError(int chan) const
+int PpmSubBlock::ppmError(const int chan) const
 {
   int err = 0;
   if ( !m_errormap.empty()) {
@@ -199,7 +203,7 @@ int PpmSubBlock::ppmError(int chan) const
 
 // Return the error word for a G-Link pin
 
-int PpmSubBlock::ppmPinError(int pin) const
+int PpmSubBlock::ppmPinError(const int pin) const
 {
   int err = 0;
   if ( !m_errormap.empty()) err = m_errormap[pin] & s_errorMask;
@@ -208,7 +212,7 @@ int PpmSubBlock::ppmPinError(int pin) const
 
 // Return global error bit
 
-bool PpmSubBlock::errorBit(int bit) const
+bool PpmSubBlock::errorBit(const int bit) const
 {
   if ( ! m_globalDone) {
     std::vector<uint32_t>::const_iterator pos;
@@ -314,8 +318,8 @@ bool PpmSubBlock::unpack()
 
 bool PpmSubBlock::packNeutral()
 {
-  int slices   = slicesLut() + slicesFadc();
-  int channels = channelsPerSubBlock();
+  const int slices   = slicesLut() + slicesFadc();
+  const int channels = channelsPerSubBlock();
   if (m_datamap.empty()) m_datamap.resize(slices * channels);
   // Bunch crossing number
   for (int pin = 0; pin < s_glinkPins; ++pin) {
@@ -355,8 +359,8 @@ bool PpmSubBlock::packSuperCompressed()
 
 bool PpmSubBlock::packUncompressedData()
 {
-  int slices   = slicesLut() + slicesFadc();
-  int channels = channelsPerSubBlock();
+  const int slices   = slicesLut() + slicesFadc();
+  const int channels = channelsPerSubBlock();
   if (m_datamap.empty()) m_datamap.resize(slices * channels);
   for (int sl = 0; sl < slices; ++sl) {
     for (int chan = 0; chan < channels; ++chan) {
@@ -383,12 +387,12 @@ bool PpmSubBlock::packUncompressedErrors()
 
 bool PpmSubBlock::unpackNeutral()
 {
-  int slices = slicesLut() + slicesFadc();
+  const int slices = slicesLut() + slicesFadc();
   m_datamap.clear();
   // Bunch Crossing number
   int bunchCrossing = 0;
   for (int pin = 0; pin < s_glinkPins; ++pin) {
-    int bc = unpackerNeutral(pin, 1);
+    const int bc = unpackerNeutral(pin, 1);
     if (pin < s_bunchCrossingBits) bunchCrossing |= bc << pin;
   }
   setBunchCrossing(bunchCrossing);
@@ -400,7 +404,7 @@ bool PpmSubBlock::unpackNeutral()
       }
     }
   }
-  bool rc = unpackerSuccess();
+  const bool rc = unpackerSuccess();
   // Errors
   m_errormap.clear();
   for (int pin = 0; pin < s_glinkPins; ++pin) {
@@ -422,8 +426,8 @@ bool PpmSubBlock::unpackSuperCompressed()
 
 bool PpmSubBlock::unpackUncompressedData()
 {
-  int slices = slicesLut() + slicesFadc();
-  int channels = channelsPerSubBlock();
+  const int slices = slicesLut() + slicesFadc();
+  const int channels = channelsPerSubBlock();
   m_datamap.resize(slices * channels);
   unpackerInit();
   for (int sl = 0; sl < slices; ++sl) {
@@ -448,7 +452,7 @@ bool PpmSubBlock::unpackUncompressedErrors()
 
 // Return the number of channels per sub-block
 
-int PpmSubBlock::channelsPerSubBlock(int version, int format)
+int PpmSubBlock::channelsPerSubBlock(const int version, const int format)
 {
   int chan = 0;
   switch (version) {
@@ -479,7 +483,7 @@ int PpmSubBlock::channelsPerSubBlock() const
 
 // Check if a header word is for an error block
 
-bool PpmSubBlock::errorBlock(uint32_t word)
+bool PpmSubBlock::errorBlock(const uint32_t word)
 {
   bool rc = false;
   if (format(word) == UNCOMPRESSED && 

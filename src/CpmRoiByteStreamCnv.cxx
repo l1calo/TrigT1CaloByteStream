@@ -12,6 +12,8 @@
 
 #include "CLIDSvc/tools/ClassID_traits.h"
 
+#include "DataModel/DataVector.h"
+
 #include "GaudiKernel/DataObject.h"
 #include "GaudiKernel/IOpaqueAddress.h"
 #include "GaudiKernel/IRegistry.h"
@@ -22,40 +24,39 @@
 
 #include "SGTools/StorableConversions.h"
 
-#include "TrigT1CaloByteStream/CpByteStreamTool.h"
+#include "TrigT1Calo/CPMRoI.h"
 
-template <typename Container>
-CpReadByteStreamCnv<Container>::CpReadByteStreamCnv( ISvcLocator* svcloc )
+#include "TrigT1CaloByteStream/CpmRoiByteStreamCnv.h"
+#include "TrigT1CaloByteStream/CpmRoiByteStreamTool.h"
+
+CpmRoiByteStreamCnv::CpmRoiByteStreamCnv( ISvcLocator* svcloc )
     : Converter( ByteStream_StorageType, classID(), svcloc )
 {
 }
 
-template <typename Container>
-CpReadByteStreamCnv<Container>::~CpReadByteStreamCnv()
+CpmRoiByteStreamCnv::~CpmRoiByteStreamCnv()
 {
 }
 
 // CLID
 
-template <typename Container>
-const CLID& CpReadByteStreamCnv<Container>::classID()
+const CLID& CpmRoiByteStreamCnv::classID()
 {
-  return ClassID_traits<Container>::ID();
+  return ClassID_traits<DataVector<LVL1::CPMRoI> >::ID();
 }
 
 //  Init method gets all necessary services etc.
 
-template <typename Container>
-StatusCode CpReadByteStreamCnv<Container>::initialize()
+StatusCode CpmRoiByteStreamCnv::initialize()
 {
   StatusCode sc = Converter::initialize();
   if ( sc.isFailure() )
     return sc;
 
-  MsgStream log( msgSvc(), "CpReadByteStreamCnv" );
-  log << MSG::DEBUG << " CpReadByteStreamCnv in initialize() " << endreq;
+  MsgStream log( msgSvc(), "CpmRoiByteStreamCnv" );
+  log << MSG::DEBUG << " CpmRoiByteStreamCnv in initialize() " << endreq;
 
-  // Get ByteStreamCnvSvc
+  //Get ByteStreamCnvSvc
   sc = service( "ByteStreamCnvSvc", m_ByteStreamEventAccess );
   if ( sc.isFailure() ) {
     log << MSG::ERROR << " Can't get ByteStreamEventAccess interface "
@@ -72,7 +73,7 @@ StatusCode CpReadByteStreamCnv<Container>::initialize()
   }
 
   // make it a private tool by giving the ByteStreamCnvSvc as parent
-  const std::string toolType = "CpByteStreamTool" ;
+  const std::string toolType = "CpmRoiByteStreamTool" ;
   sc = toolSvc->retrieveTool( toolType, m_tool, m_ByteStreamEventAccess);
   if ( sc.isFailure() ) {
     log << MSG::ERROR << " Can't get ByteStreamTool of type "
@@ -85,7 +86,9 @@ StatusCode CpReadByteStreamCnv<Container>::initialize()
   sc = serviceLocator() ->getService( "ROBDataProviderSvc", robSvc );
   if ( sc.isFailure() ) {
     log << MSG::WARNING << " Cant get ROBDataProviderSvc" << endreq;
-    return sc ;
+
+    // return is disabled for Write BS which does not require ROBDataProviderSvc
+    // return sc ;
   } else {
     m_robDataProvider = dynamic_cast<IROBDataProviderSvc *> ( robSvc );
     if ( m_robDataProvider == 0 ) {
@@ -99,12 +102,11 @@ StatusCode CpReadByteStreamCnv<Container>::initialize()
 
 // createObj should create the RDO from bytestream.
 
-template <typename Container>
-StatusCode CpReadByteStreamCnv<Container>::createObj( IOpaqueAddress* pAddr,
-                                                       DataObject*& pObj )
+StatusCode CpmRoiByteStreamCnv::createObj( IOpaqueAddress* pAddr,
+                                        DataObject*& pObj )
 {
-  MsgStream log( msgSvc(), "CpReadByteStreamCnv" );
-  const bool debug = msgSvc()->outputLevel("CpReadByteStreamCnv") <= MSG::DEBUG;
+  MsgStream log( msgSvc(), "CpmRoiByteStreamCnv" );
+  const bool debug = msgSvc()->outputLevel("CpmRoiByteStreamCnv") <= MSG::DEBUG;
 
   if (debug) log << MSG::DEBUG << "createObj() called" << endreq;
 
@@ -128,25 +130,53 @@ StatusCode CpReadByteStreamCnv<Container>::createObj( IOpaqueAddress* pAddr,
   m_robDataProvider->getROBData( vID, robFrags );
 
   // size check
-  Container* const collection = new Container;
+  DataVector<LVL1::CPMRoI>* const roiCollection = new DataVector<LVL1::CPMRoI>;
   if (robFrags.size() == 0) {
     log << MSG::ERROR << " Number of ROB fragments is " << robFrags.size()
         << endreq;
-    pObj = SG::asStorable(collection) ;
+    pObj = SG::asStorable(roiCollection) ;
     return StatusCode::SUCCESS;
   } else if (debug) {
     log << MSG::DEBUG << " Number of ROB fragments is " << robFrags.size()
         << endreq;
   }
 
-  StatusCode sc = m_tool->convert(robFrags, collection);
+  StatusCode sc = m_tool->convert(robFrags, roiCollection);
   if ( sc.isFailure() ) {
     log << MSG::ERROR << " Failed to create Objects   " << nm << endreq;
-    delete collection;
+    delete roiCollection;
     return sc;
   }
 
-  pObj = SG::asStorable(collection);
+  pObj = SG::asStorable(roiCollection);
 
   return sc;
+}
+
+// createRep should create the bytestream from RDOs.
+
+StatusCode CpmRoiByteStreamCnv::createRep( DataObject* pObj,
+                                        IOpaqueAddress*& pAddr )
+{
+  MsgStream log( msgSvc(), "CpmRoiByteStreamCnv" );
+  bool debug = msgSvc()->outputLevel("CpmRoiByteStreamCnv") <= MSG::DEBUG;
+
+  if (debug) log << MSG::DEBUG << "createRep() called" << endreq;
+
+  RawEventWrite* re = m_ByteStreamEventAccess->getRawEvent();
+
+  const DataVector<LVL1::CPMRoI>* roiCollection;
+  if( !SG::fromStorable( pObj, roiCollection ) ) {
+    log << MSG::ERROR << " Cannot cast to DataVector<CPMRoI>" << endreq;
+    return StatusCode::FAILURE;
+  }
+
+  const std::string nm = pObj->registry()->name();
+
+  ByteStreamAddress* addr = new ByteStreamAddress( classID(), nm, "" );
+
+  pAddr = addr;
+
+  // Convert to ByteStream
+  return m_tool->convert( roiCollection, re );
 }

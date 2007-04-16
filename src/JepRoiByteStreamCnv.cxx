@@ -24,37 +24,37 @@
 
 #include "SGTools/StorableConversions.h"
 
-#include "TrigT1Calo/JEPBSCollection.h"
+#include "TrigT1Calo/JEPRoIBSCollection.h"
 
-#include "TrigT1CaloByteStream/JepByteStreamCnv.h"
-#include "TrigT1CaloByteStream/JepByteStreamTool.h"
+#include "TrigT1CaloByteStream/JepRoiByteStreamCnv.h"
+#include "TrigT1CaloByteStream/JepRoiByteStreamTool.h"
 
-JepByteStreamCnv::JepByteStreamCnv( ISvcLocator* svcloc )
+JepRoiByteStreamCnv::JepRoiByteStreamCnv( ISvcLocator* svcloc )
     : Converter( ByteStream_StorageType, classID(), svcloc )
 {
 }
 
-JepByteStreamCnv::~JepByteStreamCnv()
+JepRoiByteStreamCnv::~JepRoiByteStreamCnv()
 {
 }
 
 // CLID
 
-const CLID& JepByteStreamCnv::classID()
+const CLID& JepRoiByteStreamCnv::classID()
 {
-  return ClassID_traits<LVL1::JEPBSCollection>::ID();
+  return ClassID_traits<LVL1::JEPRoIBSCollection>::ID();
 }
 
 //  Init method gets all necessary services etc.
 
-StatusCode JepByteStreamCnv::initialize()
+StatusCode JepRoiByteStreamCnv::initialize()
 {
   StatusCode sc = Converter::initialize();
   if ( sc.isFailure() )
     return sc;
 
-  MsgStream log( msgSvc(), "JepByteStreamCnv" );
-  log << MSG::DEBUG << " JepByteStreamCnv in initialize() " << endreq;
+  MsgStream log( msgSvc(), "JepRoiByteStreamCnv" );
+  log << MSG::DEBUG << " JepRoiByteStreamCnv in initialize() " << endreq;
 
   //Get ByteStreamCnvSvc
   sc = service( "ByteStreamCnvSvc", m_ByteStreamEventAccess );
@@ -73,7 +73,7 @@ StatusCode JepByteStreamCnv::initialize()
   }
 
   // make it a private tool by giving the ByteStreamCnvSvc as parent
-  const std::string toolType = "JepByteStreamTool" ;
+  const std::string toolType = "JepRoiByteStreamTool" ;
   sc = toolSvc->retrieveTool( toolType, m_tool, m_ByteStreamEventAccess);
   if ( sc.isFailure() ) {
     log << MSG::ERROR << " Can't get ByteStreamTool of type "
@@ -86,19 +86,19 @@ StatusCode JepByteStreamCnv::initialize()
 
 // createRep should create the bytestream from RDOs.
 
-StatusCode JepByteStreamCnv::createRep( DataObject* pObj,
+StatusCode JepRoiByteStreamCnv::createRep( DataObject* pObj,
                                         IOpaqueAddress*& pAddr )
 {
-  MsgStream log( msgSvc(), "JepByteStreamCnv" );
-  const bool debug = msgSvc()->outputLevel("JepByteStreamCnv") <= MSG::DEBUG;
+  MsgStream log( msgSvc(), "JepRoiByteStreamCnv" );
+  const bool debug = msgSvc()->outputLevel("JepRoiByteStreamCnv") <= MSG::DEBUG;
 
   if (debug) log << MSG::DEBUG << "createRep() called" << endreq;
 
   RawEventWrite* re = m_ByteStreamEventAccess->getRawEvent();
 
-  const LVL1::JEPBSCollection* jep;
+  const LVL1::JEPRoIBSCollection* jep;
   if( !SG::fromStorable( pObj, jep ) ) {
-    log << MSG::ERROR << " Cannot cast to JEPBSCollection" << endreq;
+    log << MSG::ERROR << " Cannot cast to JEPRoIBSCollection" << endreq;
     return StatusCode::FAILURE;
   }
 

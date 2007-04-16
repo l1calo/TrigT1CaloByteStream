@@ -24,8 +24,10 @@ CmmSubBlock::~CmmSubBlock()
 
 // Store CMM header
 
-void CmmSubBlock::setCmmHeader(int version, int format, int slice, int crate,
-                     int summing, int firmware, int position, int timeslices)
+void CmmSubBlock::setCmmHeader(const int version, const int format,
+                               const int slice, const int crate,
+                               const int summing, const int firmware,
+			       const int position, const int timeslices)
 {
   int module = 0;
   module |= (summing  & s_cmmSummingMask)  << s_cmmSummingBit;
@@ -48,11 +50,11 @@ int CmmSubBlock::timeslices() const
 
 // Static function to determine CMM type
 
-CmmSubBlock::CmmFirmwareCode CmmSubBlock::cmmType(uint32_t word)
+CmmSubBlock::CmmFirmwareCode CmmSubBlock::cmmType(const uint32_t word)
 {
   CmmFirmwareCode type;
-  int module = L1CaloSubBlock::module(word);
-  int code   = (module >> s_cmmFirmwareBit) & s_cmmFirmwareMask;
+  const int module = L1CaloSubBlock::module(word);
+  const int code   = (module >> s_cmmFirmwareBit) & s_cmmFirmwareMask;
   switch (code) {
     case CMM_CP:
       type = CMM_CP;
@@ -72,7 +74,7 @@ CmmSubBlock::CmmFirmwareCode CmmSubBlock::cmmType(uint32_t word)
 
 // Static function to determine if header word corresponds to CMM block
 
-bool CmmSubBlock::cmmBlock(uint32_t word)
+bool CmmSubBlock::cmmBlock(const uint32_t word)
 {
   return L1CaloSubBlock::wordId(word) == s_wordIdVal;
 }

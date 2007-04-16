@@ -105,15 +105,6 @@ class JepByteStreamTool : public AlgTool {
    StatusCode decodeJem(JemSubBlock& subBlock, int trigJem,
                                                CollectionType collection);
 
-   /// Print jet element data values
-   void printJeData(int channel, const ChannelCoordinate& coord,
-        const std::vector<int>& emData,   const std::vector<int>& hadData,
-	const std::vector<int>& emParity, const std::vector<int>& hadParity,
-	const std::vector<int>& linkError, MsgStream& log, MSG::Level level);
-   /// Print vector values
-   void printVec(const std::vector<int>& vec, MsgStream& log,
-                                              MSG::Level level);
-
    /// Find a jet element given eta, phi
    LVL1::JetElement* findJetElement(double eta, double phi);
    /// Find jet hits for given crate, module

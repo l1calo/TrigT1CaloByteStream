@@ -90,13 +90,13 @@ StatusCode CpByteStreamCnv::createRep( DataObject* pObj,
                                         IOpaqueAddress*& pAddr )
 {
   MsgStream log( msgSvc(), "CpByteStreamCnv" );
-  bool debug = msgSvc()->outputLevel("CpByteStreamCnv") <= MSG::DEBUG;
+  const bool debug = msgSvc()->outputLevel("CpByteStreamCnv") <= MSG::DEBUG;
 
   if (debug) log << MSG::DEBUG << "createRep() called" << endreq;
 
   RawEventWrite* re = m_ByteStreamEventAccess->getRawEvent();
 
-  LVL1::CPBSCollection* cp;
+  const LVL1::CPBSCollection* cp;
   if( !SG::fromStorable( pObj, cp ) ) {
     log << MSG::ERROR << " Cannot cast to CPBSCollection" << endreq;
     return StatusCode::FAILURE;

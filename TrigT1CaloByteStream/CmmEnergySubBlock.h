@@ -33,9 +33,9 @@ class CmmEnergySubBlock : public CmmSubBlock {
            unsigned int  et(int slice, int source) const;
    /// Return Ex subsum error for given JEM or source ID
            int  exError(int slice, int source) const;
-   /// Return Ex subsum error for given JEM or source ID
+   /// Return Ey subsum error for given JEM or source ID
            int  eyError(int slice, int source) const;
-   /// Return Ex subsum error for given JEM or source ID
+   /// Return Et subsum error for given JEM or source ID
            int  etError(int slice, int source) const;
    /// Return Missing-ET Hits map
            unsigned int  missingEtHits(int slice) const;
@@ -87,7 +87,7 @@ class CmmEnergySubBlock : public CmmSubBlock {
    static const int      s_bunchCrossingBits = 12;
    static const int      s_paddingBits       = 8;
 
-   int  sourceId(uint32_t word)   const;
+   int  sourceId(uint32_t word)      const;
    int  index(int slice, int source) const;
    void resize();
 
@@ -105,7 +105,7 @@ class CmmEnergySubBlock : public CmmSubBlock {
 
 };
 
-inline int CmmEnergySubBlock::sourceId(uint32_t word) const
+inline int CmmEnergySubBlock::sourceId(const uint32_t word) const
 {
   return (word >> s_sourceIdBit) & s_sourceIdMask;
 }

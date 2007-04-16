@@ -117,12 +117,12 @@ class JemSubBlock : public L1CaloSubBlock {
 
 };
 
-inline int JemSubBlock::sourceId(uint32_t word) const
+inline int JemSubBlock::sourceId(const uint32_t word) const
 {
   return (word >> s_sourceIdBit) & s_sourceIdMask;
 }
 
-inline int JemSubBlock::dataId(uint32_t word) const
+inline int JemSubBlock::dataId(const uint32_t word) const
 {
   return (word >> s_dataIdBit) & s_dataIdMask;
 }

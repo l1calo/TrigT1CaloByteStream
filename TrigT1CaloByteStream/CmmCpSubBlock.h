@@ -60,7 +60,7 @@ class CmmCpSubBlock : public CmmSubBlock {
    static const int      s_bunchCrossingBits = 12;
    static const int      s_paddingBits       = 8;
 
-   int  sourceId(uint32_t word)   const;
+   int  sourceId(uint32_t word)      const;
    int  index(int slice, int source) const;
    void resize();
 
@@ -78,7 +78,7 @@ class CmmCpSubBlock : public CmmSubBlock {
 
 };
 
-inline int CmmCpSubBlock::sourceId(uint32_t word) const
+inline int CmmCpSubBlock::sourceId(const uint32_t word) const
 {
   return (word >> s_sourceIdBit) & s_sourceIdMask;
 }

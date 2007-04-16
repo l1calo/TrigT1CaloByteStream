@@ -56,16 +56,18 @@ void CpmSubBlock::clear()
 
 // Store CPM header
 
-void CpmSubBlock::setCpmHeader(int version, int format, int slice, int crate,
-                               int module, int timeslices)
+void CpmSubBlock::setCpmHeader(const int version, const int format,
+                               const int slice, const int crate,
+                               const int module, const int timeslices)
 {
   setHeader(s_wordIdVal, version, format, slice, crate, module, 0, timeslices);
 }
 
 // Store trigger tower data
 
-void CpmSubBlock::fillTowerData(int slice, int channel, int em, int had,
-                                                        int emErr, int hadErr)
+void CpmSubBlock::fillTowerData(const int slice, const int channel,
+                                const int em, const int had,
+                                const int emErr, const int hadErr)
 {
   if (channel < m_channels && (em || emErr || had || hadErr)) {
     resize(m_ttData, m_channels);
@@ -73,10 +75,10 @@ void CpmSubBlock::fillTowerData(int slice, int channel, int em, int had,
     int err = emErr;
     for (int pinOffset = 0; pinOffset < 2; ++pinOffset) {
       if (dat || err) {
-        int pin  = 2 * (channel/s_wordsPerPin) + pinOffset;
-        int pair = (channel % s_wordsPerPin) / 2;
-        int pos  = pin * s_pairsPerPin + pair;
-        int ix   = index(slice) * m_channels + pos;
+        const int pin  = 2 * (channel/s_wordsPerPin) + pinOffset;
+        const int pair = (channel % s_wordsPerPin) / 2;
+        const int pos  = pin * s_pairsPerPin + pair;
+        const int ix   = index(slice) * m_channels + pos;
         uint32_t word = m_ttData[ix];
         if (channel % 2 == 0) {
           word |= (dat & s_ttDataMask) << s_ttDataABit;
@@ -100,11 +102,12 @@ void CpmSubBlock::fillTowerData(int slice, int channel, int em, int had,
 
 // Store hit counts
 
-void CpmSubBlock::setHits(int slice, unsigned int hit0, unsigned int hit1)
+void CpmSubBlock::setHits(const int slice, const unsigned int hit0,
+                                           const unsigned int hit1)
 {
   if (hit0 || hit1) {
     resize(m_hitData, 2);
-    int ix = index(slice)*2;
+    const int ix = index(slice)*2;
     unsigned int hits = hit0;
     for (int indicator = 0; indicator < 2; ++indicator) {
       if (hits) {
@@ -120,42 +123,42 @@ void CpmSubBlock::setHits(int slice, unsigned int hit0, unsigned int hit1)
 
 // Return Em data for given channel
 
-int CpmSubBlock::emData(int slice, int channel) const
+int CpmSubBlock::emData(const int slice, const int channel) const
 {
   return data(slice, channel, 0);
 }
 
 // Return Had data for given channel
 
-int CpmSubBlock::hadData(int slice, int channel) const
+int CpmSubBlock::hadData(const int slice, const int channel) const
 {
   return data(slice, channel, 1);
 }
 
 // Return Em error for given channel
 
-int CpmSubBlock::emError(int slice, int channel) const
+int CpmSubBlock::emError(const int slice, const int channel) const
 {
   return error(slice, channel, 0);
 }
 
 // Return Had error for given channel
 
-int CpmSubBlock::hadError(int slice, int channel) const
+int CpmSubBlock::hadError(const int slice, const int channel) const
 {
   return error(slice, channel, 1);
 }
 
 // Return first hit counts word
 
-unsigned int CpmSubBlock::hits0(int slice) const
+unsigned int CpmSubBlock::hits0(const int slice) const
 {
   return hits(slice, 0);
 }
 
 // Return second hit counts word
 
-unsigned int CpmSubBlock::hits1(int slice) const
+unsigned int CpmSubBlock::hits1(const int slice) const
 {
   return hits(slice, 1);
 }
@@ -219,16 +222,17 @@ bool CpmSubBlock::unpack()
 
 // Return data for given channel and pin offset
 
-int CpmSubBlock::data(int slice, int channel, int offset) const
+int CpmSubBlock::data(const int slice, const int channel,
+                                       const int offset) const
 {
   int dat = 0;
   if (slice >= 0 && slice < timeslices() &&
       channel >= 0 && channel < m_channels && !m_ttData.empty()) {
-    int pin  = 2 * (channel/s_wordsPerPin) + offset;
-    int pair = (channel % s_wordsPerPin) / 2;
-    int pos  = pin * s_pairsPerPin + pair;
-    int ix   = index(slice) * m_channels + pos;
-    uint32_t word = m_ttData[ix];
+    const int pin  = 2 * (channel/s_wordsPerPin) + offset;
+    const int pair = (channel % s_wordsPerPin) / 2;
+    const int pos  = pin * s_pairsPerPin + pair;
+    const int ix   = index(slice) * m_channels + pos;
+    const uint32_t word = m_ttData[ix];
     if (channel % 2 == 0) {
            dat = (word >> s_ttDataABit) & s_ttDataMask;
     } else dat = (word >> s_ttDataBBit) & s_ttDataMask;
@@ -238,16 +242,17 @@ int CpmSubBlock::data(int slice, int channel, int offset) const
 
 // Return error for given channel and pin offset
 
-int CpmSubBlock::error(int slice, int channel, int offset) const
+int CpmSubBlock::error(const int slice, const int channel,
+                                        const int offset) const
 {
   int err = 0;
   if (slice >= 0 && slice < timeslices() &&
       channel >= 0 && channel < m_channels && !m_ttData.empty()) {
-    int pin  = 2 * (channel/s_wordsPerPin) + offset;
-    int pair = (channel % s_wordsPerPin) / 2;
-    int pos  = pin * s_pairsPerPin + pair;
-    int ix   = index(slice) * m_channels + pos;
-    uint32_t word = m_ttData[ix];
+    const int pin  = 2 * (channel/s_wordsPerPin) + offset;
+    const int pair = (channel % s_wordsPerPin) / 2;
+    const int pos  = pin * s_pairsPerPin + pair;
+    const int ix   = index(slice) * m_channels + pos;
+    const uint32_t word = m_ttData[ix];
     if (channel % 2 == 0) {
       err  =  (word >> s_parityABit)   & 0x1;
       err |= ((word >> s_linkDownABit) & 0x1) << 1;
@@ -261,7 +266,7 @@ int CpmSubBlock::error(int slice, int channel, int offset) const
 
 // Return hit counts with given offset
 
-unsigned int CpmSubBlock::hits(int slice, int offset) const
+unsigned int CpmSubBlock::hits(const int slice, const int offset) const
 {
   unsigned int hit = 0;
   if (slice >= 0 && slice < timeslices() && !m_hitData.empty()) {
@@ -272,11 +277,9 @@ unsigned int CpmSubBlock::hits(int slice, int offset) const
 
 // Return data index appropriate to format
 
-int CpmSubBlock::index(int slice) const
+int CpmSubBlock::index(const int slice) const
 {
-  int ix = 0;
-  if (format() == NEUTRAL) ix = slice;
-  return ix;
+  return (format() == NEUTRAL) ? slice : 0;
 }
 
 // Resize a data vector according to format
@@ -296,15 +299,15 @@ bool CpmSubBlock::packNeutral()
 {
   resize(m_ttData, m_channels);
   resize(m_hitData, 2);
-  int slices = timeslices();
+  const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
-    unsigned int hit0 = hits0(slice);
-    unsigned int hit1 = hits1(slice);
+    const unsigned int hit0 = hits0(slice);
+    const unsigned int hit1 = hits1(slice);
     for (int pin = 0; pin < s_glinkPins; ++pin) {
       // Trigger tower data
       for (int pair = 0; pair < s_pairsPerPin; ++pair) {
         for (int i = 0; i < 2; ++i) {
-          int channel = s_wordsPerPin*(pin/2) + 2*pair + i;
+          const int channel = s_wordsPerPin*(pin/2) + 2*pair + i;
 	  if ((pin & 0x1)) { // Odd pins Had, even Em
 	    packerNeutral(pin, hadData(slice,  channel), s_ttBits);
 	    packerNeutral(pin, hadError(slice, channel), s_errBits);
@@ -354,7 +357,7 @@ bool CpmSubBlock::unpackNeutral()
 {
   resize(m_ttData, m_channels);
   resize(m_hitData, 2);
-  int slices = timeslices();
+  const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
     unsigned int hit0 = 0;
     unsigned int hit1 = 0;
@@ -363,7 +366,7 @@ bool CpmSubBlock::unpackNeutral()
       // Trigger tower data
       for (int pair = 0; pair < s_pairsPerPin; ++pair) {
 	for (int i = 0; i < 2; ++i) {
-          int channel = s_wordsPerPin*(pin/2) + 2*pair + i;
+          const int channel = s_wordsPerPin*(pin/2) + 2*pair + i;
 	  int em     = 0;
 	  int had    = 0;
 	  int emErr  = 0;
@@ -409,15 +412,15 @@ bool CpmSubBlock::unpackUncompressed()
   unpackerInit();
   uint32_t word = unpacker(s_wordLength);
   while (unpackerSuccess()) {
-    int id = dataId(word);
+    const int id = dataId(word);
     // Trigger tower data
     if (id == s_ttWordId) {
-      int ix = (word >> s_pairBit) & s_pairPinMask;
+      const int ix = (word >> s_pairBit) & s_pairPinMask;
       if (ix < m_channels) m_ttData[ix] = word;
       else return false;
     // Hits
     } else if (id == s_threshWordId) {
-      int indicator = (word >> s_indicatorBit) & 0x1;
+      const int indicator = (word >> s_indicatorBit) & 0x1;
       m_hitData[indicator] = word;
     } else return false;
     word = unpacker(s_wordLength);

@@ -29,8 +29,8 @@ void PpmCrateMappings::init()
   // Inputs are numbered 1-16 (x4) and outputs 0-63
   // There are four output sets obtained by adding 0,4,8,12 to out
 
-  //    input =    1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16
-  int out[16] = { 19,51,35, 3,18,50,34, 2,17,49,33, 1,16,48,32, 0 };
+  //          input =    1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16
+  const int out[16] = { 19,51,35, 3,18,50,34, 2,17,49,33, 1,16,48,32, 0 };
 
   // Mapping types.
   //
@@ -48,7 +48,7 @@ void PpmCrateMappings::init()
   //   +----+----+----+----+
   //            0.4
 
-  int in1[16] = { 16,15,12,11,13,14, 9,10, 4, 3, 8, 7, 1, 2, 5, 6 };
+  const int in1[16] = { 16,15,12,11,13,14, 9,10, 4, 3, 8, 7, 1, 2, 5, 6 };
 
   // Type 2.
   // Eta 2.4 to 2.9.  4x1 plus 2x2 block
@@ -64,8 +64,8 @@ void PpmCrateMappings::init()
   //   +----+--------+--------+
   //              0.5
 
-  int in2a[4] = { 16,13, 4, 1 };
-  int in2b[4] = { 15,12, 3, 8 };
+  const int in2a[4] = { 16,13, 4, 1 };
+  const int in2b[4] = { 15,12, 3, 8 };
 
   // Type 3.
   // Eta -2.9 to -2.4.  2x2 plus 4x1 block
@@ -81,8 +81,8 @@ void PpmCrateMappings::init()
   //   +--------+--------+----+
   //              0.5
 
-  int in3a[4] = { 16,12, 4, 8 };
-  int in3b[4] = { 11,10, 7, 6 };
+  const int in3a[4] = { 16,12, 4, 8 };
+  const int in3b[4] = { 11,10, 7, 6 };
 
   // Type 4.
   // Eta 2.9 to 3.2 and -3.2 to -2.9.  4x1 plus 4x1
@@ -106,8 +106,8 @@ void PpmCrateMappings::init()
   //   +--------+----+   +----+--------+
   //         0.3               0.3
 
-  int in4a[4]  = { 16,12, 8, 4 };
-  int in4b[4]  = { 15,11, 7, 3 };
+  const int in4a[4]  = { 16,12, 8, 4 };
+  const int in4b[4]  = { 15,11, 7, 3 };
 
   // Type 5.
   // Eta 3.2 to 4.9 and -4.9 to -3.2 EM FCAL.  4x4
@@ -131,7 +131,7 @@ void PpmCrateMappings::init()
   //   +----+----+----+----+
   //            1.7
 
-  int in5[16]  = { 16,15,14,13,12,11,10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
+  const int in5[16]  = { 16,15,14,13,12,11,10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
 
   // Type 6.
   // Eta 3.2 to 4.9 and -4.9 to -3.2 Had FCAL2 and FCAL3.  4x2 plus 4x2
@@ -156,15 +156,15 @@ void PpmCrateMappings::init()
   //   +--------+--------+   +--------+--------+
   //           1.7                   1.7
 
-  int in6a[8]  = { 16,14,12,10, 8, 6, 4, 2 };
-  int in6b[8]  = { 15,13,11, 9, 7, 5, 3, 1 };
+  const int in6a[8]  = { 16,14,12,10, 8, 6, 4, 2 };
+  const int in6b[8]  = { 15,13,11, 9, 7, 5, 3, 1 };
   
   // Construct coordinate maps for each module type
   // Four blocks of each type make up the complete map
 
   for (int i = 0; i < 12; ++i) m_coordMaps.push_back(new CoordinateMap);
   for (int block = 0; block < 4; ++block) {
-    int incr = block * 4;
+    const int incr = block * 4;
     std::vector<CoordinateMap*>::iterator pos = m_coordMaps.begin();
 
     // Map 0 : Type 1 EM
@@ -315,16 +315,16 @@ void PpmCrateMappings::init()
 
 // Add entries to a coordinate map
 
-void PpmCrateMappings::addCoords(int nrows, int ncols,
-     double etaGran, double phiGran, double etaOffset, double phiOffset,
-     const int* in, const int* out, int incr,
-     ChannelCoordinate::CaloLayer layer, CoordinateMap* coordMap)
+void PpmCrateMappings::addCoords(const int nrows, const int ncols,
+     const double etaGran, const double phiGran, const double etaOffset,
+     const double phiOffset, const int* in, const int* out, const int incr,
+     const ChannelCoordinate::CaloLayer layer, CoordinateMap* coordMap)
 {
   for (int row = 0; row < nrows; ++row) {
-    double phi = (double(row) + 0.5) * phiGran + phiOffset;
+    const double phi = (double(row) + 0.5) * phiGran + phiOffset;
     for (int col = 0; col < ncols; ++col) {
-      double eta = (double(col) + 0.5) * etaGran + etaOffset;
-      int channel = out[in[row*ncols+col]-1] + incr;
+      const double eta = (double(col) + 0.5) * etaGran + etaOffset;
+      const int channel = out[in[row*ncols+col]-1] + incr;
       coordMap->insert(std::make_pair(channel, 
                        ChannelCoordinate(layer, eta, phi, etaGran, phiGran)));
     }
@@ -333,15 +333,16 @@ void PpmCrateMappings::addCoords(int nrows, int ncols,
 
 // Add a block of similar modules to a crate
 
-void PpmCrateMappings::addMods(int crate, int modOffset, int nrows, int ncols,
-     double etaBase, double phiBase, double etaRange, double phiRange,
+void PpmCrateMappings::addMods(const int crate, const int modOffset,
+     const int nrows, const int ncols, const double etaBase,
+     const double phiBase, const double etaRange, const double phiRange,
      const CoordinateMap* coordMap)
 {
   for (int row = 0; row < nrows; ++row) {
     for (int col = 0; col < ncols; ++col) {
-      int module = row*4 + col + modOffset;
-      double etaOffset = etaRange * double(col) + etaBase;
-      double phiOffset = phiRange * double(row) + phiBase;
+      const int module = row*4 + col + modOffset;
+      const double etaOffset = etaRange * double(col) + etaBase;
+      const double phiOffset = phiRange * double(row) + phiBase;
       Offsets off(etaOffset, phiOffset);
       ModuleInfo modInfo(off, coordMap);
       CrateMap::iterator cpos = m_crateInfo.find(crate);
@@ -359,8 +360,8 @@ void PpmCrateMappings::addMods(int crate, int modOffset, int nrows, int ncols,
  
 // Return eta, phi and layer mapping for given crate/module/channel
 
-bool PpmCrateMappings::mapping(int crate, int module, int channel,
-                                          ChannelCoordinate& coord) const
+bool PpmCrateMappings::mapping(const int crate, const int module,
+                       const int channel, ChannelCoordinate& coord) const
 {
   if (crate < 0 || crate >= s_crates || module < 0 || module >= s_modules ||
       channel < 0 || channel >= s_channels) return false;
@@ -374,8 +375,8 @@ bool PpmCrateMappings::mapping(int crate, int module, int channel,
     const ModuleMap& modMap(cpos->second);
     ModuleMap::const_iterator mpos = modMap.find(module);
     if (mpos == modMap.end()) return false;
-    ModuleInfo modInfo(mpos->second);
-    Offsets etaPhiOff = modInfo.first;
+    const ModuleInfo modInfo(mpos->second);
+    const Offsets etaPhiOff = modInfo.first;
     m_currentMap    = modInfo.second;
     m_etaOffset     = etaPhiOff.first;
     m_phiOffset     = etaPhiOff.second;

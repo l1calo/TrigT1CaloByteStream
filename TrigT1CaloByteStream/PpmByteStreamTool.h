@@ -62,34 +62,28 @@ class PpmByteStreamTool : public AlgTool {
  private:
    typedef DataVector<LVL1::TriggerTower>                TriggerTowerCollection;
    typedef std::map<unsigned int, LVL1::TriggerTower*>   TriggerTowerMap;
+   typedef std::map<unsigned int, const LVL1::TriggerTower*>
+                                                         TriggerTowerMapConst;
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
 
    /// Add compression stats to totals
    void addCompStats(const std::vector<uint32_t>& stats);
    /// Print compression stats
-   void printCompStats(MsgStream& log, MSG::Level level);
-
-   /// Print data values
-   void printData(int channel, const ChannelCoordinate& coord,
-        const std::vector<int>& lut, const std::vector<int>& fadc,
-	const std::vector<int>& bcidLut, const std::vector<int>& bcidFadc,
-	int error, MsgStream& log, MSG::Level level);
-   /// Print vector values
-   void printVec(const std::vector<int>& vec, MsgStream& log,
-                                              MSG::Level level);
+   void printCompStats(MsgStream& log, MSG::Level level) const;
 
    /// Hack for had FCAL eta which is adjusted to EM value in TriggerTower
-   double etaHack(const ChannelCoordinate& coord);
+   double etaHack(const ChannelCoordinate& coord) const;
 
    /// Find a trigger tower using separate layer maps
-   LVL1::TriggerTower* findLayerTriggerTower(const ChannelCoordinate& coord);
+   const LVL1::TriggerTower* findLayerTriggerTower(const ChannelCoordinate&
+                                                                       coord);
 
    /// Find a trigger tower given eta, phi
    LVL1::TriggerTower* findTriggerTower(double eta, double phi);
 
    /// Modify the number of trigger tower FADC slices
-   LVL1::TriggerTower* modFadcSlices(LVL1::TriggerTower* tt);
+   const LVL1::TriggerTower* modFadcSlices(const LVL1::TriggerTower* tt);
 
    /// Set up separate Em and Had trigger tower maps
    void setupTTMaps(const TriggerTowerCollection* ttCollection);
@@ -122,6 +116,8 @@ class PpmByteStreamTool : public AlgTool {
    int m_forceSlicesFadc;
    /// Pedestal value
    int m_pedestal;
+   /// Zero suppression on input
+   int m_zeroSuppress;
    /// Sub-detector type
    eformat::SubDetector m_subDetector;
    /// Source ID converter
@@ -141,9 +137,9 @@ class PpmByteStreamTool : public AlgTool {
    /// Trigger tower map for conversion from bytestream
    TriggerTowerMap m_ttMap;
    /// Trigger tower map for conversion EM to bytestream
-   TriggerTowerMap m_ttEmMap;
+   TriggerTowerMapConst m_ttEmMap;
    /// Trigger tower map for conversion Had to bytestream
-   TriggerTowerMap m_ttHadMap;
+   TriggerTowerMapConst m_ttHadMap;
    /// Event assembler
    FullEventAssembler<L1CaloSrcIdMap> m_fea;
 

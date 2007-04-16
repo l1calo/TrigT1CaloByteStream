@@ -104,7 +104,8 @@ StatusCode JepReadByteStreamCnv<Container>::createObj( IOpaqueAddress* pAddr,
                                                        DataObject*& pObj )
 {
   MsgStream log( msgSvc(), "JepReadByteStreamCnv" );
-  bool debug = msgSvc()->outputLevel("JepReadByteStreamCnv") <= MSG::DEBUG;
+  const bool debug =
+                  msgSvc()->outputLevel("JepReadByteStreamCnv") <= MSG::DEBUG;
 
   if (debug) log << MSG::DEBUG << "createObj() called" << endreq;
 
@@ -115,7 +116,7 @@ StatusCode JepReadByteStreamCnv<Container>::createObj( IOpaqueAddress* pAddr,
     return StatusCode::FAILURE;
   }
 
-  std::string nm = *( pBS_Addr->par() );
+  const std::string nm = *( pBS_Addr->par() );
 
   if (debug) log << MSG::DEBUG << " Creating Objects " << nm << endreq;
 
@@ -128,7 +129,7 @@ StatusCode JepReadByteStreamCnv<Container>::createObj( IOpaqueAddress* pAddr,
   m_robDataProvider->getROBData( vID, robFrags );
 
   // size check
-  Container* collection = new Container;
+  Container* const collection = new Container;
   if (robFrags.size() == 0) {
     log << MSG::ERROR << " Number of ROB fragments is " << robFrags.size()
         << endreq;

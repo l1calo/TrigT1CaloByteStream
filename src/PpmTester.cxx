@@ -15,6 +15,7 @@ PpmTester::PpmTester(const std::string& name, ISvcLocator* pSvcLocator)
 {
   declareProperty("TriggerTowerLocation",
          m_triggerTowerLocation = LVL1::TrigT1CaloDefs::TriggerTowerLocation);
+  declareProperty("ForceSlicesFADC", m_forceSlicesFadc = 0);
 }
 
 PpmTester::~PpmTester()
@@ -75,38 +76,65 @@ StatusCode PpmTester::finalize()
 
 // Print the trigger towers
 
-void PpmTester::printTriggerTowers(MsgStream& log, MSG::Level level)
+void PpmTester::printTriggerTowers(MsgStream& log,
+                                              const MSG::Level level) const
 {
   log << level << "Number of Trigger Towers = " << m_ttMap.size() << endreq;
   TriggerTowerMap::const_iterator mapIter = m_ttMap.begin();
   TriggerTowerMap::const_iterator mapEnd  = m_ttMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
-    LVL1::TriggerTower* tt = mapIter->second;
+    const LVL1::TriggerTower* const tt = mapIter->second;
+    int emADCPeak = tt->emADCPeak();
+    int hadADCPeak = tt->hadADCPeak();
+    const int emADCSlices = (tt->emADC()).size();
+    const int hadADCSlices = (tt->hadADC()).size();
+    if (m_forceSlicesFadc && m_forceSlicesFadc < emADCSlices) {
+      emADCPeak = m_forceSlicesFadc / 2;
+    }
+    if (m_forceSlicesFadc && m_forceSlicesFadc < hadADCSlices) {
+      hadADCPeak = m_forceSlicesFadc / 2;
+    }
     log << level
         << " EM:key/eta/phi/LUTpeak/FADCpeak/LUT/FADC/bcidLUT/bcidFADC/error: "
         << mapIter->first << "/" << tt->eta() << "/" << tt->phi() << "/"
-	<< tt->emPeak() << "/" << tt->emADCPeak() << "/";
+	<< tt->emPeak() << "/" << emADCPeak << "/";
     printVec(tt->emLUT(),     log, level);
-    printVec(tt->emADC(),     log, level);
+    printAdc(tt->emADC(),     log, level);
     printVec(tt->emBCIDvec(), log, level);
-    printVec(tt->emBCIDext(), log, level);
+    printAdc(tt->emBCIDext(), log, level);
     log << level << tt->emError() << "/" << endreq;
     log << level
         << "HAD:key/eta/phi/LUTpeak/FADCpeak/LUT/FADC/bcidLUT/bcidFADC/error: "
         << mapIter->first << "/" << tt->eta() << "/" << tt->phi() << "/"
-	<< tt->hadPeak() << "/" << tt->hadADCPeak() << "/";
+	<< tt->hadPeak() << "/" << hadADCPeak << "/";
     printVec(tt->hadLUT(),     log, level);
-    printVec(tt->hadADC(),     log, level);
+    printAdc(tt->hadADC(),     log, level);
     printVec(tt->hadBCIDvec(), log, level);
-    printVec(tt->hadBCIDext(), log, level);
+    printAdc(tt->hadBCIDext(), log, level);
     log << level << tt->hadError() << "/" << endreq;
   }
+}
+
+// Print FADC vector
+
+void PpmTester::printAdc(const std::vector<int>& vec, MsgStream& log,
+                                                const MSG::Level level) const
+{
+  const int slices = vec.size();
+  if (m_forceSlicesFadc && m_forceSlicesFadc < slices) {
+    const int offset = (slices - m_forceSlicesFadc) / 2;
+    std::vector<int> newVec;
+    for (int sl = 0; sl < m_forceSlicesFadc; ++sl) {
+      newVec.push_back(vec[sl + offset]);
+    }
+    printVec(newVec, log, level);
+  } else printVec(vec, log, level);
 }
 
 // Print a vector
 
 void PpmTester::printVec(const std::vector<int>& vec, MsgStream& log,
-                                                      MSG::Level level)
+                                                const MSG::Level level) const
 {
   std::vector<int>::const_iterator pos;
   for (pos = vec.begin(); pos != vec.end(); ++pos) {
@@ -118,14 +146,14 @@ void PpmTester::printVec(const std::vector<int>& vec, MsgStream& log,
 
 // Set up trigger tower map
 
-void PpmTester::setupTTMap(const TriggerTowerCollection* ttCollection)
+void PpmTester::setupTTMap(const TriggerTowerCollection* const ttCollection)
 {
   m_ttMap.clear();
   TriggerTowerCollection::const_iterator pos  = ttCollection->begin();
   TriggerTowerCollection::const_iterator pose = ttCollection->end();
   for (; pos != pose; ++pos) {
-    LVL1::TriggerTower* tt = *pos;
-    unsigned int key = m_towerKey->ttKey(tt->phi(), tt->eta());
+    const LVL1::TriggerTower* const tt = *pos;
+    const unsigned int key = m_towerKey->ttKey(tt->phi(), tt->eta());
     m_ttMap.insert(std::make_pair(key, tt));
   }
 }

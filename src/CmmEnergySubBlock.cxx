@@ -52,7 +52,7 @@ void CmmEnergySubBlock::clear()
 
 // Return Ex subsum for given JEM or source ID
 
-unsigned int CmmEnergySubBlock::ex(int slice, int source) const
+unsigned int CmmEnergySubBlock::ex(const int slice, const int source) const
 {
   unsigned int ex = 0;
   if (slice >= 0 && slice < timeslices() && !m_sumsData.empty()) {
@@ -67,7 +67,7 @@ unsigned int CmmEnergySubBlock::ex(int slice, int source) const
 
 // Return Ey subsum for given JEM or source ID
 
-unsigned int CmmEnergySubBlock::ey(int slice, int source) const
+unsigned int CmmEnergySubBlock::ey(const int slice, const int source) const
 {
   unsigned int ey = 0;
   if (slice >= 0 && slice < timeslices() && !m_sumsData.empty()) {
@@ -82,7 +82,7 @@ unsigned int CmmEnergySubBlock::ey(int slice, int source) const
 
 // Return Et subsum for given JEM or source ID
 
-unsigned int CmmEnergySubBlock::et(int slice, int source) const
+unsigned int CmmEnergySubBlock::et(const int slice, const int source) const
 {
   unsigned int et = 0;
   if (slice >= 0 && slice < timeslices() && !m_sumsData.empty()) {
@@ -97,7 +97,7 @@ unsigned int CmmEnergySubBlock::et(int slice, int source) const
 
 // Return Ex subsum error for given JEM or source ID
 
-int CmmEnergySubBlock::exError(int slice, int source) const
+int CmmEnergySubBlock::exError(const int slice, const int source) const
 {
   int error = 0;
   if (slice >= 0 && slice < timeslices() && !m_sumsData.empty()) {
@@ -115,7 +115,7 @@ int CmmEnergySubBlock::exError(int slice, int source) const
 
 // Return Ey subsum error for given JEM or source ID
 
-int CmmEnergySubBlock::eyError(int slice, int source) const
+int CmmEnergySubBlock::eyError(const int slice, const int source) const
 {
   int error = 0;
   if (slice >= 0 && slice < timeslices() && !m_sumsData.empty()) {
@@ -133,7 +133,7 @@ int CmmEnergySubBlock::eyError(int slice, int source) const
 
 // Return Et subsum error for given JEM or source ID
 
-int CmmEnergySubBlock::etError(int slice, int source) const
+int CmmEnergySubBlock::etError(const int slice, const int source) const
 {
   int error = 0;
   if (slice >= 0 && slice < timeslices() && !m_sumsData.empty()) {
@@ -151,7 +151,7 @@ int CmmEnergySubBlock::etError(int slice, int source) const
 
 // Return Missing-ET Hits map
 
-unsigned int CmmEnergySubBlock::missingEtHits(int slice) const
+unsigned int CmmEnergySubBlock::missingEtHits(const int slice) const
 {
   unsigned int map = 0;
   if (slice >= 0 && slice < timeslices() && !m_sumsData.empty()) {
@@ -162,7 +162,7 @@ unsigned int CmmEnergySubBlock::missingEtHits(int slice) const
 
 // Return Sum-ET Hits map
 
-unsigned int CmmEnergySubBlock::sumEtHits(int slice) const
+unsigned int CmmEnergySubBlock::sumEtHits(const int slice) const
 {
   unsigned int map = 0;
   if (slice >= 0 && slice < timeslices() && !m_sumsData.empty()) {
@@ -173,9 +173,10 @@ unsigned int CmmEnergySubBlock::sumEtHits(int slice) const
 
 // Store energy subsums and errors for given JEM or source ID
 
-void CmmEnergySubBlock::setSubsums(int slice, int source, unsigned int ex,
-                                   unsigned int ey, unsigned int et,
-				   int exError, int eyError, int etError)
+void CmmEnergySubBlock::setSubsums(const int slice, const int source,
+                                   const unsigned int ex, const unsigned int ey,
+				   const unsigned int et, const int exError,
+				   const int eyError, const int etError)
 {
   if (slice >= 0 && slice < timeslices() &&
       source >= 0 && source < s_maxSums  &&
@@ -220,11 +221,12 @@ void CmmEnergySubBlock::setSubsums(int slice, int source, unsigned int ex,
 
 // Store Missing-ET Hits map
 
-void CmmEnergySubBlock::setMissingEtHits(int slice, unsigned int map)
+void CmmEnergySubBlock::setMissingEtHits(const int slice,
+                                         const unsigned int map)
 {
   if (slice >= 0 && slice < timeslices() && map) {
     resize();
-    int source = TOTAL + 1;
+    const int source = TOTAL + 1;
     uint32_t word = m_sumsData[index(slice, source)];
     word |= (map & s_etMissMask)      << s_etMissBit;
     word |= (source & s_sourceIdMask) << s_sourceIdBit;
@@ -235,11 +237,11 @@ void CmmEnergySubBlock::setMissingEtHits(int slice, unsigned int map)
 
 // Store Sum-Et Hits map
 
-void CmmEnergySubBlock::setSumEtHits(int slice, unsigned int map)
+void CmmEnergySubBlock::setSumEtHits(const int slice, const unsigned int map)
 {
   if (slice >= 0 && slice < timeslices() && map) {
     resize();
-    int source = TOTAL + 2;
+    const int source = TOTAL + 2;
     uint32_t word = m_sumsData[index(slice, source)];
     word |= (map & s_etHitsMask)      << s_etHitsBit;
     word |= (source & s_sourceIdMask) << s_sourceIdBit;
@@ -296,7 +298,7 @@ bool CmmEnergySubBlock::unpack()
 
 // Return data index appropriate to format
 
-int CmmEnergySubBlock::index(int slice, int source) const
+int CmmEnergySubBlock::index(const int slice, const int source) const
 {
   int ix = source;
   if (format() == NEUTRAL) ix += slice * s_maxSums;
@@ -319,7 +321,7 @@ void CmmEnergySubBlock::resize()
 bool CmmEnergySubBlock::packNeutral()
 {
   resize();
-  int slices = timeslices();
+  const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
     for (int pin = 0; pin <= s_maxJems; ++pin) {
       // JEM energy sums (jem == pin); parity error
@@ -386,15 +388,15 @@ bool CmmEnergySubBlock::packUncompressed()
 bool CmmEnergySubBlock::unpackNeutral()
 {
   resize();
-  int slices = timeslices();
+  const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
     int bunchCrossing = 0;
     for (int pin = 0; pin <= s_maxJems; ++pin) {
       // JEM energy sums (jem == pin); parity error
-      unsigned int ex = unpackerNeutral(pin, s_jemSumBits);
-      unsigned int ey = unpackerNeutral(pin, s_jemSumBits);
-      unsigned int et = unpackerNeutral(pin, s_jemSumBits);
-      int er = unpackerNeutral(pin, 1);
+      const unsigned int ex = unpackerNeutral(pin, s_jemSumBits);
+      const unsigned int ey = unpackerNeutral(pin, s_jemSumBits);
+      const unsigned int et = unpackerNeutral(pin, s_jemSumBits);
+      const int er = unpackerNeutral(pin, 1);
       setSubsums(slice, pin, ex, ey, et, er, er, er);
       // Bunch crossing number; Fifo overflow
       if (pin < s_bunchCrossingBits) {
@@ -408,36 +410,36 @@ bool CmmEnergySubBlock::unpackNeutral()
     int pin = s_bunchCrossingBits;
     unsigned int etTot = unpackerNeutral(pin, s_paddingBits);
     etTot |= unpackerNeutral(++pin, s_paddingBits-1) << s_paddingBits;
-    int etErrTot = unpackerNeutral(pin, 1);
+    const int etErrTot = unpackerNeutral(pin, 1);
     // Sum-Et Hits Map + padding
     setSumEtHits(slice, unpackerNeutral(++pin, s_paddingBits) & s_etHitsMask);
     // Missing-ET Hits Map
     setMissingEtHits(slice, unpackerNeutral(++pin, s_paddingBits));
     // Remote Ex, Ey
-    unsigned int exRem = unpackerNeutral(++pin, s_sumBits);
-    int exErrRem = unpackerNeutral(pin, 2);
-    unsigned int eyRem = unpackerNeutral(pin, s_sumBits);
-    int eyErrRem = unpackerNeutral(pin, 2);
+    const unsigned int exRem = unpackerNeutral(++pin, s_sumBits);
+    const int exErrRem = unpackerNeutral(pin, 2);
+    const unsigned int eyRem = unpackerNeutral(pin, s_sumBits);
+    const int eyErrRem = unpackerNeutral(pin, 2);
     // Local Ex, Ey
-    unsigned int exLoc = unpackerNeutral(++pin, s_sumBits);
-    int exErrLoc = unpackerNeutral(pin, 1);
+    const unsigned int exLoc = unpackerNeutral(++pin, s_sumBits);
+    const int exErrLoc = unpackerNeutral(pin, 1);
     unpackerNeutral(pin, 1);
-    unsigned int eyLoc = unpackerNeutral(pin, s_sumBits);
-    int eyErrLoc = unpackerNeutral(pin, 1);
+    const unsigned int eyLoc = unpackerNeutral(pin, s_sumBits);
+    const int eyErrLoc = unpackerNeutral(pin, 1);
     unpackerNeutral(pin, 1);
     // Total Ex, Ey
-    unsigned int exTot = unpackerNeutral(++pin, s_sumBits);
-    int exErrTot = unpackerNeutral(pin, 1);
+    const unsigned int exTot = unpackerNeutral(++pin, s_sumBits);
+    const int exErrTot = unpackerNeutral(pin, 1);
     unpackerNeutral(pin, 1);
-    unsigned int eyTot = unpackerNeutral(pin, s_sumBits);
-    int eyErrTot = unpackerNeutral(pin, 1);
+    const unsigned int eyTot = unpackerNeutral(pin, s_sumBits);
+    const int eyErrTot = unpackerNeutral(pin, 1);
     unpackerNeutral(pin, 1);
     // Remote and Local Et
-    unsigned int etRem = unpackerNeutral(++pin, s_sumBits-1);
-    int etErrRem = unpackerNeutral(pin, 2);
+    const unsigned int etRem = unpackerNeutral(++pin, s_sumBits-1);
+    const int etErrRem = unpackerNeutral(pin, 2);
     unpackerNeutral(pin, 1);
-    unsigned int etLoc = unpackerNeutral(pin, s_sumBits-1);
-    int etErrLoc = unpackerNeutral(pin, 1);
+    const unsigned int etLoc = unpackerNeutral(pin, s_sumBits-1);
+    const int etErrLoc = unpackerNeutral(pin, 1);
     unpackerNeutral(pin, 2);
     setSubsums(slice, REMOTE, exRem, eyRem, etRem,
                               exErrRem, eyErrRem, etErrRem);
@@ -459,7 +461,7 @@ bool CmmEnergySubBlock::unpackUncompressed()
   unpackerInit();
   uint32_t word = unpacker(s_wordLength);
   while (unpackerSuccess()) {
-    int source = sourceId(word);
+    const int source = sourceId(word);
     if (source < s_maxSums) m_sumsData[source] = word;
     else return false;
     word = unpacker(s_wordLength);

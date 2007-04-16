@@ -27,8 +27,9 @@ JemJetElement::JemJetElement(uint32_t word) : m_data(word)
 {
 }
 
-JemJetElement::JemJetElement(int chan, int emDat, int hadDat,
-                             int emParErr, int hadParErr, int linkErr)
+JemJetElement::JemJetElement(const int chan, const int emDat, const int hadDat,
+                             const int emParErr, const int hadParErr,
+			     const int linkErr)
 {
   uint32_t word = 0;
   word |= (emDat      & s_emDataMask)    << s_emDataBit;

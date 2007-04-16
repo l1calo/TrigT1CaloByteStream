@@ -45,7 +45,7 @@ void CmmJetSubBlock::clear()
 
 // Return jet hit counts for given jem or source ID
 
-unsigned int CmmJetSubBlock::jetHits(int slice, int source) const
+unsigned int CmmJetSubBlock::jetHits(const int slice, const int source) const
 {
   unsigned int hits = 0;
   if (slice >= 0 && slice < timeslices() &&
@@ -61,7 +61,7 @@ unsigned int CmmJetSubBlock::jetHits(int slice, int source) const
 
 // Return jet hit error for given jem or source ID
 
-int CmmJetSubBlock::jetHitsError(int slice, int source) const
+int CmmJetSubBlock::jetHitsError(const int slice, const int source) const
 {
   int error = 0;
   if (slice >= 0 && slice < timeslices() &&
@@ -78,7 +78,7 @@ int CmmJetSubBlock::jetHitsError(int slice, int source) const
 
 // Return jet ET map
 
-unsigned int CmmJetSubBlock::jetEtMap(int slice) const
+unsigned int CmmJetSubBlock::jetEtMap(const int slice) const
 {
   unsigned int map = 0;
   if (slice >= 0 && slice < timeslices() && !m_hitsData.empty()) {
@@ -89,8 +89,8 @@ unsigned int CmmJetSubBlock::jetEtMap(int slice) const
 
 // Store jet hit counts and error for given jem or source ID
 
-void CmmJetSubBlock::setJetHits(int slice, int source, unsigned int hits,
-                                                                int error)
+void CmmJetSubBlock::setJetHits(const int slice, const int source,
+                                const unsigned int hits, const int error)
 {
   if (slice >= 0 && slice < timeslices() &&
       source >= 0 && source < s_maxHits  && (hits || error)) {
@@ -111,7 +111,7 @@ void CmmJetSubBlock::setJetHits(int slice, int source, unsigned int hits,
 
 // Store jet ET map
 
-void CmmJetSubBlock::setJetEtMap(int slice, unsigned int map)
+void CmmJetSubBlock::setJetEtMap(const int slice, const unsigned int map)
 {
   if (slice >= 0 && slice < timeslices() && map) {
     resize();
@@ -171,7 +171,7 @@ bool CmmJetSubBlock::unpack()
 
 // Return data index appropriate to format
 
-int CmmJetSubBlock::index(int slice, int source) const
+int CmmJetSubBlock::index(const int slice, const int source) const
 {
   int ix = source;
   if (format() == NEUTRAL) ix += slice * s_maxHits;
@@ -194,7 +194,7 @@ void CmmJetSubBlock::resize()
 bool CmmJetSubBlock::packNeutral()
 {
   resize();
-  int slices = timeslices();
+  const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
     for (int pin = 0; pin <= TOTAL_MAIN; ++pin) {
       // Jem hits; remote, local and total main hits; parity error
@@ -214,7 +214,7 @@ bool CmmJetSubBlock::packNeutral()
     packerNeutral(TOTAL_MAIN, jetHits(slice, TOTAL_FORWARD) >> s_rightBit,
                                                              s_paddingBits);
     // Remote + Local forward
-    int lastpin = TOTAL_MAIN + 1;
+    const int lastpin = TOTAL_MAIN + 1;
     packerNeutral(lastpin, jetHits(slice, REMOTE_FORWARD), s_fwdHitsBits);
     packerNeutral(lastpin, jetHitsError(slice, REMOTE_FORWARD),
                                                       s_jetHitsErrorBits);
@@ -243,7 +243,7 @@ bool CmmJetSubBlock::packUncompressed()
 bool CmmJetSubBlock::unpackNeutral()
 {
   resize();
-  int slices = timeslices();
+  const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
     int bunchCrossing = 0;
     unsigned int hits = 0;
@@ -268,7 +268,7 @@ bool CmmJetSubBlock::unpackNeutral()
     hits |= unpackerNeutral(TOTAL_MAIN, s_paddingBits) << s_rightBit;
     setJetHits(slice, TOTAL_FORWARD, hits, 0);
     // Remote + Local forward
-    int lastpin = TOTAL_MAIN + 1;
+    const int lastpin = TOTAL_MAIN + 1;
     hits  = unpackerNeutral(lastpin, s_fwdHitsBits);
     error = unpackerNeutral(lastpin, s_jetHitsErrorBits);
     setJetHits(slice, REMOTE_FORWARD, hits, error);
@@ -289,7 +289,7 @@ bool CmmJetSubBlock::unpackUncompressed()
   unpackerInit();
   uint32_t word = unpacker(s_wordLength);
   while (unpackerSuccess()) {
-    int source = sourceId(word);
+    const int source = sourceId(word);
     if (source < s_maxHits) m_hitsData[source] = word;
     else return false;
     word = unpacker(s_wordLength);

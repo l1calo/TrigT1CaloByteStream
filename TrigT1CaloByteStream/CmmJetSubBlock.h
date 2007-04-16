@@ -70,7 +70,7 @@ class CmmJetSubBlock : public CmmSubBlock {
    static const int      s_paddingBits       = 8;
    static const int      s_rightBit          = 8;
 
-   int  sourceId(uint32_t word)   const;
+   int  sourceId(uint32_t word)      const;
    int  index(int slice, int source) const;
    void resize();
 
@@ -88,7 +88,7 @@ class CmmJetSubBlock : public CmmSubBlock {
 
 };
 
-inline int CmmJetSubBlock::sourceId(uint32_t word) const
+inline int CmmJetSubBlock::sourceId(const uint32_t word) const
 {
   return (word >> s_sourceIdBit) & s_sourceIdMask;
 }

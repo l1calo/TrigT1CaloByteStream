@@ -21,7 +21,7 @@ CpmCrateMappings::CpmCrateMappings()
 
 // Return eta, phi mapping for given crate/module/channel.
 
-bool CpmCrateMappings::mapping(int crate, int module, int channel,
+bool CpmCrateMappings::mapping(const int crate, int module, const int channel,
                                           ChannelCoordinate& coord) const
 {
   --module; // CPM modules are numbered 1 to s_modules
@@ -37,20 +37,20 @@ bool CpmCrateMappings::mapping(int crate, int module, int channel,
   //  |  0 |  2 |  4 |  6 |
   //  +----+----+----+----+
   //           eta
-  int etaBin = (channel / 2) % s_etaBinsPerRow;
-  int phiBin = ((channel / 2) / s_etaBinsPerRow) * 2
-                                   + channel % 2 - 2;  // allow for overlap
+  const int etaBin = (channel / 2) % s_etaBinsPerRow;
+  const int phiBin = ((channel / 2) / s_etaBinsPerRow) * 2
+                                    + channel % 2 - 2;  // allow for overlap
 
   // End modules only have one column (Is that right?)
   if ((module == 0 && etaBin != s_etaBinsPerRow - 1) ||
       (module == s_modules - 1 && etaBin != 0)) return false;
 
-  double phiBase = M_PI/2. * double(crate);
-  double phi     = phiBase + s_phiGran * (double(phiBin) + 0.5);
+  const double phiBase = M_PI/2. * double(crate);
+  double phi           = phiBase + s_phiGran * (double(phiBin) + 0.5);
   if (phi < 0.) phi += 2.*M_PI;
 
-  double etaBase = s_etaGran * s_etaBinsPerRow * (module - s_modules/2);
-  double eta     = etaBase + s_etaGran * (double(etaBin) + 0.5);
+  const double etaBase = s_etaGran * s_etaBinsPerRow * (module - s_modules/2);
+  const double eta     = etaBase + s_etaGran * (double(etaBin) + 0.5);
  
   coord.setEta(eta);
   coord.setPhi(phi);

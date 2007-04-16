@@ -17,3 +17,10 @@ const uint32_t L1CaloUserHeader::s_mask;
 L1CaloUserHeader::L1CaloUserHeader(uint32_t header) : m_header(header)
 {
 }
+
+// Test for valid header word
+
+bool L1CaloUserHeader::isValid(const uint32_t word)
+{
+  return ((word >> s_wordIdBit) & s_mask) == s_mask;
+}

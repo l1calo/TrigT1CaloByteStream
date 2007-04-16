@@ -106,7 +106,7 @@ StatusCode PpmByteStreamCnv::createObj( IOpaqueAddress* pAddr,
                                         DataObject*& pObj )
 {
   MsgStream log( msgSvc(), "PpmByteStreamCnv" );
-  bool debug = msgSvc()->outputLevel("PpmByteStreamCnv") <= MSG::DEBUG;
+  const bool debug = msgSvc()->outputLevel("PpmByteStreamCnv") <= MSG::DEBUG;
 
   if (debug) log << MSG::DEBUG << "createObj() called" << endreq;
 
@@ -117,7 +117,7 @@ StatusCode PpmByteStreamCnv::createObj( IOpaqueAddress* pAddr,
     return StatusCode::FAILURE;
   }
 
-  std::string nm = *( pBS_Addr->par() );
+  const std::string nm = *( pBS_Addr->par() );
 
   if (debug) log << MSG::DEBUG << " Creating Objects " << nm << endreq;
 
@@ -130,7 +130,7 @@ StatusCode PpmByteStreamCnv::createObj( IOpaqueAddress* pAddr,
   m_robDataProvider->getROBData( vID, robFrags );
 
   // size check
-  DataVector<LVL1::TriggerTower>* ttCollection =
+  DataVector<LVL1::TriggerTower>* const ttCollection =
                                            new DataVector<LVL1::TriggerTower>;
   if (robFrags.size() == 0) {
     log << MSG::ERROR << " Number of ROB fragments is " << robFrags.size()
@@ -160,13 +160,13 @@ StatusCode PpmByteStreamCnv::createRep( DataObject* pObj,
                                         IOpaqueAddress*& pAddr )
 {
   MsgStream log( msgSvc(), "PpmByteStreamCnv" );
-  bool debug = msgSvc()->outputLevel("PpmByteStreamCnv") <= MSG::DEBUG;
+  const bool debug = msgSvc()->outputLevel("PpmByteStreamCnv") <= MSG::DEBUG;
 
   if (debug) log << MSG::DEBUG << "createRep() called" << endreq;
 
   RawEventWrite* re = m_ByteStreamEventAccess->getRawEvent();
 
-  DataVector<LVL1::TriggerTower>* ttCollection;
+  const DataVector<LVL1::TriggerTower>* ttCollection = 0;
   if( !SG::fromStorable( pObj, ttCollection ) ) {
     log << MSG::ERROR << " Cannot cast to DataVector<TriggerTower>" << endreq;
     return StatusCode::FAILURE;

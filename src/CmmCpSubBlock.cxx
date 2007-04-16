@@ -39,7 +39,7 @@ void CmmCpSubBlock::clear()
 
 // Return hit counts for given CPM or source ID
 
-unsigned int CmmCpSubBlock::hits(int slice, int source) const
+unsigned int CmmCpSubBlock::hits(const int slice, int source) const
 {
   --source;
   unsigned int hits = 0;
@@ -52,7 +52,7 @@ unsigned int CmmCpSubBlock::hits(int slice, int source) const
 
 // Return hit error for given CPM or source ID
 
-int CmmCpSubBlock::hitsError(int slice, int source) const
+int CmmCpSubBlock::hitsError(const int slice, int source) const
 {
   --source;
   int error = 0;
@@ -66,8 +66,8 @@ int CmmCpSubBlock::hitsError(int slice, int source) const
 
 // Store hit counts for given CPM or source ID
 
-void CmmCpSubBlock::setHits(int slice, int source, unsigned int hits,
-                                                            int error)
+void CmmCpSubBlock::setHits(const int slice, int source,
+                            const unsigned int hits, const int error)
 {
   --source;
   if (slice >= 0 && slice < timeslices() &&
@@ -130,7 +130,7 @@ bool CmmCpSubBlock::unpack()
 
 // Return data index appropriate to format
 
-int CmmCpSubBlock::index(int slice, int source) const
+int CmmCpSubBlock::index(const int slice, const int source) const
 {
   int ix = source;
   if (format() == NEUTRAL) ix += slice * s_maxHits;
@@ -153,10 +153,10 @@ void CmmCpSubBlock::resize()
 bool CmmCpSubBlock::packNeutral()
 {
   resize();
-  int slices = timeslices();
+  const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
     for (int source = 1; source < MAX_SOURCE_ID; ++source) {
-      int pin = source - 1;
+      const int pin = source - 1;
       // CPM hits; remote(3), local and total hits; parity error
       packerNeutral(pin, hits(slice, source), s_hitsBits);
       packerNeutral(pin, hitsError(slice, source), s_hitsErrorBits);
@@ -190,14 +190,14 @@ bool CmmCpSubBlock::packUncompressed()
 bool CmmCpSubBlock::unpackNeutral()
 {
   resize();
-  int slices = timeslices();
+  const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
     int bunchCrossing = 0;
     for (int source = 1; source < MAX_SOURCE_ID; ++source) {
-      int pin = source - 1;
+      const int pin = source - 1;
       // CPM hits; remote(3), local and total hits; parity error
-      unsigned int hits = unpackerNeutral(pin, s_hitsBits);
-      int error = unpackerNeutral(pin, s_hitsErrorBits);
+      const unsigned int hits = unpackerNeutral(pin, s_hitsBits);
+      const int error = unpackerNeutral(pin, s_hitsErrorBits);
       setHits(slice, source, hits, error);
       // Bunch crossing number; Fifo overflow
       if (pin < s_bunchCrossingBits) {
@@ -221,7 +221,7 @@ bool CmmCpSubBlock::unpackUncompressed()
   unpackerInit();
   uint32_t word = unpacker(s_wordLength);
   while (unpackerSuccess()) {
-    int source = sourceId(word);
+    const int source = sourceId(word);
     if (source < s_maxHits) m_hitsData[source] = word;
     else return false;
     word = unpacker(s_wordLength);

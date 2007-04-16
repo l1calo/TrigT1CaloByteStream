@@ -183,62 +183,62 @@ class PpmSubBlock : public L1CaloSubBlock {
 
 };
 
-inline bool PpmSubBlock::glinkPinParity(int chan) const
+inline bool PpmSubBlock::glinkPinParity(const int chan) const
 {
   return errorBit(pin(chan), s_glinkPinParityBit);
 }
 
-inline bool PpmSubBlock::fpgaCorrupt(int chan) const
+inline bool PpmSubBlock::fpgaCorrupt(const int chan) const
 {
   return errorBit(pin(chan), s_fpgaCorruptBit);
 }
 
-inline bool PpmSubBlock::bunchMismatch(int chan) const
+inline bool PpmSubBlock::bunchMismatch(const int chan) const
 {
   return errorBit(pin(chan), s_bunchMismatchBit);
 }
 
-inline bool PpmSubBlock::eventMismatch(int chan) const
+inline bool PpmSubBlock::eventMismatch(const int chan) const
 {
   return errorBit(pin(chan), s_eventMismatchBit);
 }
 
-inline bool PpmSubBlock::asicFull(int chan) const
+inline bool PpmSubBlock::asicFull(const int chan) const
 {
   return errorBit(pin(chan), s_asicFullBit);
 }
 
-inline bool PpmSubBlock::timeout(int chan) const
+inline bool PpmSubBlock::timeout(const int chan) const
 {
   return errorBit(pin(chan), s_timeoutBit);
 }
 
-inline bool PpmSubBlock::mcmAbsent(int chan) const
+inline bool PpmSubBlock::mcmAbsent(const int chan) const
 {
   return errorBit(pin(chan), s_mcmAbsentBit);
 }
 
-inline bool PpmSubBlock::channelDisabled(int chan) const
+inline bool PpmSubBlock::channelDisabled(const int chan) const
 {
   return errorBit(pin(chan), s_channelDisabledBit + asic(chan));
 }
 
-inline bool PpmSubBlock::channelDisabledA(int pin) const
+inline bool PpmSubBlock::channelDisabledA(const int pin) const
 {
   return errorBit(pin, s_channelDisabledBit);
 }
 
-inline bool PpmSubBlock::channelDisabledB(int pin) const
+inline bool PpmSubBlock::channelDisabledB(const int pin) const
 {
   return errorBit(pin, s_channelDisabledBit + 1);
 }
 
-inline bool PpmSubBlock::channelDisabledC(int pin) const
+inline bool PpmSubBlock::channelDisabledC(const int pin) const
 {
   return errorBit(pin, s_channelDisabledBit + 2);
 }
 
-inline bool PpmSubBlock::channelDisabledD(int pin) const
+inline bool PpmSubBlock::channelDisabledD(const int pin) const
 {
   return errorBit(pin, s_channelDisabledBit + 3);
 }
@@ -298,17 +298,17 @@ inline bool PpmSubBlock::channelDisabledD() const
   return errorBit(s_channelDisabledBit + 3);
 }
 
-inline void PpmSubBlock::setLutOffset(int offset)
+inline void PpmSubBlock::setLutOffset(const int offset)
 {
   m_lutOffset = offset;
 }
 
-inline void PpmSubBlock::setFadcOffset(int offset)
+inline void PpmSubBlock::setFadcOffset(const int offset)
 {
   m_fadcOffset = offset;
 }
 
-inline void PpmSubBlock::setPedestal(int pedval)
+inline void PpmSubBlock::setPedestal(const int pedval)
 {
   m_pedestal = pedval;
 }
@@ -338,17 +338,17 @@ inline void PpmSubBlock::setCompStats(const std::vector<uint32_t>& stats)
   m_compStats = stats;
 }
 
-inline int  PpmSubBlock::asic(int chan) const
+inline int  PpmSubBlock::asic(const int chan) const
 {
   return chan / s_glinkPins;
 }
 
-inline int  PpmSubBlock::pin(int chan) const
+inline int  PpmSubBlock::pin(const int chan) const
 {
   return chan % s_glinkPins;
 }
 
-inline bool PpmSubBlock::errorBit(int pin, int bit) const
+inline bool PpmSubBlock::errorBit(const int pin, const int bit) const
 {
   return m_errormap[pin] & (0x1 << bit);
 }

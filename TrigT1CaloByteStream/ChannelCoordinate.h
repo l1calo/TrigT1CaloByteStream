@@ -72,27 +72,28 @@ inline double ChannelCoordinate::phiGranularity() const
   return m_phiGran;
 }
 
-inline void ChannelCoordinate::setLayer(ChannelCoordinate::CaloLayer layer)
+inline void ChannelCoordinate::setLayer(
+                               const ChannelCoordinate::CaloLayer layer)
 {
   m_layer = layer;
 }
 
-inline void ChannelCoordinate::setEta(double eta)
+inline void ChannelCoordinate::setEta(const double eta)
 {
   m_eta = eta;
 }
 
-inline void ChannelCoordinate::setPhi(double phi)
+inline void ChannelCoordinate::setPhi(const double phi)
 {
   m_phi = phi;
 }
 
-inline void ChannelCoordinate::setEtaGranularity(double etaGran)
+inline void ChannelCoordinate::setEtaGranularity(const double etaGran)
 {
   m_etaGran = etaGran;
 }
 
-inline void ChannelCoordinate::setPhiGranularity(double phiGran)
+inline void ChannelCoordinate::setPhiGranularity(const double phiGran)
 {
   m_phiGran = phiGran;
 }

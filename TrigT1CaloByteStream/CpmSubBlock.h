@@ -116,7 +116,7 @@ class CpmSubBlock : public L1CaloSubBlock {
 
 };
 
-inline int CpmSubBlock::dataId(uint32_t word) const
+inline int CpmSubBlock::dataId(const uint32_t word) const
 {
   return (word >> s_dataIdBit) & s_dataIdMask;
 }

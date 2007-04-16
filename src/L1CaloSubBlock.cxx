@@ -80,8 +80,10 @@ void L1CaloSubBlock::clear()
 
 // Store header data
 
-void L1CaloSubBlock::setHeader(int wordId, int version, int format, int seqno,
-                               int crate, int module, int slices2, int slices1)
+void L1CaloSubBlock::setHeader(const int wordId, const int version,
+                               const int format, const int seqno,
+                               const int crate, const int module,
+			       const int slices2, const int slices1)
 {
   uint32_t word = 0;
   word |= (wordId  & s_wordIdMask)  << s_wordIdBit;
@@ -106,8 +108,8 @@ OFFLINE_FRAGMENTS_NAMESPACE::PointerType L1CaloSubBlock::read(
   OFFLINE_FRAGMENTS_NAMESPACE::PointerType pos(beg);
   OFFLINE_FRAGMENTS_NAMESPACE::PointerType pose(end);
   for (; pos != pose; ++pos) {
-    uint32_t word = *pos;
-    SubBlockWordType type = wordType(word);
+    const uint32_t word = *pos;
+    const SubBlockWordType type = wordType(word);
     if (type == HEADER) {
       if (m_header) return pos;
       m_header = word;
@@ -124,7 +126,7 @@ OFFLINE_FRAGMENTS_NAMESPACE::PointerType L1CaloSubBlock::read(
 // Output complete packed sub-block to ROD vector
 
 void L1CaloSubBlock::write(
-                  FullEventAssembler<L1CaloSrcIdMap>::RODDATA* theROD) const
+              FullEventAssembler<L1CaloSrcIdMap>::RODDATA* const theROD) const
 {
   theROD->push_back(m_header);
   std::vector<uint32_t>::const_iterator pos;
@@ -136,9 +138,10 @@ void L1CaloSubBlock::write(
 
 // Store error status trailer
 
-void L1CaloSubBlock::setStatus(uint32_t failingBCN, bool glinkTimeout,
-     bool glinkDown, bool upstreamError, bool daqOverflow, bool bcnMismatch,
-     bool glinkProtocol, bool glinkParity)
+void L1CaloSubBlock::setStatus(const uint32_t failingBCN,
+     const bool glinkTimeout, const bool glinkDown, const bool upstreamError,
+     const bool daqOverflow, const bool bcnMismatch,
+     const bool glinkProtocol, const bool glinkParity)
 {
   uint32_t word = 0;
   word |= (failingBCN & s_failingBcnMask) << s_failingBcnBit;
@@ -175,7 +178,7 @@ bool L1CaloSubBlock::unpack()
 
 // Return the minimum number of bits needed for given data
 
-int L1CaloSubBlock::minBits(uint32_t datum)
+int L1CaloSubBlock::minBits(const uint32_t datum) const
 {
   const int maxBits = 32;
   int nbits = maxBits;
@@ -190,7 +193,8 @@ int L1CaloSubBlock::minBits(uint32_t datum)
 
 // Return the parity bit for given data
 
-int L1CaloSubBlock::parityBit(int init, uint32_t datum, int nbits)
+int L1CaloSubBlock::parityBit(const int init, const uint32_t datum,
+                                                    const int nbits) const
 {
   // set init to 0/1 for even/odd parity
   int parity = init;
@@ -200,7 +204,7 @@ int L1CaloSubBlock::parityBit(int init, uint32_t datum, int nbits)
 
 // Pack given data into given number of bits
 
-void L1CaloSubBlock::packer(uint32_t datum, int nbits)
+void L1CaloSubBlock::packer(const uint32_t datum, const int nbits)
 {
   if (nbits > 0) {
     uint32_t mask = 0x1;
@@ -211,7 +215,7 @@ void L1CaloSubBlock::packer(uint32_t datum, int nbits)
       m_bitword &= m_maxMask;
       m_data.push_back(m_bitword);
       ++m_dataWords;
-      int bitsLeft = m_currentBit - m_maxBits;
+      const int bitsLeft = m_currentBit - m_maxBits;
       if (bitsLeft > 0) {
         m_bitword = (datum & mask) >> (nbits - bitsLeft);
 	m_currentBit = bitsLeft;
@@ -238,7 +242,7 @@ void L1CaloSubBlock::packerFlush()
 
 // Unpack given number of bits of data
 
-uint32_t L1CaloSubBlock::unpacker(int nbits)
+uint32_t L1CaloSubBlock::unpacker(const int nbits)
 {
   uint32_t word = 0;
   if (nbits > 0) {
@@ -263,7 +267,7 @@ uint32_t L1CaloSubBlock::unpacker(int nbits)
         }
       }
       m_currentBit = 0;
-      int bitsLeft = nbits - nbitsDone;
+      const int bitsLeft = nbits - nbitsDone;
       if (bitsLeft > 0) {
         if (m_dataPos == m_dataPosEnd) {
           m_unpackerFlag = false;
@@ -293,7 +297,8 @@ void L1CaloSubBlock::unpackerInit()
 
 // Pack given neutral data from given pin
 
-void L1CaloSubBlock::packerNeutral(int pin, uint32_t datum, int nbits)
+void L1CaloSubBlock::packerNeutral(const int pin, const uint32_t datum,
+                                                  const int nbits)
 {
   if (pin >= 0 && pin < s_maxPins && nbits > 0) {
     if (m_currentPinBit[pin] + nbits > m_dataWords) {
@@ -310,7 +315,7 @@ void L1CaloSubBlock::packerNeutral(int pin, uint32_t datum, int nbits)
 
 // Pack current G-Link parity bit for given pin
 
-void L1CaloSubBlock::packerNeutralParity(int pin)
+void L1CaloSubBlock::packerNeutralParity(const int pin)
 {
   if (pin >= 0 && pin < s_maxPins) {
     packerNeutral(pin, m_oddParity[pin], 1);
@@ -320,7 +325,7 @@ void L1CaloSubBlock::packerNeutralParity(int pin)
 
 // Unpack given number of bits of neutral data for given pin
 
-uint32_t L1CaloSubBlock::unpackerNeutral(int pin, int nbits)
+uint32_t L1CaloSubBlock::unpackerNeutral(const int pin, const int nbits)
 {
   uint32_t word = 0;
   if (pin >= 0 && pin < s_maxPins && nbits > 0
@@ -336,7 +341,7 @@ uint32_t L1CaloSubBlock::unpackerNeutral(int pin, int nbits)
 
 // Unpack and test G-Link parity bit for given pin
 
-bool L1CaloSubBlock::unpackerNeutralParityError(int pin)
+bool L1CaloSubBlock::unpackerNeutralParityError(const int pin)
 {
   bool error = true;
   if (pin >= 0 && pin < s_maxPins) {
@@ -350,7 +355,7 @@ bool L1CaloSubBlock::unpackerNeutralParityError(int pin)
 
 // Static function to determine word type
 
-L1CaloSubBlock::SubBlockWordType L1CaloSubBlock::wordType(uint32_t word)
+L1CaloSubBlock::SubBlockWordType L1CaloSubBlock::wordType(const uint32_t word)
 {
   SubBlockWordType type = DATA;
   if (((word >> s_headerBit) & s_headerMask) == s_headerVal) {
@@ -362,28 +367,28 @@ L1CaloSubBlock::SubBlockWordType L1CaloSubBlock::wordType(uint32_t word)
 
 // Return wordID field from given header word
 
-int L1CaloSubBlock::wordId(uint32_t word)
+int L1CaloSubBlock::wordId(const uint32_t word)
 {
   return (word >> s_wordIdBit) & s_wordIdMask;
 }
 
 // Return data format from given header word
 
-int L1CaloSubBlock::format(uint32_t word)
+int L1CaloSubBlock::format(const uint32_t word)
 {
   return (word >> s_formatBit) & s_formatMask;
 }
 
 // Return seqno field from given header word
 
-int L1CaloSubBlock::seqno(uint32_t word)
+int L1CaloSubBlock::seqno(const uint32_t word)
 {
   return (word >> s_seqnoBit) & s_seqnoMask;
 }
 
 // Return module field from given header word
 
-int L1CaloSubBlock::module(uint32_t word)
+int L1CaloSubBlock::module(const uint32_t word)
 {
   return (word >> s_moduleBit) & s_moduleMask;
 }

@@ -94,9 +94,9 @@ class L1CaloSubBlock {
 
    //  Packing utilities
    /// Return the minimum number of bits needed for given data
-   int      minBits(uint32_t datum);
+   int      minBits(uint32_t datum) const;
    /// Return the parity bit for given data
-   int      parityBit(int init, uint32_t datum, int nbits);
+   int      parityBit(int init, uint32_t datum, int nbits) const;
    /// Pack given data into given number of bits
    void     packer(uint32_t datum, int nbits);
    /// Flush the current data word padded with zeros
@@ -108,7 +108,7 @@ class L1CaloSubBlock {
    /// Initialise unpacker
    void     unpackerInit();
    /// Return unpacking success flag
-   bool     unpackerSuccess();
+   bool     unpackerSuccess() const;
 
    //  Neutral format packing utilities
    /// Pack given neutral data from given pin
@@ -279,7 +279,7 @@ inline bool L1CaloSubBlock::glinkParity() const
   return m_trailer & (0x1 << s_glinkParityBit);
 }
 
-inline void L1CaloSubBlock::setBunchCrossing(int bc)
+inline void L1CaloSubBlock::setBunchCrossing(const int bc)
 {
   if (bc) m_bunchCrossing = bc;
 }
@@ -295,7 +295,7 @@ inline void L1CaloSubBlock::setStreamed()
   m_maxMask = s_maxStreamedMask;
 }
 
-inline bool L1CaloSubBlock::unpackerSuccess()
+inline bool L1CaloSubBlock::unpackerSuccess() const
 {
   return m_unpackerFlag;
 }

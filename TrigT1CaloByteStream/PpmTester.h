@@ -37,14 +37,17 @@ class PpmTester : public Algorithm {
    /// Trigger tower container
    typedef DataVector<LVL1::TriggerTower> TriggerTowerCollection;
    /// Trigger tower map
-   typedef std::map<unsigned int, LVL1::TriggerTower*> TriggerTowerMap;
+   typedef std::map<unsigned int, const LVL1::TriggerTower*> TriggerTowerMap;
 
    /// Print the trigger towers
-   void printTriggerTowers(MsgStream& log, MSG::Level level);
+   void printTriggerTowers(MsgStream& log, MSG::Level level) const;
 
+   /// Print FADC vector
+   void printAdc(const std::vector<int>& vec, MsgStream& log,
+                                              MSG::Level level) const;
    /// Print a vector
    void printVec(const std::vector<int>& vec, MsgStream& log,
-                                              MSG::Level level);
+                                              MSG::Level level) const;
 
    /// Set up trigger tower map
    void setupTTMap(const TriggerTowerCollection* jeCollection);
@@ -55,6 +58,8 @@ class PpmTester : public Algorithm {
    StoreGateSvc* m_storeGate;
    /// Trigger tower container StoreGate key
    std::string m_triggerTowerLocation;
+   /// Force number of FADC slices
+   int m_forceSlicesFadc;
 
    /// Trigger tower map
    TriggerTowerMap m_ttMap;
