@@ -96,7 +96,7 @@ StatusCode CpByteStreamCnv::createRep( DataObject* pObj,
 
   RawEventWrite* re = m_ByteStreamEventAccess->getRawEvent();
 
-  const LVL1::CPBSCollection* cp;
+  LVL1::CPBSCollection* cp = 0;
   if( !SG::fromStorable( pObj, cp ) ) {
     log << MSG::ERROR << " Cannot cast to CPBSCollection" << endreq;
     return StatusCode::FAILURE;

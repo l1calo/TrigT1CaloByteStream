@@ -96,7 +96,7 @@ StatusCode JepRoiByteStreamCnv::createRep( DataObject* pObj,
 
   RawEventWrite* re = m_ByteStreamEventAccess->getRawEvent();
 
-  const LVL1::JEPRoIBSCollection* jep;
+  LVL1::JEPRoIBSCollection* jep = 0;
   if( !SG::fromStorable( pObj, jep ) ) {
     log << MSG::ERROR << " Cannot cast to JEPRoIBSCollection" << endreq;
     return StatusCode::FAILURE;

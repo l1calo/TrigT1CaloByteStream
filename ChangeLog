@@ -1,3 +1,8 @@
+2007-04-17  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-02-01
+	* Fix problem with ClassID_traits in *Cnv.cxx.
+
 2007-04-16  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-02-00

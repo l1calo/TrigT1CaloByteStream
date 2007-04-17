@@ -166,7 +166,7 @@ StatusCode PpmByteStreamCnv::createRep( DataObject* pObj,
 
   RawEventWrite* re = m_ByteStreamEventAccess->getRawEvent();
 
-  const DataVector<LVL1::TriggerTower>* ttCollection = 0;
+  DataVector<LVL1::TriggerTower>* ttCollection = 0;
   if( !SG::fromStorable( pObj, ttCollection ) ) {
     log << MSG::ERROR << " Cannot cast to DataVector<TriggerTower>" << endreq;
     return StatusCode::FAILURE;

@@ -165,7 +165,7 @@ StatusCode CpmRoiByteStreamCnv::createRep( DataObject* pObj,
 
   RawEventWrite* re = m_ByteStreamEventAccess->getRawEvent();
 
-  const DataVector<LVL1::CPMRoI>* roiCollection;
+  DataVector<LVL1::CPMRoI>* roiCollection = 0;
   if( !SG::fromStorable( pObj, roiCollection ) ) {
     log << MSG::ERROR << " Cannot cast to DataVector<CPMRoI>" << endreq;
     return StatusCode::FAILURE;
