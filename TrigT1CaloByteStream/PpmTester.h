@@ -7,8 +7,10 @@
 #include "DataModel/DataVector.h"
 #include "GaudiKernel/Algorithm.h"
 #include "GaudiKernel/MsgStream.h"
+#include "GaudiKernel/ServiceHandle.h"
+#include "StoreGate/StoreGateSvc.h"
 
-class StoreGateSvc;
+//class StoreGateSvc;
 
 namespace LVL1 {
   class TriggerTower;
@@ -55,7 +57,7 @@ class PpmTester : public Algorithm {
    /// Trigger tower key provider
    LVL1::TriggerTowerKey* m_towerKey;
    /// StoreGate service
-   StoreGateSvc* m_storeGate;
+   ServiceHandle<StoreGateSvc> m_storeGate;
    /// Trigger tower container StoreGate key
    std::string m_triggerTowerLocation;
    /// Force number of FADC slices

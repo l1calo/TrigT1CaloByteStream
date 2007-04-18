@@ -1,8 +1,7 @@
 
 #include <utility>
 
-#include "StoreGate/StoreGateSvc.h"
-
+#include "TrigT1CaloByteStream/JemTester.h"
 #include "TrigT1Calo/CMMEtSums.h"
 #include "TrigT1Calo/CMMJetHits.h"
 #include "TrigT1Calo/CMMRoI.h"
@@ -14,11 +13,12 @@
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
 #include "TrigT1CaloByteStream/JemCrateMappings.h"
-#include "TrigT1CaloByteStream/JemTester.h"
 
 
 JemTester::JemTester(const std::string& name, ISvcLocator* pSvcLocator)
-                     : Algorithm(name, pSvcLocator), m_elementKey(0)
+                     : Algorithm(name, pSvcLocator), 
+                       m_storeGate("StoreGateSvc", name),
+                       m_elementKey(0)
 {
   declareProperty("JetElementLocation",
            m_jetElementLocation = LVL1::TrigT1CaloDefs::JetElementLocation);
@@ -57,10 +57,10 @@ StatusCode JemTester::initialize()
 {
   MsgStream log( msgSvc(), name() );
 
-  StatusCode sc = service("StoreGateSvc", m_storeGate);
-  if (sc.isFailure()) {
-    log << MSG::ERROR << "Unable to get pointer to StoreGate service"
-                      << endreq;
+  StatusCode sc = m_storeGate.retrieve();
+  if ( sc.isFailure() ) {
+    log << MSG::ERROR << "Couldn't connect to " << m_storeGate.typeAndName() 
+        << endreq;
     return sc;
   }
   m_elementKey = new LVL1::JetElementKey();

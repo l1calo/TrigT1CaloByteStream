@@ -7,8 +7,10 @@
 #include "DataModel/DataVector.h"
 #include "GaudiKernel/Algorithm.h"
 #include "GaudiKernel/MsgStream.h"
+#include "GaudiKernel/ServiceHandle.h"
+#include "StoreGate/StoreGateSvc.h"
 
-class StoreGateSvc;
+//class StoreGateSvc;
 
 namespace LVL1 {
   class CMMEtSums;
@@ -95,7 +97,7 @@ class JemTester : public Algorithm {
    /// Jet element key provider
    LVL1::JetElementKey* m_elementKey;
    /// StoreGate service
-   StoreGateSvc* m_storeGate;
+   ServiceHandle<StoreGateSvc> m_storeGate;
    /// Jet element container StoreGate key
    std::string m_jetElementLocation;
    /// Jet hits container StoreGate key

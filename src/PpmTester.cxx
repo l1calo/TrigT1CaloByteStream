@@ -1,17 +1,17 @@
 
 #include <utility>
 
-#include "StoreGate/StoreGateSvc.h"
+#include "TrigT1CaloByteStream/PpmTester.h"
 
 #include "TrigT1Calo/TriggerTower.h"
 #include "TrigT1Calo/TriggerTowerKey.h"
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
-#include "TrigT1CaloByteStream/PpmTester.h"
-
 
 PpmTester::PpmTester(const std::string& name, ISvcLocator* pSvcLocator)
-                     : Algorithm(name, pSvcLocator), m_towerKey(0)
+                     : Algorithm(name, pSvcLocator), 
+                       m_storeGate("StoreGateSvc", name),
+                       m_towerKey(0)
 {
   declareProperty("TriggerTowerLocation",
          m_triggerTowerLocation = LVL1::TrigT1CaloDefs::TriggerTowerLocation);
@@ -28,10 +28,10 @@ StatusCode PpmTester::initialize()
 {
   MsgStream log( msgSvc(), name() );
 
-  StatusCode sc = service("StoreGateSvc", m_storeGate);
-  if (sc.isFailure()) {
-    log << MSG::ERROR << "Unable to get pointer to StoreGate service"
-                      << endreq;
+  StatusCode sc = m_storeGate.retrieve();
+  if ( sc.isFailure() ) {
+    log << MSG::ERROR << "Couldn't connect to " << m_storeGate.typeAndName() 
+        << endreq;
     return sc;
   }
   m_towerKey = new LVL1::TriggerTowerKey();

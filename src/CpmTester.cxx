@@ -1,7 +1,7 @@
 
 #include <utility>
 
-#include "StoreGate/StoreGateSvc.h"
+#include "TrigT1CaloByteStream/CpmTester.h"
 
 #include "TrigT1Calo/CMMCPHits.h"
 #include "TrigT1Calo/CPMHits.h"
@@ -11,11 +11,12 @@
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
 #include "TrigT1CaloByteStream/CpmCrateMappings.h"
-#include "TrigT1CaloByteStream/CpmTester.h"
 
 
 CpmTester::CpmTester(const std::string& name, ISvcLocator* pSvcLocator)
-                     : Algorithm(name, pSvcLocator), m_towerKey(0)
+                     : Algorithm(name, pSvcLocator), 
+                       m_storeGate("StoreGateSvc", name),
+                       m_towerKey(0)
 {
   declareProperty("CPMTowerLocation",
            m_cpmTowerLocation  = LVL1::TrigT1CaloDefs::CPMTowerLocation);
@@ -45,10 +46,10 @@ StatusCode CpmTester::initialize()
 {
   MsgStream log( msgSvc(), name() );
 
-  StatusCode sc = service("StoreGateSvc", m_storeGate);
-  if (sc.isFailure()) {
-    log << MSG::ERROR << "Unable to get pointer to StoreGate service"
-                      << endreq;
+  StatusCode sc = m_storeGate.retrieve();
+  if ( sc.isFailure() ) {
+    log << MSG::ERROR << "Couldn't connect to " << m_storeGate.typeAndName() 
+        << endreq;
     return sc;
   }
   m_towerKey = new LVL1::TriggerTowerKey();
