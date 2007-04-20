@@ -54,10 +54,10 @@ class PpmTester : public Algorithm {
    /// Set up trigger tower map
    void setupTTMap(const TriggerTowerCollection* jeCollection);
 
-   /// Trigger tower key provider
-   LVL1::TriggerTowerKey* m_towerKey;
    /// StoreGate service
    ServiceHandle<StoreGateSvc> m_storeGate;
+   /// Trigger tower key provider
+   LVL1::TriggerTowerKey* m_towerKey;
    /// Trigger tower container StoreGate key
    std::string m_triggerTowerLocation;
    /// Force number of FADC slices

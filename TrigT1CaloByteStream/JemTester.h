@@ -94,10 +94,10 @@ class JemTester : public Algorithm {
    /// Set up JEM RoI map
    void setupJemRoiMap(const JemRoiCollection* jrCollection);
 
-   /// Jet element key provider
-   LVL1::JetElementKey* m_elementKey;
    /// StoreGate service
    ServiceHandle<StoreGateSvc> m_storeGate;
+   /// Jet element key provider
+   LVL1::JetElementKey* m_elementKey;
    /// Jet element container StoreGate key
    std::string m_jetElementLocation;
    /// Jet hits container StoreGate key

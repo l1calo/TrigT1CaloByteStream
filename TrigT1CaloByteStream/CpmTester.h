@@ -76,10 +76,10 @@ class CpmTester : public Algorithm {
    /// Set up CPM RoI map
    void setupCpmRoiMap(const CpmRoiCollection* roiCollection);
 
-   /// CPM tower key provider
-   LVL1::TriggerTowerKey* m_towerKey;
    /// StoreGate service
    ServiceHandle<StoreGateSvc> m_storeGate;
+   /// CPM tower key provider
+   LVL1::TriggerTowerKey* m_towerKey;
    /// CPM tower container StoreGate key
    std::string m_cpmTowerLocation;
    /// CPM hits container StoreGate key
