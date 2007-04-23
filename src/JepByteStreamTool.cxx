@@ -41,10 +41,12 @@ JepByteStreamTool::JepByteStreamTool(const std::string& type,
 {
   declareInterface<JepByteStreamTool>(this);
 
+  declareProperty("CrateOffsetHw",  m_crateOffset = 12);
+
   // Properties for writing bytestream only
-  declareProperty("DataVersion",    m_version    = 1);
-  declareProperty("DataFormat",     m_dataFormat = 1);
-  declareProperty("SlinksPerCrate", m_slinks     = 4);
+  declareProperty("DataVersion",    m_version     = 1);
+  declareProperty("DataFormat",     m_dataFormat  = 1);
+  declareProperty("SlinksPerCrate", m_slinks      = 4);
 
 }
 
@@ -168,12 +170,13 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
   int trigJem = 0;
   int trigCmm = 0;
   for (int crate=0; crate < m_crates; ++crate) {
+    const int hwCrate = crate + m_crateOffset;
 
     // Get CMM number of slices and triggered slice offset for this crate
 
     if ( ! slinkSlicesCmm(crate, timeslicesCmm, trigCmm)) {
       log << MSG::ERROR << "Inconsistent number of CMM slices or "
-          << "triggered slice offsets in data for crate " << crate << endreq;
+          << "triggered slice offsets in data for crate " << hwCrate << endreq;
       return StatusCode::FAILURE;
     }
 
@@ -185,7 +188,7 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 	const int daqOrRoi = 0;
 	const int slink = module/modulesPerSlink;
         if (debug) {
-          log << MSG::DEBUG << "Treating crate " << crate
+          log << MSG::DEBUG << "Treating crate " << hwCrate
                             << " slink " << slink << endreq;
         }
 	// Get number of JEM slices and triggered slice offset
@@ -194,7 +197,7 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 	                                  timeslices, trigJem)) {
 	  log << MSG::ERROR << "Inconsistent number of slices or "
 	      << "triggered slice offsets in data for crate "
-	      << crate << " slink " << slink << endreq;
+	      << hwCrate << " slink " << slink << endreq;
 	  return StatusCode::FAILURE;
         }
         if (debug) {
@@ -206,8 +209,8 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
         L1CaloUserHeader userHeader;
         userHeader.setJem(trigJem);
         userHeader.setJepCmm(trigCmm);
-	const uint32_t rodIdJem = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
-	                                                       m_subDetector);
+	const uint32_t rodIdJem = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
+	                                                        m_subDetector);
 	theROD = m_fea.getRodData(rodIdJem);
 	theROD->push_back(userHeader.header());
       }
@@ -221,7 +224,7 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
       for (int slice = 0; slice < timeslices; ++slice) {
         JemSubBlock* const subBlock = new JemSubBlock();
 	subBlock->setJemHeader(m_version, m_dataFormat, slice,
-	                       crate, module, timeslices);
+	                       hwCrate, module, timeslices);
         m_jemBlocks.push_back(subBlock);
 	if (neutralFormat) break;
       }
@@ -297,6 +300,10 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 	  log << MSG::ERROR << "JEM sub-block packing failed" << endreq;
 	  return StatusCode::FAILURE;
 	}
+	if (debug) {
+	  log << MSG::DEBUG << "JEM sub-block data words: "
+	                    << subBlock->dataWords() << endreq;
+	}
 	subBlock->write(theROD);
       }
     }
@@ -311,12 +318,12 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
                                                 : CmmSubBlock::CRATE;
     for (int slice = 0; slice < timeslices; ++slice) {
       CmmEnergySubBlock* const enBlock = new CmmEnergySubBlock();
-      enBlock->setCmmHeader(m_version, m_dataFormat, slice, crate,
+      enBlock->setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                             summing, CmmSubBlock::CMM_ENERGY,
 			    CmmSubBlock::LEFT, timeslicesCmm);
       m_cmmEnergyBlocks.push_back(enBlock);
       CmmJetSubBlock* const jetBlock = new CmmJetSubBlock();
-      jetBlock->setCmmHeader(m_version, m_dataFormat, slice, crate,
+      jetBlock->setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                              summing, CmmSubBlock::CMM_JET,
 			     CmmSubBlock::RIGHT, timeslicesCmm);
       m_cmmJetBlocks.push_back(jetBlock);
@@ -385,6 +392,10 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
         log << MSG::ERROR << "CMM-Energy sub-block packing failed" << endreq;
 	return StatusCode::FAILURE;
       }
+      if (debug) {
+	log << MSG::DEBUG << "CMM-Energy sub-block data words: "
+	                  << subBlock->dataWords() << endreq;
+      }
       subBlock->write(theROD);
     }
 
@@ -447,6 +458,10 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
         log << MSG::ERROR << "CMM-Jet sub-block packing failed" << endreq;
 	return StatusCode::FAILURE;
       }
+      if (debug) {
+	log << MSG::DEBUG << "CMM-Jet sub-block data words: "
+	                  << subBlock->dataWords() << endreq;
+      }
       subBlock->write(theROD);
     }
   }
@@ -462,12 +477,13 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 
 void JepByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
 {
-  const int maxlinks = m_srcIdMap->maxSlinks();
-  for (int crate = 0; crate < m_crates; ++crate) {
-    for (int slink = 0; slink < maxlinks; ++slink) {
+  const int maxCrates = m_crates + m_crateOffset;
+  const int maxSlinks = m_srcIdMap->maxSlinks();
+  for (int hwCrate = m_crateOffset; hwCrate < maxCrates; ++hwCrate) {
+    for (int slink = 0; slink < maxSlinks; ++slink) {
       const int daqOrRoi = 0;
-      const uint32_t rodId = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
-                                                          m_subDetector);
+      const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
+                                                           m_subDetector);
       const uint32_t robId = m_srcIdMap->getRobID(rodId);
       vID.push_back(robId);
     }
@@ -585,13 +601,13 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
   MsgStream log( msgSvc(), name() );
   const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
 
-  const int crate      = subBlock.crate();
+  const int hwCrate    = subBlock.crate();
   const int module     = subBlock.cmmPosition();
   const int summing    = subBlock.cmmSumming();
   const int timeslices = subBlock.timeslices();
   const int sliceNum   = subBlock.slice();
   if (debug) {
-    log << MSG::DEBUG << "CMM-Energy: Crate " << crate
+    log << MSG::DEBUG << "CMM-Energy: Crate " << hwCrate
                       << "  Module "          << module
 		      << "  Summing "         << summing
                       << "  Total slices "    << timeslices
@@ -617,9 +633,11 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
   // Retrieve required data
 
   const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
+  const int crate  = (hwCrate < m_crateOffset) ? hwCrate
+                                               : hwCrate - m_crateOffset;
+  const int maxSid = CmmEnergySubBlock::MAX_SOURCE_ID;
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
-  const int maxSid = CmmEnergySubBlock::MAX_SOURCE_ID;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
 
     // Energy sums
@@ -748,13 +766,13 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
   MsgStream log( msgSvc(), name() );
   const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
 
-  const int crate      = subBlock.crate();
+  const int hwCrate    = subBlock.crate();
   const int module     = subBlock.cmmPosition();
   const int summing    = subBlock.cmmSumming();
   const int timeslices = subBlock.timeslices();
   const int sliceNum   = subBlock.slice();
   if (debug) {
-    log << MSG::DEBUG << "CMM-Jet: Crate " << crate
+    log << MSG::DEBUG << "CMM-Jet: Crate " << hwCrate
                       << "  Module "       << module
 		      << "  Summing "      << summing
                       << "  Total slices " << timeslices
@@ -780,9 +798,11 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
   // Retrieve required data
 
   const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
+  const int crate  = (hwCrate < m_crateOffset) ? hwCrate
+                                               : hwCrate - m_crateOffset;
+  const int maxSid = CmmJetSubBlock::MAX_SOURCE_ID;
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
-  const int maxSid = CmmJetSubBlock::MAX_SOURCE_ID;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
 
     // Jet hit counts
@@ -876,12 +896,12 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock,
   MsgStream log( msgSvc(), name() );
   const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
 
-  const int crate      = subBlock.crate();
+  const int hwCrate    = subBlock.crate();
   const int module     = subBlock.module();
   const int timeslices = subBlock.timeslices();
   const int sliceNum   = subBlock.slice();
   if (debug) {
-    log << MSG::DEBUG << "JEM: Crate "     << crate
+    log << MSG::DEBUG << "JEM: Crate "     << hwCrate
                       << "  Module "       << module
                       << "  Total slices " << timeslices
                       << "  Slice "        << sliceNum    << endreq;
@@ -906,6 +926,8 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock,
   // Retrieve required data
 
   const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
+  const int crate = (hwCrate < m_crateOffset) ? hwCrate
+                                              : hwCrate - m_crateOffset;
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
@@ -963,7 +985,7 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock,
         }
       } else if (debug) {
         log << MSG::VERBOSE << "No jet hits data for crate/module/slice "
-                            << crate << "/" << module << "/" << slice
+                            << hwCrate << "/" << module << "/" << slice
    			    << endreq;
       }
     } else if (collection == ENERGY_SUMS) {
@@ -999,7 +1021,7 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock,
         }
       } else if (debug) {
         log << MSG::VERBOSE << "No energy sums data for crate/module/slice "
-                            << crate << "/" << module << "/" << slice
+                            << hwCrate << "/" << module << "/" << slice
     			    << endreq;
       }
     }

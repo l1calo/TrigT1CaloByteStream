@@ -34,20 +34,20 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
 {
   declareInterface<PpmByteStreamTool>(this);
 
-  declareProperty("PrintCompStats", m_printCompStats = 0);
-  declareProperty("PedestalValue", m_pedestal = 10);
+  declareProperty("PrintCompStats",     m_printCompStats  = 0);
+  declareProperty("PedestalValue",      m_pedestal        = 10);
 
   // Properties for reading bytestream only
-  declareProperty("ZeroSuppress", m_zeroSuppress = 0);
+  declareProperty("ZeroSuppress",       m_zeroSuppress    = 0);
 
   // Properties for writing bytestream only
-  declareProperty("DataVersion", m_version = 1);
-  declareProperty("DataFormat", m_dataFormat = 1);
-  declareProperty("CompressionVersion", m_compVers = 1);
-  declareProperty("SlinksPerCrate", m_slinks = 4);
-  declareProperty("DefaultSlicesLUT", m_dfltSlicesLut = 1);
-  declareProperty("DefaultSlicesFADC", m_dfltSlicesFadc = 7);
-  declareProperty("ForceSlicesFADC", m_forceSlicesFadc = 0);
+  declareProperty("DataVersion",        m_version         = 1);
+  declareProperty("DataFormat",         m_dataFormat      = 1);
+  declareProperty("CompressionVersion", m_compVers        = 1);
+  declareProperty("SlinksPerCrate",     m_slinks          = 4);
+  declareProperty("DefaultSlicesLUT",   m_dfltSlicesLut   = 1);
+  declareProperty("DefaultSlicesFADC",  m_dfltSlicesFadc  = 7);
+  declareProperty("ForceSlicesFADC",    m_forceSlicesFadc = 0);
 
 }
 
@@ -502,6 +502,10 @@ StatusCode PpmByteStreamTool::convert(
 	    // Only put errors in last sub-block
 	    subBlock.setStatus(0, false, false, false, false,
 	                                 false, false, false);
+	    if (debug) {
+	      log << MSG::DEBUG << "PPM sub-block data words: "
+	                        << subBlock.dataWords() << endreq;
+	    }
 	    subBlock.write(theROD);
 	  } else {
 	    // Last sub-block - write error block
@@ -528,6 +532,10 @@ StatusCode PpmByteStreamTool::convert(
 	    }
 	    subBlock.setStatus(0, glinkTimeout, false, upstreamError,
 	                       daqOverflow, bcnMismatch, false, glinkParity);
+	    if (debug) {
+	      log << MSG::DEBUG << "PPM sub-block data words: "
+	                        << subBlock.dataWords() << endreq;
+	    }
             subBlock.write(theROD);
 	    // Only uncompressed format has a separate error block
 	    if (m_dataFormat == L1CaloSubBlock::UNCOMPRESSED) {
@@ -539,6 +547,10 @@ StatusCode PpmByteStreamTool::convert(
 	      errorBlock.setStatus(0, glinkTimeout, false, upstreamError, 
 	                       daqOverflow, bcnMismatch, false, glinkParity);
 	      errorBlock.write(theROD);
+	      if (debug) {
+	        log << MSG::DEBUG << "PPM error block data words: "
+	                          << errorBlock.dataWords() << endreq;
+	      }
 	    }
           }
         }

@@ -110,6 +110,8 @@ class CpByteStreamTool : public AlgTool {
    /// Get number of CMM slices and triggered slice offset for current crate
    bool slinkSlicesCmm(int crate, int& timeslices, int& trigCmm);
 
+   /// Hardware crate number offset
+   int m_crateOffset;
    /// Sub_block header version
    int m_version;
    /// Data compression format

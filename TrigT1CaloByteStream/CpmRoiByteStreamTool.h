@@ -59,13 +59,15 @@ class CpmRoiByteStreamTool : public AlgTool {
  private:
 
    typedef DataVector<LVL1::CPMRoI>                      CpmRoiCollection;
-   typedef std::map<int, const LVL1::CPMRoI*>            CpmRoiMap;
+   typedef std::map<uint32_t, const LVL1::CPMRoI*>       CpmRoiMap;
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
 
    /// Set up CPM RoI map
    void setupCpmRoiMap(const CpmRoiCollection* roiCollection);
 
+   /// Hardware crate number offset
+   int m_crateOffset;
    /// Sub_block header version
    int m_version;
    /// Data compression format

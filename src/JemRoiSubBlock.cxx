@@ -43,7 +43,8 @@ void JemRoiSubBlock::setRoiHeader(const int version, const int crate,
 
 void JemRoiSubBlock::fillRoi(const LVL1::JEMRoI roi)
 {
-  if (roi.crate() == crate() && roi.jem() == module()) {
+  const LVL1::JEMRoI roiTemp(crate(), module(), 0, 0, 0, 0, 0);
+  if (roi.crate() == roiTemp.crate() && roi.jem() == roiTemp.jem()) {
     m_roiData.resize(2*s_frames);
     const int pos = roi.frame() + roi.forward()*s_frames;
     m_roiData[pos] = roi;

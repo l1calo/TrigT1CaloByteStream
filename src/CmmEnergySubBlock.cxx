@@ -323,7 +323,7 @@ bool CmmEnergySubBlock::packNeutral()
   resize();
   const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
-    for (int pin = 0; pin <= s_maxJems; ++pin) {
+    for (int pin = 0; pin < s_maxJems; ++pin) {
       // JEM energy sums (jem == pin); parity error
       packerNeutral(pin, ex(slice, pin), s_jemSumBits);
       packerNeutral(pin, ey(slice, pin), s_jemSumBits);
@@ -391,7 +391,7 @@ bool CmmEnergySubBlock::unpackNeutral()
   const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
     int bunchCrossing = 0;
-    for (int pin = 0; pin <= s_maxJems; ++pin) {
+    for (int pin = 0; pin < s_maxJems; ++pin) {
       // JEM energy sums (jem == pin); parity error
       const unsigned int ex = unpackerNeutral(pin, s_jemSumBits);
       const unsigned int ey = unpackerNeutral(pin, s_jemSumBits);

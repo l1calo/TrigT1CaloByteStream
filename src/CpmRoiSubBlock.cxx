@@ -40,7 +40,8 @@ void CpmRoiSubBlock::setRoiHeader(const int version, const int crate,
 
 void CpmRoiSubBlock::fillRoi(const LVL1::CPMRoI roi)
 {
-  if (roi.crate() == crate() && roi.cpm() == module()) {
+  const LVL1::CPMRoI roiTemp(crate(), module(), 0, 0, 0, 0);
+  if (roi.crate() == roiTemp.crate() && roi.cpm() == roiTemp.cpm()) {
     m_roiData.resize(s_glinkPins);
     const int pin = (roi.chip() << 1) |
                     ((roi.location() >> s_locationLen) & 0x1);

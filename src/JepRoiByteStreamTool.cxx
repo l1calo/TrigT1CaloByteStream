@@ -38,10 +38,12 @@ JepRoiByteStreamTool::JepRoiByteStreamTool(const std::string& type,
 {
   declareInterface<JepRoiByteStreamTool>(this);
 
+  declareProperty("CrateOffsetHw",  m_crateOffset = 12);
+
   // Properties for writing bytestream only
-  declareProperty("DataVersion",    m_version    = 1);
-  declareProperty("DataFormat",     m_dataFormat = 1);
-  declareProperty("SlinksPerCrate", m_slinks     = 1);
+  declareProperty("DataVersion",    m_version     = 1);
+  declareProperty("DataFormat",     m_dataFormat  = 1);
+  declareProperty("SlinksPerCrate", m_slinks      = 1);
 
 }
 
@@ -124,6 +126,7 @@ StatusCode JepRoiByteStreamTool::convert(
 
   const int modulesPerSlink = m_modules / m_slinks;
   for (int crate=0; crate < m_crates; ++crate) {
+    const int hwCrate = crate + m_crateOffset;
 
     for (int module=0; module < m_modules; ++module) {
 
@@ -133,13 +136,13 @@ StatusCode JepRoiByteStreamTool::convert(
 	const int daqOrRoi = 0;  // 1 is for RoIB
 	const int slink = module/modulesPerSlink;
         if (debug) {
-          log << MSG::DEBUG << "Treating crate " << crate
+          log << MSG::DEBUG << "Treating crate " << hwCrate
                             << " slink " << slink << endreq;
 	  log << MSG::DEBUG << "Data Version/Format: " << m_version
 	                    << " " << m_dataFormat << endreq;
         }
-	const uint32_t rodIdJem = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
-	                                                       m_subDetector);
+	const uint32_t rodIdJem = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
+	                                                        m_subDetector);
 	theROD = m_fea.getRodData(rodIdJem);
         if (neutralFormat) {
           const L1CaloUserHeader userHeader;
@@ -154,7 +157,7 @@ StatusCode JepRoiByteStreamTool::convert(
 
       if (neutralFormat) {
         m_subBlock.clear();
-	m_subBlock.setRoiHeader(m_version, crate, module);
+	m_subBlock.setRoiHeader(m_version, hwCrate, module);
       }
 
       // Find JEM RoIs for this module
@@ -178,6 +181,10 @@ StatusCode JepRoiByteStreamTool::convert(
 	  log << MSG::ERROR << "JEM RoI sub-block packing failed" << endreq;
 	  return StatusCode::FAILURE;
         }
+	if (debug) {
+	  log << MSG::DEBUG << "JEM RoI sub-block data words: "
+	                    << m_subBlock.dataWords() << endreq;
+	}
 	m_subBlock.write(theROD);
       }
     }
@@ -195,7 +202,7 @@ StatusCode JepRoiByteStreamTool::convert(
       // CMM-Energy
 
       CmmEnergySubBlock enBlock;
-      enBlock.setCmmHeader(m_version, m_dataFormat, slice, crate,
+      enBlock.setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                            CmmSubBlock::SYSTEM, CmmSubBlock::CMM_ENERGY,
 			   CmmSubBlock::LEFT, timeslices);
       int maxDataID = LVL1::CMMEtSums::MAXID;
@@ -240,12 +247,16 @@ StatusCode JepRoiByteStreamTool::convert(
         log << MSG::ERROR << "CMM-Energy sub-block packing failed" << endreq;
 	return StatusCode::FAILURE;
       }
+      if (debug) {
+	log << MSG::DEBUG << "CMM-Energy sub-block data words: "
+	                  << enBlock.dataWords() << endreq;
+      }
       enBlock.write(theROD);
 
       // CMM-Jet
 
       CmmJetSubBlock jetBlock;
-      jetBlock.setCmmHeader(m_version, m_dataFormat, slice, crate,
+      jetBlock.setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                             CmmSubBlock::SYSTEM, CmmSubBlock::CMM_JET,
 			    CmmSubBlock::RIGHT, timeslices);
       maxDataID = LVL1::CMMJetHits::MAXID;
@@ -292,6 +303,10 @@ StatusCode JepRoiByteStreamTool::convert(
         log << MSG::ERROR << "CMM-Jet sub-block packing failed" << endreq;
 	return StatusCode::FAILURE;
       }
+      if (debug) {
+	log << MSG::DEBUG << "CMM-Jet sub-block data words: "
+	                  << jetBlock.dataWords() << endreq;
+      }
       jetBlock.write(theROD);
 
     } else {
@@ -333,12 +348,13 @@ StatusCode JepRoiByteStreamTool::convert(
 
 void JepRoiByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
 {
-  const int maxlinks = m_srcIdMap->maxSlinks();
-  for (int crate = 0; crate < m_crates; ++crate) {
-    for (int slink = 0; slink < maxlinks; ++slink) {
+  const int maxCrates = m_crates + m_crateOffset;
+  const int maxSlinks = m_srcIdMap->maxSlinks();
+  for (int hwCrate = m_crateOffset; hwCrate < maxCrates; ++hwCrate) {
+    for (int slink = 0; slink < maxSlinks; ++slink) {
       const int daqOrRoi = 0;
-      const uint32_t rodId = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
-                                                          m_subDetector);
+      const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
+                                                           m_subDetector);
       const uint32_t robId = m_srcIdMap->getRobID(rodId);
       vID.push_back(robId);
     }

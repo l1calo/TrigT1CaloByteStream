@@ -92,6 +92,8 @@ class JepRoiByteStreamTool : public AlgTool {
    /// Set up CMM energy sums map
    void setupCmmEtMap(const CmmSumsCollection* enCollection);
 
+   /// Hardware crate number offset
+   int m_crateOffset;
    /// Sub_block header version
    int m_version;
    /// Data compression format

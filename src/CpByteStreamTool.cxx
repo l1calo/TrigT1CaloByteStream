@@ -38,10 +38,12 @@ CpByteStreamTool::CpByteStreamTool(const std::string& type,
 {
   declareInterface<CpByteStreamTool>(this);
 
+  declareProperty("CrateOffsetHw",  m_crateOffset = 8);
+
   // Properties for writing bytestream only
-  declareProperty("DataVersion",    m_version    = 1);
-  declareProperty("DataFormat",     m_dataFormat = 1);
-  declareProperty("SlinksPerCrate", m_slinks     = 2);
+  declareProperty("DataVersion",    m_version     = 1);
+  declareProperty("DataFormat",     m_dataFormat  = 1);
+  declareProperty("SlinksPerCrate", m_slinks      = 2);
 
 }
 
@@ -141,12 +143,13 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
   int trigCpm = 0;
   int trigCmm = 0;
   for (int crate=0; crate < m_crates; ++crate) {
+    const int hwCrate = crate + m_crateOffset;
 
     // Get CMM number of slices and triggered slice offset for this crate
 
     if ( ! slinkSlicesCmm(crate, timeslicesCmm, trigCmm)) {
       log << MSG::ERROR << "Inconsistent number of CMM slices or "
-          << "triggered slice offsets in data for crate " << crate << endreq;
+          << "triggered slice offsets in data for crate " << hwCrate << endreq;
       return StatusCode::FAILURE;
     }
 
@@ -160,7 +163,7 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 	const int daqOrRoi = 0;
 	const int slink = mod/modulesPerSlink;
         if (debug) {
-          log << MSG::DEBUG << "Treating crate " << crate
+          log << MSG::DEBUG << "Treating crate " << hwCrate
                             << " slink " << slink << endreq;
         }
 	// Get number of CPM slices and triggered slice offset
@@ -169,7 +172,7 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 	                                  timeslices, trigCpm)) {
 	  log << MSG::ERROR << "Inconsistent number of slices or "
 	      << "triggered slice offsets in data for crate "
-	      << crate << " slink " << slink << endreq;
+	      << hwCrate << " slink " << slink << endreq;
 	  return StatusCode::FAILURE;
         }
         if (debug) {
@@ -181,8 +184,8 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
         L1CaloUserHeader userHeader;
         userHeader.setCpm(trigCpm);
         userHeader.setCpCmm(trigCmm);
-	const uint32_t rodIdCpm = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
-	                                                       m_subDetector);
+	const uint32_t rodIdCpm = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
+	                                                        m_subDetector);
 	theROD = m_fea.getRodData(rodIdCpm);
 	theROD->push_back(userHeader.header());
       }
@@ -196,7 +199,7 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
       for (int slice = 0; slice < timeslices; ++slice) {
         CpmSubBlock* const subBlock = new CpmSubBlock();
 	subBlock->setCpmHeader(m_version, m_dataFormat, slice,
-	                       crate, module, timeslices);
+	                       hwCrate, module, timeslices);
         m_cpmBlocks.push_back(subBlock);
 	if (neutralFormat) break;
       }
@@ -256,6 +259,10 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 	  log << MSG::ERROR << "CPM sub-block packing failed" << endreq;
 	  return StatusCode::FAILURE;
 	}
+        if (debug) {
+          log << MSG::DEBUG << "CPM sub-block data words: "
+	                    << subBlock->dataWords() << endreq;
+        }
 	subBlock->write(theROD);
       }
     }
@@ -270,12 +277,12 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
                                                 : CmmSubBlock::CRATE;
     for (int slice = 0; slice < timeslices; ++slice) {
       CmmCpSubBlock* const h0Block = new CmmCpSubBlock();
-      h0Block->setCmmHeader(m_version, m_dataFormat, slice, crate,
+      h0Block->setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                             summing, CmmSubBlock::CMM_CP,
 			    CmmSubBlock::RIGHT, timeslicesCmm);
       m_cmmHit0Blocks.push_back(h0Block);
       CmmCpSubBlock* const h1Block = new CmmCpSubBlock();
-      h1Block->setCmmHeader(m_version, m_dataFormat, slice, crate,
+      h1Block->setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                             summing, CmmSubBlock::CMM_CP,
 			    CmmSubBlock::LEFT, timeslicesCmm);
       m_cmmHit1Blocks.push_back(h1Block);
@@ -336,6 +343,10 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
         log << MSG::ERROR << "CMM-Cp sub-block packing failed" << endreq;
 	return StatusCode::FAILURE;
       }
+      if (debug) {
+        log << MSG::DEBUG << "CMM-Cp sub-block data words: "
+	                  << subBlock->dataWords() << endreq;
+      }
       subBlock->write(theROD);
     }
     cos = m_cmmHit1Blocks.begin();
@@ -344,6 +355,10 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
       if ( !subBlock->pack()) {
         log << MSG::ERROR << "CMM-Cp sub-block packing failed" << endreq;
 	return StatusCode::FAILURE;
+      }
+      if (debug) {
+        log << MSG::DEBUG << "CMM-Cp sub-block data words: "
+	                  << subBlock->dataWords() << endreq;
       }
       subBlock->write(theROD);
     }
@@ -360,12 +375,13 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 
 void CpByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
 {
-  const int maxlinks = m_srcIdMap->maxSlinks();
-  for (int crate = 0; crate < m_crates; ++crate) {
-    for (int slink = 0; slink < maxlinks; ++slink) {
+  const int maxCrates = m_crates + m_crateOffset;
+  const int maxSlinks = m_srcIdMap->maxSlinks();
+  for (int hwCrate = m_crateOffset; hwCrate < maxCrates; ++hwCrate) {
+    for (int slink = 0; slink < maxSlinks; ++slink) {
       const int daqOrRoi = 0;
-      const uint32_t rodId = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
-                                                          m_subDetector);
+      const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
+                                                           m_subDetector);
       const uint32_t robId = m_srcIdMap->getRobID(rodId);
       vID.push_back(robId);
     }
@@ -473,13 +489,13 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock,
   MsgStream log( msgSvc(), name() );
   const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
 
-  const int crate      = subBlock.crate();
+  const int hwCrate    = subBlock.crate();
   const int module     = subBlock.cmmPosition();
   const int summing    = subBlock.cmmSumming();
   const int timeslices = subBlock.timeslices();
   const int sliceNum   = subBlock.slice();
   if (debug) {
-    log << MSG::DEBUG << "CMM-CP: Crate "  << crate
+    log << MSG::DEBUG << "CMM-CP: Crate "  << hwCrate
                       << "  Module "       << module
 		      << "  Summing "      << summing
                       << "  Total slices " << timeslices
@@ -505,9 +521,11 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock,
   // Retrieve required data
 
   const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
+  const int crate  = (hwCrate < m_crateOffset) ? hwCrate
+                                               : hwCrate - m_crateOffset;
+  const int maxSid = CmmCpSubBlock::MAX_SOURCE_ID;
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
-  const int maxSid = CmmCpSubBlock::MAX_SOURCE_ID;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
 
     // Jet hit counts
@@ -587,12 +605,12 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
   MsgStream log( msgSvc(), name() );
   const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
 
-  const int crate      = subBlock.crate();
+  const int hwCrate    = subBlock.crate();
   const int module     = subBlock.module();
   const int timeslices = subBlock.timeslices();
   const int sliceNum   = subBlock.slice();
   if (debug) {
-    log << MSG::DEBUG << "CPM: Crate "     << crate
+    log << MSG::DEBUG << "CPM: Crate "     << hwCrate
                       << "  Module "       << module
                       << "  Total slices " << timeslices
                       << "  Slice "        << sliceNum    << endreq;
@@ -617,6 +635,8 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
   // Retrieve required data
 
   const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
+  const int crate    = (hwCrate < m_crateOffset) ? hwCrate
+                                                 : hwCrate - m_crateOffset;
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
@@ -696,7 +716,7 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
         }
       } else if (debug) {
         log << MSG::VERBOSE << "No CPM hits data for crate/module/slice "
-                            << crate << "/" << module << "/" << slice
+                            << hwCrate << "/" << module << "/" << slice
    			    << endreq;
       }
     }
