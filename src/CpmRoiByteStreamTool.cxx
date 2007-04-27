@@ -30,12 +30,13 @@ CpmRoiByteStreamTool::CpmRoiByteStreamTool(const std::string& type,
 {
   declareInterface<CpmRoiByteStreamTool>(this);
 
-  declareProperty("CrateOffsetHw",  m_crateOffset = 8);
+  declareProperty("CrateOffsetHw",  m_crateOffsetHw = 8);
+  declareProperty("CrateOffsetSw",  m_crateOffsetSw = 0);
 
   // Properties for writing bytestream only
-  declareProperty("DataVersion",    m_version     = 1);
-  declareProperty("DataFormat",     m_dataFormat  = 1);
-  declareProperty("SlinksPerCrate", m_slinks      = 1);
+  declareProperty("DataVersion",    m_version       = 1);
+  declareProperty("DataFormat",     m_dataFormat    = 1);
+  declareProperty("SlinksPerCrate", m_slinks        = 1);
 
 }
 
@@ -193,7 +194,7 @@ StatusCode CpmRoiByteStreamTool::convert(
   const bool neutralFormat = m_dataFormat == L1CaloSubBlock::NEUTRAL;
   const int  modulesPerSlink = m_modules / m_slinks;
   for (int crate=0; crate < m_crates; ++crate) {
-    const int hwCrate = crate + m_crateOffset;
+    const int hwCrate = crate + m_crateOffsetHw;
 
     // CPM modules are numbered 1 to m_modules
     for (int module=1; module <= m_modules; ++module) {
@@ -270,9 +271,9 @@ StatusCode CpmRoiByteStreamTool::convert(
 
 void CpmRoiByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
 {
-  const int maxCrates = m_crates + m_crateOffset;
+  const int maxCrates = m_crates + m_crateOffsetHw;
   const int maxSlinks = m_srcIdMap->maxSlinks();
-  for (int hwCrate = m_crateOffset; hwCrate < maxCrates; ++hwCrate) {
+  for (int hwCrate = m_crateOffsetHw; hwCrate < maxCrates; ++hwCrate) {
     for (int slink = 0; slink < maxSlinks; ++slink) {
       const int daqOrRoi = 0;
       const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,

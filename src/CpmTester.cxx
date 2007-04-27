@@ -10,8 +10,6 @@
 #include "TrigT1Calo/TriggerTowerKey.h"
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
-#include "TrigT1CaloByteStream/CpmCrateMappings.h"
-
 
 CpmTester::CpmTester(const std::string& name, ISvcLocator* pSvcLocator)
                      : Algorithm(name, pSvcLocator), 
@@ -32,8 +30,6 @@ CpmTester::CpmTester(const std::string& name, ISvcLocator* pSvcLocator)
   declareProperty("CPMHitsPrint",   m_cpmHitsPrint   = 1);
   declareProperty("CMMCPHitsPrint", m_cmmCpHitsPrint = 1);
   declareProperty("CPMRoIPrint",    m_cpmRoiPrint    = 1);
-
-  m_modules = CpmCrateMappings::modules();
 }
 
 CpmTester::~CpmTester()
@@ -296,7 +292,7 @@ void CpmTester::setupCpmHitsMap(const CpmHitsCollection* const hitCollection)
     CpmHitsCollection::const_iterator pose = hitCollection->end();
     for (; pos != pose; ++pos) {
       const LVL1::CPMHits* const hits = *pos;
-      const int key = m_modules * hits->crate() + hits->module() - 1;
+      const int key = hits->crate()*100 + hits->module() - 1;
       m_hitsMap.insert(std::make_pair(key, hits));
     }
   }

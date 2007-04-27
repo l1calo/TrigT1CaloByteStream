@@ -12,8 +12,6 @@
 #include "TrigT1Calo/JetElementKey.h"
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
-#include "TrigT1CaloByteStream/JemCrateMappings.h"
-
 
 JemTester::JemTester(const std::string& name, ISvcLocator* pSvcLocator)
                      : Algorithm(name, pSvcLocator), 
@@ -43,8 +41,6 @@ JemTester::JemTester(const std::string& name, ISvcLocator* pSvcLocator)
   declareProperty("CMMEtSumsPrint",  m_cmmEtSumsPrint  = 1);
   declareProperty("JEMRoIPrint",     m_jemRoiPrint     = 1);
   declareProperty("CMMRoIPrint",     m_cmmRoiPrint     = 1);
-
-  m_modules = JemCrateMappings::modules();
 }
 
 JemTester::~JemTester()
@@ -452,7 +448,7 @@ void JemTester::setupHitsMap(const JetHitsCollection* const hitCollection)
     JetHitsCollection::const_iterator pose = hitCollection->end();
     for (; pos != pose; ++pos) {
       const LVL1::JEMHits* const hits = *pos;
-      const int key = m_modules * hits->crate() + hits->module();
+      const int key = hits->crate()*100 + hits->module();
       m_hitsMap.insert(std::make_pair(key, hits));
     }
   }
@@ -468,7 +464,7 @@ void JemTester::setupEtMap(const EnergySumsCollection* const etCollection)
     EnergySumsCollection::const_iterator pose = etCollection->end();
     for (; pos != pose; ++pos) {
       const LVL1::JEMEtSums* const sums = *pos;
-      const int key = m_modules * sums->crate() + sums->module();
+      const int key = sums->crate()*100 + sums->module();
       m_etMap.insert(std::make_pair(key, sums));
     }
   }

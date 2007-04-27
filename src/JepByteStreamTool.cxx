@@ -41,12 +41,13 @@ JepByteStreamTool::JepByteStreamTool(const std::string& type,
 {
   declareInterface<JepByteStreamTool>(this);
 
-  declareProperty("CrateOffsetHw",  m_crateOffset = 12);
+  declareProperty("CrateOffsetHw",  m_crateOffsetHw = 12);
+  declareProperty("CrateOffsetSw",  m_crateOffsetSw = 0);
 
   // Properties for writing bytestream only
-  declareProperty("DataVersion",    m_version     = 1);
-  declareProperty("DataFormat",     m_dataFormat  = 1);
-  declareProperty("SlinksPerCrate", m_slinks      = 4);
+  declareProperty("DataVersion",    m_version       = 1);
+  declareProperty("DataFormat",     m_dataFormat    = 1);
+  declareProperty("SlinksPerCrate", m_slinks        = 4);
 
 }
 
@@ -170,7 +171,7 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
   int trigJem = 0;
   int trigCmm = 0;
   for (int crate=0; crate < m_crates; ++crate) {
-    const int hwCrate = crate + m_crateOffset;
+    const int hwCrate = crate + m_crateOffsetHw;
 
     // Get CMM number of slices and triggered slice offset for this crate
 
@@ -477,9 +478,9 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 
 void JepByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
 {
-  const int maxCrates = m_crates + m_crateOffset;
+  const int maxCrates = m_crates + m_crateOffsetHw;
   const int maxSlinks = m_srcIdMap->maxSlinks();
-  for (int hwCrate = m_crateOffset; hwCrate < maxCrates; ++hwCrate) {
+  for (int hwCrate = m_crateOffsetHw; hwCrate < maxCrates; ++hwCrate) {
     for (int slink = 0; slink < maxSlinks; ++slink) {
       const int daqOrRoi = 0;
       const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
@@ -613,6 +614,10 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
                       << "  Total slices "    << timeslices
                       << "  Slice "           << sliceNum    << endreq;
   }
+  if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
+    log << MSG::ERROR << "Unexpected crate number: " << hwCrate << endreq;
+    return StatusCode::FAILURE;
+  }
   if (timeslices <= trigCmm) {
     log << MSG::ERROR << "Triggered CMM slice from header "
         << "inconsistent with number of slices: "
@@ -633,9 +638,9 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
   // Retrieve required data
 
   const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
-  const int crate  = (hwCrate < m_crateOffset) ? hwCrate
-                                               : hwCrate - m_crateOffset;
-  const int maxSid = CmmEnergySubBlock::MAX_SOURCE_ID;
+  const int crate    = hwCrate - m_crateOffsetHw;
+  const int swCrate  = crate   + m_crateOffsetSw;
+  const int maxSid   = CmmEnergySubBlock::MAX_SOURCE_ID;
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
@@ -682,7 +687,7 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
 	  exErrVec[slice] = exErr;
 	  eyErrVec[slice] = eyErr;
 	  etErrVec[slice] = etErr;
-	  sums = new LVL1::CMMEtSums(crate, dataID, etVec, exVec, eyVec,
+	  sums = new LVL1::CMMEtSums(swCrate, dataID, etVec, exVec, eyVec,
 				     etErrVec, exErrVec, eyErrVec, trigCmm);
           const int key = crate*100 + dataID;
 	  m_cmmEtMap.insert(std::make_pair(key, sums));
@@ -718,7 +723,7 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
           std::vector<unsigned int> missVec(timeslices);
           const std::vector<int> errVec(timeslices);
 	  missVec[slice] = missEt;
-	  map = new LVL1::CMMEtSums(crate, dataID,
+	  map = new LVL1::CMMEtSums(swCrate, dataID,
 	                            missVec, missVec, missVec,
 	  			    errVec, errVec, errVec, trigCmm);
           const int key = crate*100 + dataID;
@@ -739,7 +744,7 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
           std::vector<unsigned int> sumVec(timeslices);
           const std::vector<int> errVec(timeslices);
 	  sumVec[slice] = sumEt;
-	  map = new LVL1::CMMEtSums(crate, dataID,
+	  map = new LVL1::CMMEtSums(swCrate, dataID,
 	                            sumVec, sumVec, sumVec,
 				    errVec, errVec, errVec, trigCmm);
           const int key = crate*100 + dataID;
@@ -778,6 +783,10 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
                       << "  Total slices " << timeslices
                       << "  Slice "        << sliceNum    << endreq;
   }
+  if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
+    log << MSG::ERROR << "Unexpected crate number: " << hwCrate << endreq;
+    return StatusCode::FAILURE;
+  }
   if (timeslices <= trigCmm) {
     log << MSG::ERROR << "Triggered CMM slice from header "
         << "inconsistent with number of slices: "
@@ -798,9 +807,9 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
   // Retrieve required data
 
   const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
-  const int crate  = (hwCrate < m_crateOffset) ? hwCrate
-                                               : hwCrate - m_crateOffset;
-  const int maxSid = CmmJetSubBlock::MAX_SOURCE_ID;
+  const int crate    = hwCrate - m_crateOffsetHw;
+  const int swCrate  = crate   + m_crateOffsetSw;
+  const int maxSid   = CmmJetSubBlock::MAX_SOURCE_ID;
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
@@ -845,7 +854,7 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
 	  std::vector<int> errVec(timeslices);
 	  hitsVec[slice] = hits;
 	  errVec[slice]  = err;
-	  jh = new LVL1::CMMJetHits(crate, dataID, hitsVec, errVec, trigCmm);
+	  jh = new LVL1::CMMJetHits(swCrate, dataID, hitsVec, errVec, trigCmm);
           const int key = crate*100 + dataID;
 	  m_cmmHitsMap.insert(std::make_pair(key, jh));
 	  m_cmmHitCollection->push_back(jh);
@@ -870,7 +879,7 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
           std::vector<unsigned int> mapVec(timeslices);
           const std::vector<int> errVec(timeslices);
 	  mapVec[slice] = etMap;
-	  map = new LVL1::CMMJetHits(crate, dataID, mapVec, errVec, trigCmm);
+	  map = new LVL1::CMMJetHits(swCrate, dataID, mapVec, errVec, trigCmm);
           const int key = crate*100 + dataID;
 	  m_cmmHitsMap.insert(std::make_pair(key, map));
 	  m_cmmHitCollection->push_back(map);
@@ -906,6 +915,10 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock,
                       << "  Total slices " << timeslices
                       << "  Slice "        << sliceNum    << endreq;
   }
+  if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
+    log << MSG::ERROR << "Unexpected crate number: " << hwCrate << endreq;
+    return StatusCode::FAILURE;
+  }
   if (timeslices <= trigJem) {
     log << MSG::ERROR << "Triggered JEM slice from header "
         << "inconsistent with number of slices: "
@@ -926,8 +939,8 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock,
   // Retrieve required data
 
   const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
-  const int crate = (hwCrate < m_crateOffset) ? hwCrate
-                                              : hwCrate - m_crateOffset;
+  const int crate    = hwCrate - m_crateOffsetHw;
+  const int swCrate  = crate   + m_crateOffsetSw;
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
@@ -975,7 +988,7 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock,
 	if ( ! jh ) {   // create new jet hits
 	  std::vector<unsigned int> hitsVec(timeslices);
 	  hitsVec[slice] = hits;
-	  jh = new LVL1::JEMHits(crate, module, hitsVec, trigJem);
+	  jh = new LVL1::JEMHits(swCrate, module, hitsVec, trigJem);
 	  m_hitsMap.insert(std::make_pair(crate*m_modules+module, jh));
 	  m_hitCollection->push_back(jh);
         } else {
@@ -1004,8 +1017,8 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock,
 	  exVec[slice] = ex;
 	  eyVec[slice] = ey;
 	  etVec[slice] = et;
-	  sums = new LVL1::JEMEtSums(crate, module, etVec, exVec, eyVec,
-	                                                          trigJem);
+	  sums = new LVL1::JEMEtSums(swCrate, module, etVec, exVec, eyVec,
+	                                                            trigJem);
           m_etMap.insert(std::make_pair(crate*m_modules+module, sums));
 	  m_etCollection->push_back(sums);
         } else {
@@ -1118,7 +1131,8 @@ void JepByteStreamTool::setupHitsMap(const JetHitsCollection*
     JetHitsCollection::const_iterator pose = hitCollection->end();
     for (; pos != pose; ++pos) {
       LVL1::JEMHits* const hits = *pos;
-      const int key = m_modules * hits->crate() + hits->module();
+      const int crate = hits->crate() - m_crateOffsetSw;
+      const int key   = m_modules * crate + hits->module();
       m_hitsMap.insert(std::make_pair(key, hits));
     }
   }
@@ -1135,7 +1149,8 @@ void JepByteStreamTool::setupEtMap(const EnergySumsCollection*
     EnergySumsCollection::const_iterator pose = etCollection->end();
     for (; pos != pose; ++pos) {
       LVL1::JEMEtSums* const sums = *pos;
-      const int key = m_modules * sums->crate() + sums->module();
+      const int crate = sums->crate() - m_crateOffsetSw;
+      const int key   = m_modules * crate + sums->module();
       m_etMap.insert(std::make_pair(key, sums));
     }
   }
@@ -1152,7 +1167,8 @@ void JepByteStreamTool::setupCmmHitsMap(const CmmHitsCollection*
     CmmHitsCollection::const_iterator pose = hitCollection->end();
     for (; pos != pose; ++pos) {
       LVL1::CMMJetHits* const hits = *pos;
-      const int key = hits->crate()*100 + hits->dataID();
+      const int crate = hits->crate() - m_crateOffsetSw;
+      const int key   = crate*100 + hits->dataID();
       m_cmmHitsMap.insert(std::make_pair(key, hits));
     }
   }
@@ -1169,7 +1185,8 @@ void JepByteStreamTool::setupCmmEtMap(const CmmSumsCollection*
     CmmSumsCollection::const_iterator pose = etCollection->end();
     for (; pos != pose; ++pos) {
       LVL1::CMMEtSums* const sums = *pos;
-      const int key = sums->crate()*100 + sums->dataID();
+      const int crate = sums->crate() - m_crateOffsetSw;
+      const int key   = crate*100 + sums->dataID();
       m_cmmEtMap.insert(std::make_pair(key, sums));
     }
   }

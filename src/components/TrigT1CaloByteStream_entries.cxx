@@ -41,6 +41,7 @@ typedef DataVector<LVL1::JEMEtSums>  JEMEtSumsCollection;
 typedef DataVector<LVL1::CMMJetHits> CMMJetHitsCollection;
 typedef DataVector<LVL1::CMMEtSums>  CMMEtSumsCollection;
 typedef DataVector<LVL1::JEMRoI>     JEMRoICollection;
+
 typedef CpReadByteStreamCnv<CPMTowerCollection>    CpReadCTByteStreamCnvT;
 typedef CpReadByteStreamCnv<CPMHitsCollection>     CpReadCHByteStreamCnvT;
 typedef CpReadByteStreamCnv<CMMCPHitsCollection>   CpReadCCByteStreamCnvT;
@@ -96,7 +97,14 @@ DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
   DECLARE_CONVERTER( JepReadCEByteStreamCnvT )
   DECLARE_CONVERTER( JepRoiReadJRByteStreamCnvT )
   DECLARE_CONVERTER( JepRoiReadCRByteStreamCnvT )
+
   DECLARE_ALGORITHM( CpmTester )
   DECLARE_ALGORITHM( JemTester )
   DECLARE_ALGORITHM( PpmTester )
+
+  DECLARE_TOOL( CpByteStreamTool )
+  DECLARE_TOOL( CpmRoiByteStreamTool )
+  DECLARE_TOOL( JepByteStreamTool )
+  DECLARE_TOOL( JepRoiByteStreamTool )
+  DECLARE_TOOL( PpmByteStreamTool )
 }

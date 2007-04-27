@@ -126,8 +126,6 @@ class JemTester : public Algorithm {
    int m_jemRoiPrint;
    /// CMM RoI print flag
    int m_cmmRoiPrint;
-   /// Number of JEM modules per crate
-   int m_modules;
 
    /// Jet element map
    JetElementMap m_jeMap;

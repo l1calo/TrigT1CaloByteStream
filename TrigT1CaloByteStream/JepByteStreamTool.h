@@ -134,7 +134,9 @@ class JepByteStreamTool : public AlgTool {
    bool slinkSlicesCmm(int crate, int& timeslices, int& trigCmm);
 
    /// Hardware crate number offset
-   int m_crateOffset;
+   int m_crateOffsetHw;
+   /// Software crate number offset
+   int m_crateOffsetSw;
    /// Sub_block header version
    int m_version;
    /// Data compression format

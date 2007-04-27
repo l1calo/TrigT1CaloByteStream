@@ -96,8 +96,6 @@ class CpmTester : public Algorithm {
    int m_cmmCpHitsPrint;
    /// CPM RoI print flag
    int m_cpmRoiPrint;
-   /// Number of CPM modules per crate
-   int m_modules;
 
    /// CPM tower map
    CpmTowerMap  m_ttMap;

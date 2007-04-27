@@ -38,12 +38,13 @@ CpByteStreamTool::CpByteStreamTool(const std::string& type,
 {
   declareInterface<CpByteStreamTool>(this);
 
-  declareProperty("CrateOffsetHw",  m_crateOffset = 8);
+  declareProperty("CrateOffsetHw",  m_crateOffsetHw = 8);
+  declareProperty("CrateOffsetSw",  m_crateOffsetSw = 0);
 
   // Properties for writing bytestream only
-  declareProperty("DataVersion",    m_version     = 1);
-  declareProperty("DataFormat",     m_dataFormat  = 1);
-  declareProperty("SlinksPerCrate", m_slinks      = 2);
+  declareProperty("DataVersion",    m_version       = 1);
+  declareProperty("DataFormat",     m_dataFormat    = 1);
+  declareProperty("SlinksPerCrate", m_slinks        = 2);
 
 }
 
@@ -143,7 +144,7 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
   int trigCpm = 0;
   int trigCmm = 0;
   for (int crate=0; crate < m_crates; ++crate) {
-    const int hwCrate = crate + m_crateOffset;
+    const int hwCrate = crate + m_crateOffsetHw;
 
     // Get CMM number of slices and triggered slice offset for this crate
 
@@ -375,9 +376,9 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 
 void CpByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
 {
-  const int maxCrates = m_crates + m_crateOffset;
+  const int maxCrates = m_crates + m_crateOffsetHw;
   const int maxSlinks = m_srcIdMap->maxSlinks();
-  for (int hwCrate = m_crateOffset; hwCrate < maxCrates; ++hwCrate) {
+  for (int hwCrate = m_crateOffsetHw; hwCrate < maxCrates; ++hwCrate) {
     for (int slink = 0; slink < maxSlinks; ++slink) {
       const int daqOrRoi = 0;
       const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
@@ -501,6 +502,10 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock,
                       << "  Total slices " << timeslices
                       << "  Slice "        << sliceNum    << endreq;
   }
+  if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
+    log << MSG::ERROR << "Unexpected crate number: " << hwCrate << endreq;
+    return StatusCode::FAILURE;
+  }
   if (timeslices <= trigCmm) {
     log << MSG::ERROR << "Triggered CMM slice from header "
         << "inconsistent with number of slices: "
@@ -521,9 +526,9 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock,
   // Retrieve required data
 
   const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
-  const int crate  = (hwCrate < m_crateOffset) ? hwCrate
-                                               : hwCrate - m_crateOffset;
-  const int maxSid = CmmCpSubBlock::MAX_SOURCE_ID;
+  const int crate    = hwCrate - m_crateOffsetHw;
+  const int swCrate  = crate   + m_crateOffsetSw;
+  const int maxSid   = CmmCpSubBlock::MAX_SOURCE_ID;
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
@@ -571,8 +576,8 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock,
 	    hitsVec1[slice] = hits;
 	    errVec1[slice]  = err;
 	  }
-	  ch = new LVL1::CMMCPHits(crate, dataID, hitsVec0, hitsVec1,
-	                                          errVec0, errVec1, trigCmm);
+	  ch = new LVL1::CMMCPHits(swCrate, dataID, hitsVec0, hitsVec1,
+	                                            errVec0, errVec1, trigCmm);
           const int key = crate*100 + dataID;
 	  m_cmmHitsMap.insert(std::make_pair(key, ch));
 	  m_cmmHitCollection->push_back(ch);
@@ -615,6 +620,10 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
                       << "  Total slices " << timeslices
                       << "  Slice "        << sliceNum    << endreq;
   }
+  if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
+    log << MSG::ERROR << "Unexpected crate number: " << hwCrate << endreq;
+    return StatusCode::FAILURE;
+  }
   if (timeslices <= trigCpm) {
     log << MSG::ERROR << "Triggered CPM slice from header "
         << "inconsistent with number of slices: "
@@ -635,8 +644,8 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
   // Retrieve required data
 
   const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
-  const int crate    = (hwCrate < m_crateOffset) ? hwCrate
-                                                 : hwCrate - m_crateOffset;
+  const int crate    = hwCrate - m_crateOffsetHw;
+  const int swCrate  = crate   + m_crateOffsetSw;
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
@@ -704,7 +713,7 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
 	  std::vector<unsigned int> hitsVec1(timeslices);
 	  hitsVec0[slice] = hits0;
 	  hitsVec1[slice] = hits1;
-	  ch = new LVL1::CPMHits(crate, module, hitsVec0, hitsVec1, trigCpm);
+	  ch = new LVL1::CPMHits(swCrate, module, hitsVec0, hitsVec1, trigCpm);
 	  m_hitsMap.insert(std::make_pair(crate*m_modules+module-1, ch));
 	  m_hitCollection->push_back(ch);
         } else {
@@ -788,7 +797,8 @@ void CpByteStreamTool::setupCpmHitsMap(const CpmHitsCollection*
     CpmHitsCollection::const_iterator pose = hitCollection->end();
     for (; pos != pose; ++pos) {
       LVL1::CPMHits* const hits = *pos;
-      const int key = m_modules * hits->crate() + hits->module() - 1;
+      const int crate = hits->crate() - m_crateOffsetSw;
+      const int key   = m_modules * crate + hits->module() - 1;
       m_hitsMap.insert(std::make_pair(key, hits));
     }
   }
@@ -805,7 +815,8 @@ void CpByteStreamTool::setupCmmCpHitsMap(const CmmCpHitsCollection*
     CmmCpHitsCollection::const_iterator pose = hitCollection->end();
     for (; pos != pose; ++pos) {
       LVL1::CMMCPHits* const hits = *pos;
-      const int key = hits->crate()*100 + hits->dataID();
+      const int crate = hits->crate() - m_crateOffsetSw;
+      const int key   = crate*100 + hits->dataID();
       m_cmmHitsMap.insert(std::make_pair(key, hits));
     }
   }

@@ -38,12 +38,13 @@ JepRoiByteStreamTool::JepRoiByteStreamTool(const std::string& type,
 {
   declareInterface<JepRoiByteStreamTool>(this);
 
-  declareProperty("CrateOffsetHw",  m_crateOffset = 12);
+  declareProperty("CrateOffsetHw",  m_crateOffsetHw = 12);
+  declareProperty("CrateOffsetSw",  m_crateOffsetSw = 0);
 
   // Properties for writing bytestream only
-  declareProperty("DataVersion",    m_version     = 1);
-  declareProperty("DataFormat",     m_dataFormat  = 1);
-  declareProperty("SlinksPerCrate", m_slinks      = 1);
+  declareProperty("DataVersion",    m_version       = 1);
+  declareProperty("DataFormat",     m_dataFormat    = 1);
+  declareProperty("SlinksPerCrate", m_slinks        = 1);
 
 }
 
@@ -126,7 +127,7 @@ StatusCode JepRoiByteStreamTool::convert(
 
   const int modulesPerSlink = m_modules / m_slinks;
   for (int crate=0; crate < m_crates; ++crate) {
-    const int hwCrate = crate + m_crateOffset;
+    const int hwCrate = crate + m_crateOffsetHw;
 
     for (int module=0; module < m_modules; ++module) {
 
@@ -348,9 +349,9 @@ StatusCode JepRoiByteStreamTool::convert(
 
 void JepRoiByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
 {
-  const int maxCrates = m_crates + m_crateOffset;
+  const int maxCrates = m_crates + m_crateOffsetHw;
   const int maxSlinks = m_srcIdMap->maxSlinks();
-  for (int hwCrate = m_crateOffset; hwCrate < maxCrates; ++hwCrate) {
+  for (int hwCrate = m_crateOffsetHw; hwCrate < maxCrates; ++hwCrate) {
     for (int slink = 0; slink < maxSlinks; ++slink) {
       const int daqOrRoi = 0;
       const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
@@ -563,7 +564,8 @@ void JepRoiByteStreamTool::setupCmmHitsMap(const CmmHitsCollection*
     CmmHitsCollection::const_iterator pose = hitCollection->end();
     for (; pos != pose; ++pos) {
       const LVL1::CMMJetHits* const hits = *pos;
-      const int key = hits->crate()*100 + hits->dataID();
+      const int crate = hits->crate() - m_crateOffsetSw;
+      const int key   = crate*100 + hits->dataID();
       m_cmmHitsMap.insert(std::make_pair(key, hits));
     }
   }
@@ -580,7 +582,8 @@ void JepRoiByteStreamTool::setupCmmEtMap(const CmmSumsCollection*
     CmmSumsCollection::const_iterator pose = etCollection->end();
     for (; pos != pose; ++pos) {
       const LVL1::CMMEtSums* const sums = *pos;
-      const int key = sums->crate()*100 + sums->dataID();
+      const int crate = sums->crate() - m_crateOffsetSw;
+      const int key   = crate*100 + sums->dataID();
       m_cmmEtMap.insert(std::make_pair(key, sums));
     }
   }

@@ -93,7 +93,9 @@ class JepRoiByteStreamTool : public AlgTool {
    void setupCmmEtMap(const CmmSumsCollection* enCollection);
 
    /// Hardware crate number offset
-   int m_crateOffset;
+   int m_crateOffsetHw;
+   /// Software crate number offset
+   int m_crateOffsetSw;
    /// Sub_block header version
    int m_version;
    /// Data compression format
