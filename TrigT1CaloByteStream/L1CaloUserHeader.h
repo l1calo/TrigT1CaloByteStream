@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+namespace LVL1BS {
+
 /** L1Calo User Header class.
  *
  *  The User Header is the first word of the ROD data and contains
@@ -128,5 +130,7 @@ inline void L1CaloUserHeader::setPpmFadc(const int offset)
 {
   m_header |= (s_mask & offset) << s_ppmFadcBit;
 }
+
+} // end namespace
 
 #endif

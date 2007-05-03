@@ -2,6 +2,8 @@
 
 #include "TrigT1CaloByteStream/PpmCrateMappings.h"
 
+namespace LVL1BS {
+
 // Static constants
 
 const int PpmCrateMappings::s_crates;
@@ -411,3 +413,5 @@ int PpmCrateMappings::channels()
 {
   return s_channels;
 }
+
+} // end namespace

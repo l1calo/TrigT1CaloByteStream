@@ -17,15 +17,19 @@
 
 #include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
 
-class ChannelCoordinate;
 class IInterface;
 class InterfaceID;
-class PpmCrateMappings;
-class PpmSubBlock;
+
 namespace LVL1 {
   class TriggerTower;
   class TriggerTowerKey;
 }
+
+namespace LVL1BS {
+
+class ChannelCoordinate;
+class PpmCrateMappings;
+class PpmSubBlock;
 
 /** Tool to perform ROB fragments to trigger towers and trigger towers
  *  to raw data conversions.
@@ -82,9 +86,6 @@ class PpmByteStreamTool : public AlgTool {
    /// Find a trigger tower given eta, phi
    LVL1::TriggerTower* findTriggerTower(double eta, double phi);
 
-   /// Modify the number of trigger tower FADC slices
-   const LVL1::TriggerTower* modFadcSlices(const LVL1::TriggerTower* tt);
-
    /// Set up separate Em and Had trigger tower maps
    void setupTTMaps(const TriggerTowerCollection* ttCollection);
 
@@ -108,11 +109,13 @@ class PpmByteStreamTool : public AlgTool {
    int m_modules;
    /// Number of slinks per crate when writing out bytestream
    int m_slinks;
-   /// Default number of LUT slices
+   /// Default number of LUT slices in simulation
    int m_dfltSlicesLut;
-   /// Default number of FADC slices
+   /// Default number of FADC slices in simulation
    int m_dfltSlicesFadc;
-   /// Force number of FADC slices
+   /// Force number of LUT slices in bytestream
+   int m_forceSlicesLut;
+   /// Force number of FADC slices in bytestream
    int m_forceSlicesFadc;
    /// Pedestal value
    int m_pedestal;
@@ -130,8 +133,6 @@ class PpmByteStreamTool : public AlgTool {
    PpmSubBlock* m_errorBlock;
    /// Vector for current PPM sub-blocks
    DataVector<PpmSubBlock> m_ppmBlocks;
-   /// Vector for modified TriggerTowers
-   TriggerTowerCollection m_ttModFadc;
    /// Vector for compression statistics
    std::vector<uint32_t> m_compStats;
    /// Trigger tower map for conversion from bytestream
@@ -144,5 +145,7 @@ class PpmByteStreamTool : public AlgTool {
    FullEventAssembler<L1CaloSrcIdMap> m_fea;
 
 };
+
+} // end namespace
 
 #endif

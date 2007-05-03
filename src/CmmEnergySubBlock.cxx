@@ -2,6 +2,8 @@
 
 #include "TrigT1CaloByteStream/CmmEnergySubBlock.h"
 
+namespace LVL1BS {
+
 // Constant definitions
 
 const int      CmmEnergySubBlock::s_wordLength;
@@ -468,3 +470,5 @@ bool CmmEnergySubBlock::unpackUncompressed()
   }
   return true;
 }
+
+} // end namespace

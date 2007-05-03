@@ -4,6 +4,8 @@
 #include "TrigT1CaloByteStream/PpmCrateMappings.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
 
+namespace LVL1BS {
+
 // Constant definitions
 
 const uint32_t PpmSubBlock::s_wordIdVal;
@@ -490,3 +492,5 @@ bool PpmSubBlock::errorBlock(const uint32_t word)
        seqno(word) == s_errorMarker) rc = true;
   return rc;
 }
+
+} // end namespace

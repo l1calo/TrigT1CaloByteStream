@@ -20,9 +20,12 @@
 
 class IInterface;
 class InterfaceID;
+
 namespace LVL1 {
   class CPMRoI;
 }
+
+namespace LVL1BS {
 
 /** Tool to perform ROB fragments to CPM RoI and CPM RoI to raw data
  *  conversions.
@@ -92,5 +95,7 @@ class CpmRoiByteStreamTool : public AlgTool {
    FullEventAssembler<L1CaloSrcIdMap> m_fea;
 
 };
+
+} // end namespace
 
 #endif

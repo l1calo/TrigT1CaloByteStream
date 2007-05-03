@@ -11,10 +11,13 @@ class IByteStreamEventAccess;
 class IOpaqueAddress;
 class IROBDataProviderSvc;
 class ISvcLocator;
-class CpByteStreamTool;
 
 // Externals
 extern long ByteStream_StorageType;
+
+namespace LVL1BS {
+
+class CpByteStreamTool;
 
 /** ByteStream converter for CP component containers.
  *
@@ -52,6 +55,8 @@ private:
   IByteStreamEventAccess* m_ByteStreamEventAccess;
 
 };
+
+} // end namespace
 
 #include "TrigT1CaloByteStream/CpReadByteStreamCnv.icc"
 

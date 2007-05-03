@@ -23,6 +23,8 @@ namespace LVL1 {
   class JetElementKey;
 }
 
+namespace LVL1BS {
+
 /** Algorithm to test JEM component bytestream conversions.
  *
  *  Just prints out the contents of the JetElement objects,
@@ -112,6 +114,10 @@ class JemTester : public Algorithm {
    std::string m_jemRoiLocation;
    /// CMM RoI container StoreGate key
    std::string m_cmmRoiLocation;
+   /// Force number of JEM slices
+   int m_forceSlicesJem;
+   /// Force number of CMM slices
+   int m_forceSlicesCmm;
    /// Jet element print flag
    int m_jetElementPrint;
    /// Jet hits print flag
@@ -141,5 +147,7 @@ class JemTester : public Algorithm {
    JemRoiMap     m_roiMap;
 
 };
+
+} // end namespace
 
 #endif

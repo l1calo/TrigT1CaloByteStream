@@ -7,6 +7,8 @@
 #include "TrigT1Calo/CPMRoI.h"
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 
+namespace LVL1BS {
+
 /** Sub-Block class for CPM RoI data (neutral format).
  *
  *  Based on "ATLAS Level-1 Calorimeter Trigger Read-out Driver"
@@ -56,5 +58,7 @@ class CpmRoiSubBlock : public L1CaloSubBlock {
    std::vector<LVL1::CPMRoI> m_roiData;
 
 };
+
+} // end namespace
 
 #endif

@@ -5,6 +5,8 @@
 
 #include "eformat/SourceIdentifier.h"
 
+namespace LVL1BS {
+
 /** This class provides conversion between Lower level Source ID to
  *  higher level source ID for L1Calo ByteStream fragments.
  *
@@ -47,5 +49,7 @@ public:
   eformat::SubDetector subDet(uint32_t code);
 
 };
+
+} // end namespace
 
 #endif

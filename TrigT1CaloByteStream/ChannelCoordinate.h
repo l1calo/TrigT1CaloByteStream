@@ -3,6 +3,8 @@
 
 #include <string>
 
+namespace LVL1BS {
+
 /** Holds eta/phi coordinates corresponding to a crate/module channel.
  *  
  *  Also includes layer and eta/phi granularities.
@@ -97,5 +99,7 @@ inline void ChannelCoordinate::setPhiGranularity(const double phiGran)
 {
   m_phiGran = phiGran;
 }
+
+} // end namespace
 
 #endif

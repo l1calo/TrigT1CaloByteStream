@@ -1,6 +1,7 @@
 
 #include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
 
+namespace LVL1BS {
 
 L1CaloSrcIdMap::L1CaloSrcIdMap()
 {
@@ -80,3 +81,5 @@ eformat::SubDetector L1CaloSrcIdMap::subDet(uint32_t code) {
   eformat::helper::SourceIdentifier id(code);
   return id.subdetector_id();
 }
+
+} // end namespace

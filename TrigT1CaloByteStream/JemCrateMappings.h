@@ -3,6 +3,8 @@
 
 #include <vector>
 
+namespace LVL1BS {
+
 class ChannelCoordinate;
 
 /** JEM crate/module/channel to eta/phi mappings
@@ -57,5 +59,7 @@ class JemCrateMappings {
    std::vector<int>    m_posChans;
 
 };
+
+} // end namespace
 
 #endif

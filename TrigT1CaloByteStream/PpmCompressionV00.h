@@ -1,6 +1,7 @@
 #ifndef TRIGT1CALOBYTESTREAM_PPMCOMPRESSIONV00_H
 #define TRIGT1CALOBYTESTREAM_PPMCOMPRESSIONV00_H
 
+namespace LVL1BS {
 
 /** PPM Compressed Format Version 0 packing and unpacking utilities.
  *
@@ -34,5 +35,7 @@ class PpmCompressionV00 {
    static const int s_lutBcidBits  = 3;
 
 };
+
+} // end namespace
 
 #endif

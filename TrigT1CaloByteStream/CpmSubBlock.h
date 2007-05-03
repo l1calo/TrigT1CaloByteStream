@@ -6,6 +6,8 @@
 
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 
+namespace LVL1BS {
+
 /** Sub-Block class for CPM data.
  *
  *  Based on "ATLAS Level-1 Calorimeter Trigger Read-out Driver"
@@ -120,5 +122,7 @@ inline int CpmSubBlock::dataId(const uint32_t word) const
 {
   return (word >> s_dataIdBit) & s_dataIdMask;
 }
+
+} // end namespace
 
 #endif

@@ -1,6 +1,8 @@
 #ifndef TRIGT1CALOBYTESTREAM_CPMCRATEMAPPINGS_H
 #define TRIGT1CALOBYTESTREAM_CPMCRATEMAPPINGS_H
 
+namespace LVL1BS {
+
 class ChannelCoordinate;
 
 /** CPM crate/module/channel to eta/phi mappings
@@ -38,5 +40,7 @@ class CpmCrateMappings {
    static const double s_etaGran;
 
 };
+
+} // end namespace
 
 #endif

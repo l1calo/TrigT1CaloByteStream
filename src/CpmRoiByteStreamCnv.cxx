@@ -29,6 +29,8 @@
 #include "TrigT1CaloByteStream/CpmRoiByteStreamCnv.h"
 #include "TrigT1CaloByteStream/CpmRoiByteStreamTool.h"
 
+namespace LVL1BS {
+
 CpmRoiByteStreamCnv::CpmRoiByteStreamCnv( ISvcLocator* svcloc )
     : Converter( ByteStream_StorageType, classID(), svcloc )
 {
@@ -73,7 +75,8 @@ StatusCode CpmRoiByteStreamCnv::initialize()
   }
 
   // make it a private tool by giving the ByteStreamCnvSvc as parent
-  const std::string toolType = "CpmRoiByteStreamTool" ;
+  const std::string toolType =
+                        "LVL1BS::CpmRoiByteStreamTool/CpmRoiByteStreamTool" ;
   sc = toolSvc->retrieveTool( toolType, m_tool, m_ByteStreamEventAccess);
   if ( sc.isFailure() ) {
     log << MSG::ERROR << " Can't get ByteStreamTool of type "
@@ -180,3 +183,5 @@ StatusCode CpmRoiByteStreamCnv::createRep( DataObject* pObj,
   // Convert to ByteStream
   return m_tool->convert( roiCollection, re );
 }
+
+} // end namespace

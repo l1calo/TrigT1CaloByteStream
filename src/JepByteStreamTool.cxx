@@ -21,6 +21,9 @@
 #include "TrigT1CaloByteStream/JepByteStreamTool.h"
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
+#include "TrigT1CaloByteStream/ModifySlices.h"
+
+namespace LVL1BS {
 
 // Interface ID
 
@@ -41,13 +44,15 @@ JepByteStreamTool::JepByteStreamTool(const std::string& type,
 {
   declareInterface<JepByteStreamTool>(this);
 
-  declareProperty("CrateOffsetHw",  m_crateOffsetHw = 12);
-  declareProperty("CrateOffsetSw",  m_crateOffsetSw = 0);
+  declareProperty("CrateOffsetHw",  m_crateOffsetHw  = 12);
+  declareProperty("CrateOffsetSw",  m_crateOffsetSw  = 0);
 
   // Properties for writing bytestream only
-  declareProperty("DataVersion",    m_version       = 1);
-  declareProperty("DataFormat",     m_dataFormat    = 1);
-  declareProperty("SlinksPerCrate", m_slinks        = 4);
+  declareProperty("DataVersion",    m_version        = 1);
+  declareProperty("DataFormat",     m_dataFormat     = 1);
+  declareProperty("SlinksPerCrate", m_slinks         = 4);
+  declareProperty("ForceSlicesJEM", m_forceSlicesJem = 0);
+  declareProperty("ForceSlicesCMM", m_forceSlicesCmm = 0);
 
 }
 
@@ -166,10 +171,14 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 
   const bool neutralFormat = m_dataFormat == L1CaloSubBlock::NEUTRAL;
   const int modulesPerSlink = m_modules / m_slinks;
-  int timeslices = 0;
-  int timeslicesCmm = 0;
-  int trigJem = 0;
-  int trigCmm = 0;
+  int timeslices       = 1;
+  int timeslicesCmm    = 1;
+  int trigJem          = 0;
+  int trigCmm          = 0;
+  int timeslicesNew    = 1;
+  int timeslicesCmmNew = 1;
+  int trigJemNew       = 0;
+  int trigCmmNew       = 0;
   for (int crate=0; crate < m_crates; ++crate) {
     const int hwCrate = crate + m_crateOffsetHw;
 
@@ -179,6 +188,18 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
       log << MSG::ERROR << "Inconsistent number of CMM slices or "
           << "triggered slice offsets in data for crate " << hwCrate << endreq;
       return StatusCode::FAILURE;
+    }
+    timeslicesCmmNew = (m_forceSlicesCmm) ? m_forceSlicesCmm : timeslicesCmm;
+    trigCmmNew       = ModifySlices::peak(trigCmm, timeslicesCmm,
+                                                   timeslicesCmmNew);
+    if (debug) {
+      log << MSG::DEBUG << "CMM Slices/offset: " << timeslicesCmm
+                        << " " << trigCmm;
+      if (timeslicesCmm != timeslicesCmmNew) {
+        log << MSG::DEBUG << " modified to " << timeslicesCmmNew
+	                  << " " << trigCmmNew;
+      }
+      log << MSG::DEBUG << endreq;
     }
 
     for (int module=0; module < m_modules; ++module) {
@@ -201,15 +222,22 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 	      << hwCrate << " slink " << slink << endreq;
 	  return StatusCode::FAILURE;
         }
+	timeslicesNew = (m_forceSlicesJem) ? m_forceSlicesJem : timeslices;
+	trigJemNew    = ModifySlices::peak(trigJem, timeslices, timeslicesNew);
         if (debug) {
 	  log << MSG::DEBUG << "Data Version/Format: " << m_version
 	                    << " " << m_dataFormat << endreq;
           log << MSG::DEBUG << "Slices/offset: " << timeslices
-                            << " " << trigJem << endreq;
+                            << " " << trigJem;
+	  if (timeslices != timeslicesNew) {
+	    log << MSG::DEBUG << " modified to " << timeslicesNew
+	                      << " " << trigJemNew;
+          }
+	  log << MSG::DEBUG << endreq;
         }
         L1CaloUserHeader userHeader;
-        userHeader.setJem(trigJem);
-        userHeader.setJepCmm(trigCmm);
+        userHeader.setJem(trigJemNew);
+        userHeader.setJepCmm(trigCmmNew);
 	const uint32_t rodIdJem = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
 	                                                        m_subDetector);
 	theROD = m_fea.getRodData(rodIdJem);
@@ -222,10 +250,10 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
       // Create a sub-block for each slice (except Neutral format)
 
       m_jemBlocks.clear();
-      for (int slice = 0; slice < timeslices; ++slice) {
+      for (int slice = 0; slice < timeslicesNew; ++slice) {
         JemSubBlock* const subBlock = new JemSubBlock();
 	subBlock->setJemHeader(m_version, m_dataFormat, slice,
-	                       hwCrate, module, timeslices);
+	                       hwCrate, module, timeslicesNew);
         m_jemBlocks.push_back(subBlock);
 	if (neutralFormat) break;
       }
@@ -240,20 +268,17 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 	  const double phi = coord.phi();
           const LVL1::JetElement* const je = findJetElement(eta, phi);
 	  if (je ) {
-	    std::vector<int> emData(je->emEnergyVec());
-	    std::vector<int> hadData(je->hadEnergyVec());
-	    std::vector<int> emParity(je->emErrorVec());
-	    std::vector<int> hadParity(je->hadErrorVec());
-	    std::vector<int> linkError(je->linkErrorVec());
-	    // Make sure all vectors are the right size - vectors with only
-	    // zeroes are allowed to be different.  This has been checked
-	    // already in slinkSlices.
-	    emData.resize(timeslices);
-	    hadData.resize(timeslices);
-	    emParity.resize(timeslices);
-	    hadParity.resize(timeslices);
-	    linkError.resize(timeslices);
-            for (int slice = 0; slice < timeslices; ++slice) {
+	    std::vector<int> emData;
+	    std::vector<int> hadData;
+	    std::vector<int> emParity;
+	    std::vector<int> hadParity;
+	    std::vector<int> linkError;
+	    ModifySlices::data(je->emEnergyVec(),  emData,    timeslicesNew);
+	    ModifySlices::data(je->hadEnergyVec(), hadData,   timeslicesNew);
+	    ModifySlices::data(je->emErrorVec(),   emParity,  timeslicesNew);
+	    ModifySlices::data(je->hadErrorVec(),  hadParity, timeslicesNew);
+	    ModifySlices::data(je->linkErrorVec(), linkError, timeslicesNew);
+            for (int slice = 0; slice < timeslicesNew; ++slice) {
 	      const int index = ( neutralFormat ) ? 0 : slice;
               JemSubBlock* const subBlock = m_jemBlocks[index];
 	      const JemJetElement jetEle(chan, emData[slice], hadData[slice],
@@ -268,9 +293,9 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 
       const LVL1::JEMHits* const hits = findJetHits(crate, module);
       if (hits) {
-        std::vector<unsigned int> vec(hits->JetHitsVec());
-	vec.resize(timeslices);
-        for (int slice = 0; slice < timeslices; ++slice) {
+        std::vector<unsigned int> vec;
+	ModifySlices::data(hits->JetHitsVec(), vec, timeslicesNew);
+        for (int slice = 0; slice < timeslicesNew; ++slice) {
 	  const int index = ( neutralFormat ) ? 0 : slice;
 	  JemSubBlock* const subBlock = m_jemBlocks[index];
 	  subBlock->setJetHits(slice, vec[slice]);
@@ -278,13 +303,13 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
       }
       const LVL1::JEMEtSums* const et = findEnergySums(crate, module);
       if (et) {
-        std::vector<unsigned int> exVec(et->ExVec());
-        std::vector<unsigned int> eyVec(et->EyVec());
-        std::vector<unsigned int> etVec(et->EtVec());
-	exVec.resize(timeslices);
-	eyVec.resize(timeslices);
-	etVec.resize(timeslices);
-	for (int slice = 0; slice < timeslices; ++slice) {
+        std::vector<unsigned int> exVec;
+        std::vector<unsigned int> eyVec;
+        std::vector<unsigned int> etVec;
+	ModifySlices::data(et->ExVec(), exVec, timeslicesNew);
+	ModifySlices::data(et->EyVec(), eyVec, timeslicesNew);
+	ModifySlices::data(et->EtVec(), etVec, timeslicesNew);
+	for (int slice = 0; slice < timeslicesNew; ++slice) {
 	  const int index = ( neutralFormat ) ? 0 : slice;
 	  JemSubBlock* const subBlock = m_jemBlocks[index];
 	  subBlock->setEnergySubsums(slice, exVec[slice], eyVec[slice],
@@ -317,16 +342,16 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
     m_cmmJetBlocks.clear();
     const int summing = (crate == m_crates - 1) ? CmmSubBlock::SYSTEM
                                                 : CmmSubBlock::CRATE;
-    for (int slice = 0; slice < timeslices; ++slice) {
+    for (int slice = 0; slice < timeslicesCmmNew; ++slice) {
       CmmEnergySubBlock* const enBlock = new CmmEnergySubBlock();
       enBlock->setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                             summing, CmmSubBlock::CMM_ENERGY,
-			    CmmSubBlock::LEFT, timeslicesCmm);
+			    CmmSubBlock::LEFT, timeslicesCmmNew);
       m_cmmEnergyBlocks.push_back(enBlock);
       CmmJetSubBlock* const jetBlock = new CmmJetSubBlock();
       jetBlock->setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                              summing, CmmSubBlock::CMM_JET,
-			     CmmSubBlock::RIGHT, timeslicesCmm);
+			     CmmSubBlock::RIGHT, timeslicesCmmNew);
       m_cmmJetBlocks.push_back(jetBlock);
       if (neutralFormat) break;
     }
@@ -358,19 +383,19 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
       }
       const LVL1::CMMEtSums* const sums = findCmmSums(crate, dataID);
       if ( sums ) {
-        std::vector<unsigned int> ex(sums->ExVec());
-        std::vector<unsigned int> ey(sums->EyVec());
-        std::vector<unsigned int> et(sums->EtVec());
-        std::vector<int> exErr(sums->ExErrorVec());
-        std::vector<int> eyErr(sums->EyErrorVec());
-        std::vector<int> etErr(sums->EtErrorVec());
-	ex.resize(timeslicesCmm);
-	ey.resize(timeslicesCmm);
-	et.resize(timeslicesCmm);
-	exErr.resize(timeslicesCmm);
-	eyErr.resize(timeslicesCmm);
-	etErr.resize(timeslicesCmm);
-	for (int slice = 0; slice < timeslicesCmm; ++slice) {
+        std::vector<unsigned int> ex;
+        std::vector<unsigned int> ey;
+        std::vector<unsigned int> et;
+        std::vector<int> exErr;
+        std::vector<int> eyErr;
+        std::vector<int> etErr;
+	ModifySlices::data(sums->ExVec(), ex, timeslicesCmmNew);
+	ModifySlices::data(sums->EyVec(), ey, timeslicesCmmNew);
+	ModifySlices::data(sums->EtVec(), et, timeslicesCmmNew);
+	ModifySlices::data(sums->ExErrorVec(), exErr, timeslicesCmmNew);
+	ModifySlices::data(sums->EyErrorVec(), eyErr, timeslicesCmmNew);
+	ModifySlices::data(sums->EtErrorVec(), etErr, timeslicesCmmNew);
+	for (int slice = 0; slice < timeslicesCmmNew; ++slice) {
 	  const int index = ( neutralFormat ) ? 0 : slice;
 	  CmmEnergySubBlock* const subBlock = m_cmmEnergyBlocks[index];
 	  if (dataID == LVL1::CMMEtSums::MISSING_ET_MAP) {
@@ -436,11 +461,11 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
       }
       const LVL1::CMMJetHits* const ch = findCmmHits(crate, dataID);
       if ( ch ) {
-        std::vector<unsigned int> hits(ch->HitsVec());
-        std::vector<int> errs(ch->ErrorVec());
-	hits.resize(timeslicesCmm);
-	errs.resize(timeslicesCmm);
-	for (int slice = 0; slice < timeslicesCmm; ++slice) {
+        std::vector<unsigned int> hits;
+        std::vector<int> errs;
+	ModifySlices::data(ch->HitsVec(),  hits, timeslicesCmmNew);
+	ModifySlices::data(ch->ErrorVec(), errs, timeslicesCmmNew);
+	for (int slice = 0; slice < timeslicesCmmNew; ++slice) {
 	  const int index = ( neutralFormat ) ? 0 : slice;
 	  CmmJetSubBlock* const subBlock = m_cmmJetBlocks[index];
 	  if (dataID == LVL1::CMMJetHits::ET_MAP) {
@@ -733,6 +758,8 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
           std::vector<unsigned int> missVec(map->EtVec());
           const std::vector<int> errVec(map->EtErrorVec());
 	  missVec[slice] = missEt;
+	  map->addEx(missVec, errVec);
+	  map->addEy(missVec, errVec);
 	  map->addEt(missVec, errVec);
         }
       }
@@ -754,6 +781,8 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
           std::vector<unsigned int> sumVec(map->EtVec());
           const std::vector<int> errVec(map->EtErrorVec());
 	  sumVec[slice] = sumEt;
+	  map->addEx(sumVec, errVec);
+	  map->addEy(sumVec, errVec);
 	  map->addEt(sumVec, errVec);
         }
       }
@@ -1344,3 +1373,5 @@ bool JepByteStreamTool::slinkSlicesCmm(const int crate, int& timeslices,
   trigCmm    = trigC;
   return true;
 }
+
+} // end namespace

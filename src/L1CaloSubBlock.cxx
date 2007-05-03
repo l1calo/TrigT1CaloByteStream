@@ -1,6 +1,8 @@
 
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 
+namespace LVL1BS {
+
 // Static constant definitions
 
 const int      L1CaloSubBlock::s_headerBit;
@@ -392,3 +394,5 @@ int L1CaloSubBlock::module(const uint32_t word)
 {
   return (word >> s_moduleBit) & s_moduleMask;
 }
+
+} // end namespace

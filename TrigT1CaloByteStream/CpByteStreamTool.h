@@ -17,12 +17,9 @@
 
 #include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
 
-class ChannelCoordinate;
-class CmmCpSubBlock;
-class CpmCrateMappings;
-class CpmSubBlock;
 class IInterface;
 class InterfaceID;
+
 namespace LVL1 {
   class CMMCPHits;
   class CPMHits;
@@ -30,6 +27,13 @@ namespace LVL1 {
   class CPBSCollection;
   class TriggerTowerKey;
 }
+
+namespace LVL1BS {
+
+class ChannelCoordinate;
+class CmmCpSubBlock;
+class CpmCrateMappings;
+class CpmSubBlock;
 
 /** Tool to perform ROB fragments to CPM towers, CPM hits and CMM-CP hits,
  *  and CP container to raw data conversions.
@@ -126,6 +130,10 @@ class CpByteStreamTool : public AlgTool {
    int m_modules;
    /// Number of slinks per crate when writing out bytestream
    int m_slinks;
+   /// Force number of CPM slices in bytestream
+   int m_forceSlicesCpm;
+   /// Force number of CMM slices in bytestream
+   int m_forceSlicesCmm;
    /// Sub-detector type
    eformat::SubDetector m_subDetector;
    /// Source ID converter
@@ -156,5 +164,7 @@ class CpByteStreamTool : public AlgTool {
    FullEventAssembler<L1CaloSrcIdMap> m_fea;
 
 };
+
+} // end namespace
 
 #endif

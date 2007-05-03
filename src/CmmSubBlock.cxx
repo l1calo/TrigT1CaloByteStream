@@ -1,6 +1,8 @@
 
 #include "TrigT1CaloByteStream/CmmSubBlock.h"
 
+namespace LVL1BS {
+
 // Static constant definitions
 
 const int      CmmSubBlock::s_wordIdVal;
@@ -78,3 +80,5 @@ bool CmmSubBlock::cmmBlock(const uint32_t word)
 {
   return L1CaloSubBlock::wordId(word) == s_wordIdVal;
 }
+
+} // end namespace

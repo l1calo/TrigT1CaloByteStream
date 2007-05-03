@@ -20,6 +20,8 @@ namespace LVL1 {
   class TriggerTowerKey;
 }
 
+namespace LVL1BS {
+
 /** Algorithm to test CPM component bytestream conversions.
  *
  *  Just prints out the contents of the CPMTower objects
@@ -88,6 +90,10 @@ class CpmTester : public Algorithm {
    std::string m_cmmCpHitsLocation;
    /// CPM RoI container StoreGate key
    std::string m_cpmRoiLocation;
+   /// Force number of CPM slices
+   int m_forceSlicesCpm;
+   /// Force number of CMM slices
+   int m_forceSlicesCmm;
    /// CPM tower print flag
    int m_cpmTowerPrint;
    /// CPM hits print flag
@@ -107,5 +113,7 @@ class CpmTester : public Algorithm {
    CpmRoiMap    m_roiMap;
 
 };
+
+} // end namespace
 
 #endif

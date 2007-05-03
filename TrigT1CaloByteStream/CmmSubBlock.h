@@ -5,6 +5,8 @@
 
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 
+namespace LVL1BS {
+
 /** Sub-Block class for CMM data.
  *
  *  Based on "ATLAS Level-1 Calorimeter Trigger Read-out Driver"
@@ -68,5 +70,7 @@ inline int CmmSubBlock::cmmPosition() const
 {
   return (module() >> s_cmmPositionBit) & s_cmmPositionMask;
 }
+
+} // end namespace
 
 #endif

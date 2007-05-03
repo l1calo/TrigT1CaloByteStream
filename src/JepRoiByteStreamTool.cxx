@@ -18,6 +18,8 @@
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
 
+namespace LVL1BS {
+
 // Interface ID
 
 static const InterfaceID IID_IJepRoiByteStreamTool("JepRoiByteStreamTool",
@@ -588,3 +590,5 @@ void JepRoiByteStreamTool::setupCmmEtMap(const CmmSumsCollection*
     }
   }
 }
+
+} // end namespace

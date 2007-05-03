@@ -1,6 +1,8 @@
 
 #include "TrigT1CaloByteStream/CmmCpSubBlock.h"
 
+namespace LVL1BS {
+
 // Constant definitions
 
 const int      CmmCpSubBlock::s_wordLength;
@@ -228,3 +230,5 @@ bool CmmCpSubBlock::unpackUncompressed()
   }
   return true;
 }
+
+} // end namespace

@@ -6,6 +6,8 @@
 #include "TrigT1CaloByteStream/PpmCompressionV01.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
 
+namespace LVL1BS {
+
 // Static constants
 
 const int PpmCompressionV01::s_formats;
@@ -318,3 +320,5 @@ bool PpmCompressionV01::unpack(PpmSubBlock& subBlock)
   subBlock.setCompStats(compStats);
   return subBlock.unpackerSuccess();
 }
+
+} // end namespace

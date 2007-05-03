@@ -1,8 +1,6 @@
 
 #include <utility>
 
-#include "TrigT1CaloByteStream/CpmTester.h"
-
 #include "TrigT1Calo/CMMCPHits.h"
 #include "TrigT1Calo/CPMHits.h"
 #include "TrigT1Calo/CPMTower.h"
@@ -10,11 +8,15 @@
 #include "TrigT1Calo/TriggerTowerKey.h"
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
+#include "TrigT1CaloByteStream/CpmTester.h"
+#include "TrigT1CaloByteStream/ModifySlices.h"
+
+namespace LVL1BS {
 
 CpmTester::CpmTester(const std::string& name, ISvcLocator* pSvcLocator)
-                     : Algorithm(name, pSvcLocator), 
-                       m_storeGate("StoreGateSvc", name),
-                       m_towerKey(0)
+                     : Algorithm(name, pSvcLocator),
+		       m_storeGate("StoreGateSvc", name),
+		       m_towerKey(0)
 {
   declareProperty("CPMTowerLocation",
            m_cpmTowerLocation  = LVL1::TrigT1CaloDefs::CPMTowerLocation);
@@ -24,6 +26,9 @@ CpmTester::CpmTester(const std::string& name, ISvcLocator* pSvcLocator)
            m_cmmCpHitsLocation = LVL1::TrigT1CaloDefs::CMMCPHitsLocation);
   declareProperty("CPMRoILocation",
            m_cpmRoiLocation    = LVL1::TrigT1CaloDefs::CPMRoILocation);
+
+  declareProperty("ForceSlicesCPM", m_forceSlicesCpm = 0);
+  declareProperty("ForceSlicesCMM", m_forceSlicesCmm = 0);
 
   // By default print everything
   declareProperty("CPMTowerPrint",  m_cpmTowerPrint  = 1);
@@ -43,9 +48,9 @@ StatusCode CpmTester::initialize()
   MsgStream log( msgSvc(), name() );
 
   StatusCode sc = m_storeGate.retrieve();
-  if ( sc.isFailure() ) {
-    log << MSG::ERROR << "Couldn't connect to " << m_storeGate.typeAndName() 
-        << endreq;
+  if (sc.isFailure()) {
+    log << MSG::ERROR << "Couldn't connect to " << m_storeGate.typeAndName()
+                      << endreq;
     return sc;
   }
   m_towerKey = new LVL1::TriggerTowerKey();
@@ -160,15 +165,29 @@ void CpmTester::printCpmTowers(MsgStream& log, const MSG::Level level) const
   CpmTowerMap::const_iterator mapEnd  = m_ttMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
     const LVL1::CPMTower* const tt = mapIter->second;
+    int peak   = tt->peak();
+    int slices = (tt->emEnergyVec()).size();
+    if (m_forceSlicesCpm) {
+      peak   = ModifySlices::peak(peak, slices, m_forceSlicesCpm);
+      slices = m_forceSlicesCpm;
+    }
     log << level
         << "key/eta/phi/peak/em/had/emErr/hadErr: "
         << mapIter->first << "/" << tt->eta() << "/" << tt->phi() << "/"
-	<< tt->peak() << "/";
+	<< peak << "/";
 
-    printVec(tt->emEnergyVec(),  log, level);
-    printVec(tt->hadEnergyVec(), log, level);
-    printVec(tt->emErrorVec(),   log, level);
-    printVec(tt->hadErrorVec(),  log, level);
+    std::vector<int> emEnergy;
+    std::vector<int> hadEnergy;
+    std::vector<int> emError;
+    std::vector<int> hadError;
+    ModifySlices::data(tt->emEnergyVec(),  emEnergy,  slices);
+    ModifySlices::data(tt->hadEnergyVec(), hadEnergy, slices);
+    ModifySlices::data(tt->emErrorVec(),   emError,   slices);
+    ModifySlices::data(tt->hadErrorVec(),  hadError,  slices);
+    printVec(emEnergy,  log, level);
+    printVec(hadEnergy, log, level);
+    printVec(emError,   log, level);
+    printVec(hadError,  log, level);
     log << level << endreq;
   }
 }
@@ -182,12 +201,22 @@ void CpmTester::printCpmHits(MsgStream& log, const MSG::Level level) const
   CpmHitsMap::const_iterator mapEnd  = m_hitsMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
     const LVL1::CPMHits* const ch = mapIter->second;
+    int peak   = ch->peak();
+    int slices = (ch->HitsVec0()).size();
+    if (m_forceSlicesCpm) {
+      peak   = ModifySlices::peak(peak, slices, m_forceSlicesCpm);
+      slices = m_forceSlicesCpm;
+    }
     log << level
         << "crate/module/peak/hits0/hits1: "
-	<< ch->crate() << "/" << ch->module() << "/" << ch->peak() << "/";
+	<< ch->crate() << "/" << ch->module() << "/" << peak << "/";
 
-    printVecH(ch->HitsVec0(), log, level);
-    printVecH(ch->HitsVec1(), log, level);
+    std::vector<unsigned int> hits0;
+    std::vector<unsigned int> hits1;
+    ModifySlices::data(ch->HitsVec0(), hits0, slices);
+    ModifySlices::data(ch->HitsVec1(), hits1, slices);
+    printVecH(hits0, log, level);
+    printVecH(hits1, log, level);
     log << level << endreq;
   }
 }
@@ -201,14 +230,28 @@ void CpmTester::printCmmCpHits(MsgStream& log, const MSG::Level level) const
   CmmCpHitsMap::const_iterator mapEnd  = m_cmmHitsMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
     const LVL1::CMMCPHits* const ch = mapIter->second;
+    int peak   = ch->peak();
+    int slices = (ch->HitsVec0()).size();
+    if (m_forceSlicesCmm) {
+      peak   = ModifySlices::peak(peak, slices, m_forceSlicesCmm);
+      slices = m_forceSlicesCmm;
+    }
     log << level
         << "crate/dataID/peak/hits0/hits1/err0/err1: "
-	<< ch->crate() << "/" << ch->dataID() << "/" << ch->peak() << "/";
+	<< ch->crate() << "/" << ch->dataID() << "/" << peak << "/";
 
-    printVecH(ch->HitsVec0(), log, level);
-    printVecH(ch->HitsVec1(), log, level);
-    printVec(ch->ErrorVec0(), log, level);
-    printVec(ch->ErrorVec1(), log, level);
+    std::vector<unsigned int> hits0;
+    std::vector<unsigned int> hits1;
+    std::vector<int> err0;
+    std::vector<int> err1;
+    ModifySlices::data(ch->HitsVec0(), hits0, slices);
+    ModifySlices::data(ch->HitsVec1(), hits1, slices);
+    ModifySlices::data(ch->ErrorVec0(), err0, slices);
+    ModifySlices::data(ch->ErrorVec1(), err1, slices);
+    printVecH(hits0, log, level);
+    printVecH(hits1, log, level);
+    printVec(err0, log, level);
+    printVec(err1, log, level);
     log << level << endreq;
   }
 }
@@ -330,3 +373,5 @@ void CpmTester::setupCpmRoiMap(const CpmRoiCollection* const roiCollection)
     }
   }
 }
+
+} // end namespace

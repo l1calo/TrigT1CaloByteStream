@@ -1,6 +1,8 @@
 
 #include "TrigT1CaloByteStream/CpmRoiSubBlock.h"
 
+namespace LVL1BS {
+
 // Constant definitions
 
 const int CpmRoiSubBlock::s_wordIdVal;
@@ -143,3 +145,5 @@ bool CpmRoiSubBlock::unpackNeutral()
   setBunchCrossing(bunchCrossing);
   return unpackerSuccess();
 }
+
+} // end namespace

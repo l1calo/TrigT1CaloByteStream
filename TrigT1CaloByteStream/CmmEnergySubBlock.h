@@ -6,6 +6,8 @@
 
 #include "TrigT1CaloByteStream/CmmSubBlock.h"
 
+namespace LVL1BS {
+
 /** Sub-Block class for CMM-Energy data.
  *
  *  Based on "ATLAS Level-1 Calorimeter Trigger Read-out Driver"
@@ -109,5 +111,7 @@ inline int CmmEnergySubBlock::sourceId(const uint32_t word) const
 {
   return (word >> s_sourceIdBit) & s_sourceIdMask;
 }
+
+} // end namespace
 
 #endif

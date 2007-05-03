@@ -1,6 +1,7 @@
 
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
 
+namespace LVL1BS {
 
 // Static constant definitions
 
@@ -24,3 +25,5 @@ bool L1CaloUserHeader::isValid(const uint32_t word)
 {
   return ((word >> s_wordIdBit) & s_mask) == s_mask;
 }
+
+} // end namespace

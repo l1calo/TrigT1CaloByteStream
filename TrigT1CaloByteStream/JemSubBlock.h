@@ -7,6 +7,8 @@
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 #include "TrigT1CaloByteStream/JemJetElement.h"
 
+namespace LVL1BS {
+
 /** Sub-Block class for JEM data.
  *
  *  Based on "ATLAS Level-1 Calorimeter Trigger Read-out Driver"
@@ -126,5 +128,7 @@ inline int JemSubBlock::dataId(const uint32_t word) const
 {
   return (word >> s_dataIdBit) & s_dataIdMask;
 }
+
+} // end namespace
 
 #endif

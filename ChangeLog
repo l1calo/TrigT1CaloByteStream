@@ -1,3 +1,9 @@
+2007-05-03  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-03-02
+	* Add options to write multi-slice data by duplicating simulated slice.
+	* Move code to namespace LVL1BS.
+
 2007-04-27  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-03-01

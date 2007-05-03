@@ -1,7 +1,6 @@
 
 #include <utility>
 
-#include "TrigT1CaloByteStream/JemTester.h"
 #include "TrigT1Calo/CMMEtSums.h"
 #include "TrigT1Calo/CMMJetHits.h"
 #include "TrigT1Calo/CMMRoI.h"
@@ -12,11 +11,15 @@
 #include "TrigT1Calo/JetElementKey.h"
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
+#include "TrigT1CaloByteStream/JemTester.h"
+#include "TrigT1CaloByteStream/ModifySlices.h"
+
+namespace LVL1BS {
 
 JemTester::JemTester(const std::string& name, ISvcLocator* pSvcLocator)
-                     : Algorithm(name, pSvcLocator), 
-                       m_storeGate("StoreGateSvc", name),
-                       m_elementKey(0)
+                     : Algorithm(name, pSvcLocator),
+		       m_storeGate("StoreGateSvc", name),
+		       m_elementKey(0)
 {
   declareProperty("JetElementLocation",
            m_jetElementLocation = LVL1::TrigT1CaloDefs::JetElementLocation);
@@ -32,6 +35,9 @@ JemTester::JemTester(const std::string& name, ISvcLocator* pSvcLocator)
            m_jemRoiLocation     = LVL1::TrigT1CaloDefs::JEMRoILocation);
   declareProperty("CMMRoILocation",
            m_cmmRoiLocation     = LVL1::TrigT1CaloDefs::CMMRoILocation);
+
+  declareProperty("ForceSlicesJEM",  m_forceSlicesJem  = 0);
+  declareProperty("ForceSlicesCMM",  m_forceSlicesCmm  = 0);
 
   // By default print everything
   declareProperty("JetElementPrint", m_jetElementPrint = 1);
@@ -54,9 +60,9 @@ StatusCode JemTester::initialize()
   MsgStream log( msgSvc(), name() );
 
   StatusCode sc = m_storeGate.retrieve();
-  if ( sc.isFailure() ) {
-    log << MSG::ERROR << "Couldn't connect to " << m_storeGate.typeAndName() 
-        << endreq;
+  if (sc.isFailure()) {
+    log << MSG::ERROR << "Couldn't connect to " << m_storeGate.typeAndName()
+                      << endreq;
     return sc;
   }
   m_elementKey = new LVL1::JetElementKey();
@@ -227,16 +233,32 @@ void JemTester::printJetElements(MsgStream& log, const MSG::Level level) const
   JetElementMap::const_iterator mapEnd  = m_jeMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
     const LVL1::JetElement* const je = mapIter->second;
+    int peak   = je->peak();
+    int slices = (je->emEnergyVec()).size();
+    if (m_forceSlicesJem) {
+      peak   = ModifySlices::peak(peak, slices, m_forceSlicesJem);
+      slices = m_forceSlicesJem;
+    }
     log << level
         << "key/eta/phi/peak/em/had/emErr/hadErr/linkErr: "
         << mapIter->first << "/" << je->eta() << "/" << je->phi() << "/"
-	<< je->peak() << "/";
+	<< peak << "/";
 
-    printVec(je->emEnergyVec(),  log, level);
-    printVec(je->hadEnergyVec(), log, level);
-    printVec(je->emErrorVec(),   log, level);
-    printVec(je->hadErrorVec(),  log, level);
-    printVec(je->linkErrorVec(), log, level);
+    std::vector<int> emEnergy;
+    std::vector<int> hadEnergy;
+    std::vector<int> emError;
+    std::vector<int> hadError;
+    std::vector<int> linkError;
+    ModifySlices::data(je->emEnergyVec(),  emEnergy,  slices);
+    ModifySlices::data(je->hadEnergyVec(), hadEnergy, slices);
+    ModifySlices::data(je->emErrorVec(),   emError,   slices);
+    ModifySlices::data(je->hadErrorVec(),  hadError,  slices);
+    ModifySlices::data(je->linkErrorVec(), linkError, slices);
+    printVec(emEnergy,  log, level);
+    printVec(hadEnergy, log, level);
+    printVec(emError,   log, level);
+    printVec(hadError,  log, level);
+    printVec(linkError, log, level);
     log << level << endreq;
   }
 }
@@ -250,9 +272,15 @@ void JemTester::printJetHits(MsgStream& log, const MSG::Level level) const
   JetHitsMap::const_iterator mapEnd  = m_hitsMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
     const LVL1::JEMHits* const jh = mapIter->second;
+    int peak   = jh->peak();
+    int slices = (jh->JetHitsVec()).size();
+    if (m_forceSlicesJem) {
+      peak   = ModifySlices::peak(peak, slices, m_forceSlicesJem);
+      slices = m_forceSlicesJem;
+    }
     log << level
         << "crate/module/peak/hits: "
-	<< jh->crate() << "/" << jh->module() << "/" << jh->peak() << "/";
+	<< jh->crate() << "/" << jh->module() << "/" << peak << "/";
     int words = 8;
     int bits  = 3;
     unsigned int mask = 0x7;
@@ -261,9 +289,11 @@ void JemTester::printJetHits(MsgStream& log, const MSG::Level level) const
       bits  = 2;
       mask  = 0x3;
     }
+    std::vector<unsigned int> jetHits;
+    ModifySlices::data(jh->JetHitsVec(), jetHits, slices);
     std::vector<unsigned int>::const_iterator pos;
-    std::vector<unsigned int>::const_iterator posb = (jh->JetHitsVec()).begin();
-    std::vector<unsigned int>::const_iterator pose = (jh->JetHitsVec()).end();
+    std::vector<unsigned int>::const_iterator posb = jetHits.begin();
+    std::vector<unsigned int>::const_iterator pose = jetHits.end();
     for (pos = posb; pos != pose; ++pos) {
       if (pos != posb) log << level << ",";
       const unsigned int hits = *pos;
@@ -286,12 +316,24 @@ void JemTester::printEnergySums(MsgStream& log, const MSG::Level level) const
   EnergySumsMap::const_iterator mapEnd  = m_etMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
     const LVL1::JEMEtSums* const et = mapIter->second;
+    int peak   = et->peak();
+    int slices = (et->ExVec()).size();
+    if (m_forceSlicesJem) {
+      peak   = ModifySlices::peak(peak, slices, m_forceSlicesJem);
+      slices = m_forceSlicesJem;
+    }
     log << level
         << "crate/module/peak/Ex/Ey/Et: "
-	<< et->crate() << "/" << et->module() << "/" << et->peak() << "/";
-    printVecU(et->ExVec(), log, level);
-    printVecU(et->EyVec(), log, level);
-    printVecU(et->EtVec(), log, level);
+	<< et->crate() << "/" << et->module() << "/" << peak << "/";
+    std::vector<unsigned int> exVec;
+    std::vector<unsigned int> eyVec;
+    std::vector<unsigned int> etVec;
+    ModifySlices::data(et->ExVec(), exVec, slices);
+    ModifySlices::data(et->EyVec(), eyVec, slices);
+    ModifySlices::data(et->EtVec(), etVec, slices);
+    printVecU(exVec, log, level);
+    printVecU(eyVec, log, level);
+    printVecU(etVec, log, level);
     log << level << endreq;
   }
 }
@@ -306,9 +348,15 @@ void JemTester::printCmmHits(MsgStream& log, const MSG::Level level) const
   for (; mapIter != mapEnd; ++mapIter) {
     const LVL1::CMMJetHits* const jh = mapIter->second;
     const int dataID = jh->dataID();
+    int peak   = jh->peak();
+    int slices = (jh->HitsVec()).size();
+    if (m_forceSlicesCmm) {
+      peak   = ModifySlices::peak(peak, slices, m_forceSlicesCmm);
+      slices = m_forceSlicesCmm;
+    }
     log << level
         << "crate/dataID/peak/hits/error: "
-	<< jh->crate() << "/" << dataID << "/" << jh->peak() << "/";
+	<< jh->crate() << "/" << dataID << "/" << peak << "/";
     int words = 8;
     int bits  = 3;
     unsigned int mask = 0x7;
@@ -326,9 +374,11 @@ void JemTester::printCmmHits(MsgStream& log, const MSG::Level level) const
       bits  = 4;
       mask  = 0xf;
     }
+    std::vector<unsigned int> hitsVec;
+    ModifySlices::data(jh->HitsVec(), hitsVec, slices);
     std::vector<unsigned int>::const_iterator pos;
-    std::vector<unsigned int>::const_iterator posb = (jh->HitsVec()).begin();
-    std::vector<unsigned int>::const_iterator pose = (jh->HitsVec()).end();
+    std::vector<unsigned int>::const_iterator posb = hitsVec.begin();
+    std::vector<unsigned int>::const_iterator pose = hitsVec.end();
     for (pos = posb; pos != pose; ++pos) {
       if (pos != posb) log << level << ",";
       const unsigned int hits = *pos;
@@ -339,7 +389,9 @@ void JemTester::printCmmHits(MsgStream& log, const MSG::Level level) const
       }
     }
     log << level << "/";
-    printVec(jh->ErrorVec(), log, level);
+    std::vector<int> errorVec;
+    ModifySlices::data(jh->ErrorVec(), errorVec, slices);
+    printVec(errorVec, log, level);
     log << level << endreq;
   }
 }
@@ -353,14 +405,32 @@ void JemTester::printCmmSums(MsgStream& log, const MSG::Level level) const
   CmmSumsMap::const_iterator mapEnd  = m_cmmEtMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
     const LVL1::CMMEtSums* const et = mapIter->second;
+    int peak   = et->peak();
+    int slices = (et->ExVec()).size();
+    if (m_forceSlicesCmm) {
+      peak   = ModifySlices::peak(peak, slices, m_forceSlicesCmm);
+      slices = m_forceSlicesCmm;
+    }
     log << level << "crate/dataID/peak/Ex/Ey/Et/ExErr/EyErr/EtErr: "
-	<< et->crate() << "/" << et->dataID() << "/" << et->peak() << "/";
-    printVecU(et->ExVec(), log, level);
-    printVecU(et->EyVec(), log, level);
-    printVecU(et->EtVec(), log, level);
-    printVec(et->ExErrorVec(), log, level);
-    printVec(et->EyErrorVec(), log, level);
-    printVec(et->EtErrorVec(), log, level);
+	<< et->crate() << "/" << et->dataID() << "/" << peak << "/";
+    std::vector<unsigned int> exVec;
+    std::vector<unsigned int> eyVec;
+    std::vector<unsigned int> etVec;
+    std::vector<int> exError;
+    std::vector<int> eyError;
+    std::vector<int> etError;
+    ModifySlices::data(et->ExVec(), exVec, slices);
+    ModifySlices::data(et->EyVec(), eyVec, slices);
+    ModifySlices::data(et->EtVec(), etVec, slices);
+    ModifySlices::data(et->ExErrorVec(), exError, slices);
+    ModifySlices::data(et->EyErrorVec(), eyError, slices);
+    ModifySlices::data(et->EtErrorVec(), etError, slices);
+    printVecU(exVec, log, level);
+    printVecU(eyVec, log, level);
+    printVecU(etVec, log, level);
+    printVec(exError, log, level);
+    printVec(eyError, log, level);
+    printVec(etError, log, level);
     log << level << endreq;
   }
 }
@@ -517,3 +587,5 @@ void JemTester::setupJemRoiMap(const JemRoiCollection* const jrCollection)
     }
   }
 }
+
+} // end namespace

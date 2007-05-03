@@ -29,6 +29,8 @@
 #include "TrigT1CaloByteStream/CpByteStreamCnv.h"
 #include "TrigT1CaloByteStream/CpByteStreamTool.h"
 
+namespace LVL1BS {
+
 CpByteStreamCnv::CpByteStreamCnv( ISvcLocator* svcloc )
     : Converter( ByteStream_StorageType, classID(), svcloc )
 {
@@ -73,7 +75,7 @@ StatusCode CpByteStreamCnv::initialize()
   }
 
   // make it a private tool by giving the ByteStreamCnvSvc as parent
-  const std::string toolType = "CpByteStreamTool" ;
+  const std::string toolType = "LVL1BS::CpByteStreamTool/CpByteStreamTool" ;
   sc = toolSvc->retrieveTool( toolType, m_tool, m_ByteStreamEventAccess);
   if ( sc.isFailure() ) {
     log << MSG::ERROR << " Can't get ByteStreamTool of type "
@@ -111,3 +113,5 @@ StatusCode CpByteStreamCnv::createRep( DataObject* pObj,
   // Convert to ByteStream
   return m_tool->convert( cp, re );
 }
+
+} // end namespace

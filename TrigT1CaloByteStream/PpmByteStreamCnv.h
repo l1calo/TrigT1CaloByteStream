@@ -11,10 +11,13 @@ class IByteStreamEventAccess;
 class IOpaqueAddress;
 class IROBDataProviderSvc;
 class ISvcLocator;
-class PpmByteStreamTool;
 
 // Externals
 extern long ByteStream_StorageType;
+
+namespace LVL1BS {
+
+class PpmByteStreamTool;
 
 /** ByteStream converter for Pre-processor Module DAQ data / TriggerTowers.
  *
@@ -53,5 +56,7 @@ private:
   IByteStreamEventAccess* m_ByteStreamEventAccess;
 
 };
+
+} // end namespace
 
 #endif

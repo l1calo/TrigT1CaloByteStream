@@ -2,6 +2,8 @@
 #include "TrigT1CaloByteStream/CpmCrateMappings.h"
 #include "TrigT1CaloByteStream/CpmSubBlock.h"
 
+namespace LVL1BS {
+
 // Constant definitions
 
 const int      CpmSubBlock::s_wordIdVal;
@@ -427,3 +429,5 @@ bool CpmSubBlock::unpackUncompressed()
   }
   return true;
 }
+
+} // end namespace

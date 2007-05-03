@@ -1,6 +1,8 @@
 
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
 
+namespace LVL1BS {
+
 ChannelCoordinate::ChannelCoordinate() : m_layer(NONE), m_eta(0.0), m_phi(0.0),
                                          m_etaGran(0.0), m_phiGran(0.0)
 {
@@ -26,3 +28,5 @@ std::string ChannelCoordinate::layerName(const CaloLayer layer)
   }
   return name;
 }
+
+} // end namespace

@@ -2,6 +2,8 @@
 #include "TrigT1CaloByteStream/JemCrateMappings.h"
 #include "TrigT1CaloByteStream/JemSubBlock.h"
 
+namespace LVL1BS {
+
 // Constant definitions
 
 const int      JemSubBlock::s_wordIdVal;
@@ -392,3 +394,5 @@ bool JemSubBlock::unpackUncompressed()
   }
   return true;
 }
+
+} // end namespace

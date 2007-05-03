@@ -6,6 +6,8 @@
 
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 
+namespace LVL1BS {
+
 /** Sub-Block class for PPM data.
  *
  *  @author Peter Faulkner
@@ -352,5 +354,7 @@ inline bool PpmSubBlock::errorBit(const int pin, const int bit) const
 {
   return m_errormap[pin] & (0x1 << bit);
 }
+
+} // end namespace
 
 #endif

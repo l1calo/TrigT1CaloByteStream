@@ -17,6 +17,8 @@ namespace LVL1 {
   class TriggerTowerKey;
 }
 
+namespace LVL1BS {
+
 /** Algorithm to test Trigger tower bytestream conversions.
  *
  *  Just prints out the contents of the TriggerTower objects.
@@ -44,9 +46,6 @@ class PpmTester : public Algorithm {
    /// Print the trigger towers
    void printTriggerTowers(MsgStream& log, MSG::Level level) const;
 
-   /// Print FADC vector
-   void printAdc(const std::vector<int>& vec, MsgStream& log,
-                                              MSG::Level level) const;
    /// Print a vector
    void printVec(const std::vector<int>& vec, MsgStream& log,
                                               MSG::Level level) const;
@@ -60,6 +59,8 @@ class PpmTester : public Algorithm {
    LVL1::TriggerTowerKey* m_towerKey;
    /// Trigger tower container StoreGate key
    std::string m_triggerTowerLocation;
+   /// Force number of LUT slices
+   int m_forceSlicesLut;
    /// Force number of FADC slices
    int m_forceSlicesFadc;
 
@@ -67,5 +68,7 @@ class PpmTester : public Algorithm {
    TriggerTowerMap m_ttMap;
 
 };
+
+} // end namespace
 
 #endif

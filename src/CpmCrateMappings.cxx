@@ -3,6 +3,8 @@
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
 #include "TrigT1CaloByteStream/CpmCrateMappings.h"
 
+namespace LVL1BS {
+
 // Static constants
 
 const int    CpmCrateMappings::s_crates;
@@ -73,3 +75,5 @@ int CpmCrateMappings::channels()
 {
   return s_channels;
 }
+
+} // end namespace

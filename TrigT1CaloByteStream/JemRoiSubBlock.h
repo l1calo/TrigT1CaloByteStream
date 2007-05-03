@@ -7,6 +7,8 @@
 #include "TrigT1Calo/JEMRoI.h"
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 
+namespace LVL1BS {
+
 /** Sub-Block class for JEM RoI data (neutral format).
  *
  *  Based on "ATLAS Level-1 Calorimeter Trigger Read-out Driver"
@@ -59,5 +61,7 @@ class JemRoiSubBlock : public L1CaloSubBlock {
    std::vector<LVL1::JEMRoI> m_roiData;
 
 };
+
+} // end namespace
 
 #endif

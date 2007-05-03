@@ -29,6 +29,8 @@
 #include "TrigT1CaloByteStream/JepByteStreamCnv.h"
 #include "TrigT1CaloByteStream/JepByteStreamTool.h"
 
+namespace LVL1BS {
+
 JepByteStreamCnv::JepByteStreamCnv( ISvcLocator* svcloc )
     : Converter( ByteStream_StorageType, classID(), svcloc )
 {
@@ -73,7 +75,7 @@ StatusCode JepByteStreamCnv::initialize()
   }
 
   // make it a private tool by giving the ByteStreamCnvSvc as parent
-  const std::string toolType = "JepByteStreamTool" ;
+  const std::string toolType = "LVL1BS::JepByteStreamTool/JepByteStreamTool";
   sc = toolSvc->retrieveTool( toolType, m_tool, m_ByteStreamEventAccess);
   if ( sc.isFailure() ) {
     log << MSG::ERROR << " Can't get ByteStreamTool of type "
@@ -111,3 +113,5 @@ StatusCode JepByteStreamCnv::createRep( DataObject* pObj,
   // Convert to ByteStream
   return m_tool->convert( jep, re );
 }
+
+} // end namespace

@@ -3,6 +3,8 @@
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
 #include "TrigT1CaloByteStream/JemCrateMappings.h"
 
+namespace LVL1BS {
+
 // Static constants
 
 const int    JemCrateMappings::s_crates;
@@ -119,3 +121,5 @@ bool JemCrateMappings::forward(const int module)
   const int quadMod = module % s_modulesPerQuadrant;
   return quadMod == s_extremeNegModule || quadMod == s_extremePosModule;
 }
+
+} // end namespace

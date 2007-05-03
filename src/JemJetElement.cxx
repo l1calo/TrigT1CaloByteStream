@@ -1,6 +1,8 @@
 
 #include "TrigT1CaloByteStream/JemJetElement.h"
 
+namespace LVL1BS {
+
 // Constant definitions
 
 const int      JemJetElement::s_emDataBit;
@@ -44,3 +46,5 @@ JemJetElement::JemJetElement(const int chan, const int emDat, const int hadDat,
   }
   m_data = word;
 }
+
+} // end namespace

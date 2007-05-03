@@ -8,6 +8,8 @@
 
 #include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
 
+namespace LVL1BS {
+
 /** L1Calo Sub-Block base class.
  *
  *  Provides common functionality for all L1Calo Sub-Block derived types.
@@ -299,5 +301,7 @@ inline bool L1CaloSubBlock::unpackerSuccess() const
 {
   return m_unpackerFlag;
 }
+
+} // end namespace
 
 #endif

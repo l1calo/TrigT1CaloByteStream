@@ -18,10 +18,9 @@
 #include "TrigT1CaloByteStream/JemRoiSubBlock.h"
 #include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
 
-class CmmEnergySubBlock;
-class CmmJetSubBlock;
 class IInterface;
 class InterfaceID;
+
 namespace LVL1 {
   class CMMJetHits;
   class CMMEtSums;
@@ -29,6 +28,11 @@ namespace LVL1 {
   class JEMRoI;
   class JEPRoIBSCollection;
 }
+
+namespace LVL1BS {
+
+class CmmEnergySubBlock;
+class CmmJetSubBlock;
 
 /** Tool to perform ROB fragments to JEM RoI and CMM RoI,
  *  and JEP RoI container to raw data conversions.
@@ -126,5 +130,7 @@ class JepRoiByteStreamTool : public AlgTool {
    FullEventAssembler<L1CaloSrcIdMap> m_fea;
 
 };
+
+} // end namespace
 
 #endif

@@ -17,13 +17,9 @@
 
 #include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
 
-class ChannelCoordinate;
-class CmmEnergySubBlock;
-class CmmJetSubBlock;
 class IInterface;
 class InterfaceID;
-class JemCrateMappings;
-class JemSubBlock;
+
 namespace LVL1 {
   class CMMJetHits;
   class CMMEtSums;
@@ -33,6 +29,14 @@ namespace LVL1 {
   class JetElement;
   class JetElementKey;
 }
+
+namespace LVL1BS {
+
+class ChannelCoordinate;
+class CmmEnergySubBlock;
+class CmmJetSubBlock;
+class JemCrateMappings;
+class JemSubBlock;
 
 /** Tool to perform ROB fragments to jet elements, jet hits and energy sums,
  *  and JEP container to raw data conversions.
@@ -149,6 +153,10 @@ class JepByteStreamTool : public AlgTool {
    int m_modules;
    /// Number of slinks per crate when writing out bytestream
    int m_slinks;
+   /// Force number of JEM slices in bytestream
+   int m_forceSlicesJem;
+   /// Force number of CMM slices in bytestream
+   int m_forceSlicesCmm;
    /// Sub-detector type
    eformat::SubDetector m_subDetector;
    /// Source ID converter
@@ -187,5 +195,7 @@ class JepByteStreamTool : public AlgTool {
    FullEventAssembler<L1CaloSrcIdMap> m_fea;
 
 };
+
+} // end namespace
 
 #endif

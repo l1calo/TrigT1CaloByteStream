@@ -10,9 +10,12 @@
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
+#include "TrigT1CaloByteStream/ModifySlices.h"
 #include "TrigT1CaloByteStream/PpmByteStreamTool.h"
 #include "TrigT1CaloByteStream/PpmCrateMappings.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
+
+namespace LVL1BS {
 
 // Interface ID
 
@@ -45,8 +48,9 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
   declareProperty("DataFormat",         m_dataFormat      = 1);
   declareProperty("CompressionVersion", m_compVers        = 1);
   declareProperty("SlinksPerCrate",     m_slinks          = 4);
-  declareProperty("DefaultSlicesLUT",   m_dfltSlicesLut   = 1);
-  declareProperty("DefaultSlicesFADC",  m_dfltSlicesFadc  = 7);
+  declareProperty("SimulSlicesLUT",     m_dfltSlicesLut   = 1);
+  declareProperty("SimulSlicesFADC",    m_dfltSlicesFadc  = 7);
+  declareProperty("ForceSlicesLUT",     m_forceSlicesLut  = 0);
   declareProperty("ForceSlicesFADC",    m_forceSlicesFadc = 0);
 
 }
@@ -400,6 +404,10 @@ StatusCode PpmByteStreamTool::convert(
   int slicesFadc = 1;
   int trigLut    = 0;
   int trigFadc   = 0;
+  int slicesLutNew  = 1;
+  int slicesFadcNew = 1;
+  int trigLutNew    = 0;
+  int trigFadcNew   = 0;
   const int modulesPerSlink = m_modules / m_slinks;
   for (int crate=0; crate < m_crates; ++crate) {
     for (int module=0; module < m_modules; ++module) {
@@ -422,17 +430,31 @@ StatusCode PpmByteStreamTool::convert(
 	      << crate << " slink " << slink << endreq;
 	  return StatusCode::FAILURE;
         }
+	slicesLutNew  = (m_forceSlicesLut)  ? m_forceSlicesLut  : slicesLut;
+	slicesFadcNew = (m_forceSlicesFadc) ? m_forceSlicesFadc : slicesFadc;
+	trigLutNew    = ModifySlices::peak(trigLut,  slicesLut,  slicesLutNew);
+	trigFadcNew   = ModifySlices::peak(trigFadc, slicesFadc, slicesFadcNew);
         if (debug) {
 	  log << MSG::DEBUG << "Data Version/Format: " << m_version
 	                    << " " << m_dataFormat << endreq;
           log << MSG::DEBUG << "LUT slices/offset: " << slicesLut
-                            << " " << trigLut << endreq;
+                            << " " << trigLut;
+          if (slicesLut != slicesLutNew) {
+	    log << MSG::DEBUG << " modified to " << slicesLutNew
+	                      << " " << trigLutNew;
+          }
+	  log << MSG::DEBUG << endreq;
           log << MSG::DEBUG << "FADC slices/offset: " << slicesFadc
-                            << " " << trigFadc << endreq;
+                            << " " << trigFadc;
+          if (slicesFadc != slicesFadcNew) {
+	    log << MSG::DEBUG << " modified to " << slicesFadcNew
+	                      << " " << trigFadcNew;
+          }
+	  log << MSG::DEBUG << endreq;
         }
         L1CaloUserHeader userHeader;
-        userHeader.setPpmLut(trigLut);
-        userHeader.setPpmFadc(trigFadc);
+        userHeader.setPpmLut(trigLutNew);
+        userHeader.setPpmFadc(trigFadcNew);
 	const uint32_t rodIdPpm = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
 	                                                       m_subDetector);
 	theROD = m_fea.getRodData(rodIdPpm);
@@ -451,19 +473,19 @@ StatusCode PpmByteStreamTool::convert(
         if (channel == 0 && m_dataFormat == L1CaloSubBlock::UNCOMPRESSED) {
           errorBlock.clear();
 	  errorBlock.setPpmErrorHeader(m_version, m_dataFormat, crate,
-	                               module, slicesFadc, slicesLut);
+	                               module, slicesFadcNew, slicesLutNew);
 	}
         if (chan == 0) {
 	  subBlock.clear();
 	  if (m_dataFormat == L1CaloSubBlock::COMPRESSED) {
 	    subBlock.setPpmHeader(m_version, m_dataFormat, m_compVers, crate,
-	                          module, slicesFadc, slicesLut);
+	                          module, slicesFadcNew, slicesLutNew);
           } else {
 	    subBlock.setPpmHeader(m_version, m_dataFormat, channel, crate,
-	                          module, slicesFadc, slicesLut);
+	                          module, slicesFadcNew, slicesLutNew);
 	  }
-	  subBlock.setLutOffset(trigLut);
-	  subBlock.setFadcOffset(trigFadc);
+	  subBlock.setLutOffset(trigLutNew);
+	  subBlock.setFadcOffset(trigFadcNew);
 	  subBlock.setPedestal(m_pedestal);
         }
         const LVL1::TriggerTower* tt = 0;
@@ -473,16 +495,25 @@ StatusCode PpmByteStreamTool::convert(
         }
 	if (tt ) {
 	  uint32_t err = 0;
+	  std::vector<int> lut;
+	  std::vector<int> fadc;
+	  std::vector<int> bcidLut;
+	  std::vector<int> bcidFadc;
 	  const ChannelCoordinate::CaloLayer layer = coord.layer();
 	  if (layer == ChannelCoordinate::EM) {  // em
-	    subBlock.fillPpmData(channel, tt->emLUT(), tt->emADC(),
-	                                  tt->emBCIDvec(), tt->emBCIDext());
+	    ModifySlices::data(tt->emLUT(),     lut,      slicesLutNew);
+	    ModifySlices::data(tt->emADC(),     fadc,     slicesFadcNew);
+	    ModifySlices::data(tt->emBCIDvec(), bcidLut,  slicesLutNew);
+	    ModifySlices::data(tt->emBCIDext(), bcidFadc, slicesFadcNew);
 	    err = tt->emError();
           } else {                               // had
-	    subBlock.fillPpmData(channel, tt->hadLUT(), tt->hadADC(),
-	                                  tt->hadBCIDvec(), tt->hadBCIDext());
+	    ModifySlices::data(tt->hadLUT(),     lut,      slicesLutNew);
+	    ModifySlices::data(tt->hadADC(),     fadc,     slicesFadcNew);
+	    ModifySlices::data(tt->hadBCIDvec(), bcidLut,  slicesLutNew);
+	    ModifySlices::data(tt->hadBCIDext(), bcidFadc, slicesFadcNew);
 	    err = tt->hadError();
           }
+	  subBlock.fillPpmData(channel, lut, fadc, bcidLut, bcidFadc);
 	  if (err) {
 	    if (m_dataFormat == L1CaloSubBlock::UNCOMPRESSED) {
 	      errorBlock.fillPpmError(channel, err);
@@ -557,7 +588,6 @@ StatusCode PpmByteStreamTool::convert(
       }
     }
   }
-  if (m_forceSlicesFadc) m_ttModFadc.clear();
 
   // Fill the raw event
 
@@ -637,43 +667,6 @@ LVL1::TriggerTower* PpmByteStreamTool::findTriggerTower(const double eta,
   return tt;
 }
 
-// Modify the number of trigger tower FADC slices
-
-const LVL1::TriggerTower* PpmByteStreamTool::modFadcSlices(
-                                           const LVL1::TriggerTower* const tt)
-{
-  std::vector<int> emADC;
-  std::vector<int> hadADC;
-  std::vector<int> emBCIDext;
-  std::vector<int> hadBCIDext;
-  std::vector<int> emLUT(tt->emLUT());
-  std::vector<int> hadLUT(tt->hadLUT());
-  std::vector<int> emBCIDvec(tt->emBCIDvec());
-  std::vector<int> hadBCIDvec(tt->hadBCIDvec());
-  int       oldsize = (tt->emADC()).size();
-  const int newsize = m_forceSlicesFadc;
-  if (newsize < oldsize) {
-    const int offset = (oldsize - newsize) / 2;
-    for (int i = 0; i < newsize; ++i) {
-      emADC.push_back((tt->emADC())[i + offset]);
-      hadADC.push_back((tt->hadADC())[i + offset]);
-      emBCIDext.push_back((tt->emBCIDext())[i + offset]);
-      hadBCIDext.push_back((tt->hadBCIDext())[i + offset]);
-    }
-    const int peak = newsize / 2;
-    const unsigned int key = m_towerKey->ttKey(tt->phi(), tt->eta());
-    LVL1::TriggerTower* ttNew = new LVL1::TriggerTower(
-                              tt->phi(), tt->eta(), key, emADC, emLUT,
-			      emBCIDext, emBCIDvec, tt->emError(),
-			      tt->emPeak(), peak, hadADC, hadLUT,
-			      hadBCIDext, hadBCIDvec, tt->hadError(),
-			      tt->hadPeak(), peak);
-    m_ttModFadc.push_back(ttNew);
-    return ttNew;
-  }
-  return tt;
-}
-
 // Set up trigger tower maps
 
 void PpmByteStreamTool::setupTTMaps(const TriggerTowerCollection*
@@ -683,12 +676,10 @@ void PpmByteStreamTool::setupTTMaps(const TriggerTowerCollection*
 
   m_ttEmMap.clear();
   m_ttHadMap.clear();
-  if (m_forceSlicesFadc) m_ttModFadc.clear();
   TriggerTowerCollection::const_iterator pos  = ttCollection->begin();
   TriggerTowerCollection::const_iterator pose = ttCollection->end();
   for (; pos != pose; ++pos) {
     const LVL1::TriggerTower* tt = *pos;
-    if (m_forceSlicesFadc)    tt = modFadcSlices(tt);
     const unsigned int key = m_towerKey->ttKey(tt->phi(), tt->eta());
     // Ignore any with zero data
     // EM
@@ -779,3 +770,5 @@ void PpmByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
     }
   }
 }
+
+} // end namespace

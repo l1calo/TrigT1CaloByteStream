@@ -7,6 +7,8 @@
 
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
 
+namespace LVL1BS {
+
 /** PPM crate/module/channel to eta/phi/layer mappings
  *
  *  The inputs and crate layouts come from "Level-1 Calorimeter Trigger:
@@ -70,5 +72,7 @@ class PpmCrateMappings {
    static const int s_channels = 64;
 
 };
+
+} // end namespace
 
 #endif

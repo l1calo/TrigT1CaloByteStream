@@ -1,6 +1,8 @@
 
 #include "TrigT1CaloByteStream/JemRoiSubBlock.h"
 
+namespace LVL1BS {
+
 // Constant definitions
 
 const int JemRoiSubBlock::s_wordIdVal;
@@ -171,3 +173,5 @@ bool JemRoiSubBlock::unpackNeutral()
   }
   return unpackerSuccess();
 }
+
+} // end namespace

@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+namespace LVL1BS {
+
 /** JEM jet element dataword class.
  *
  *  Based on "ATLAS Level-1 Calorimeter Trigger Read-out Driver"
@@ -106,5 +108,7 @@ inline uint32_t JemJetElement::data() const
 {
   return m_data;
 }
+
+} // end namespace
 
 #endif

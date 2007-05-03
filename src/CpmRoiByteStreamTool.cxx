@@ -10,6 +10,8 @@
 #include "TrigT1CaloByteStream/CpmRoiByteStreamTool.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
 
+namespace LVL1BS {
+
 // Interface ID
 
 static const InterfaceID IID_ICpmRoiByteStreamTool("CpmRoiByteStreamTool",
@@ -300,3 +302,5 @@ void CpmRoiByteStreamTool::setupCpmRoiMap(const CpmRoiCollection*
     }
   }
 }
+
+} // end namespace

@@ -1,20 +1,24 @@
 
 #include <utility>
 
-#include "TrigT1CaloByteStream/PpmTester.h"
-
 #include "TrigT1Calo/TriggerTower.h"
 #include "TrigT1Calo/TriggerTowerKey.h"
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
+#include "TrigT1CaloByteStream/ModifySlices.h"
+#include "TrigT1CaloByteStream/PpmTester.h"
+
+namespace LVL1BS {
 
 PpmTester::PpmTester(const std::string& name, ISvcLocator* pSvcLocator)
-                     : Algorithm(name, pSvcLocator), 
-                       m_storeGate("StoreGateSvc", name),
-                       m_towerKey(0)
+                     : Algorithm(name, pSvcLocator),
+		       m_storeGate("StoreGateSvc", name),
+		       m_towerKey(0)
 {
   declareProperty("TriggerTowerLocation",
          m_triggerTowerLocation = LVL1::TrigT1CaloDefs::TriggerTowerLocation);
+
+  declareProperty("ForceSlicesLUT",  m_forceSlicesLut  = 0);
   declareProperty("ForceSlicesFADC", m_forceSlicesFadc = 0);
 }
 
@@ -29,9 +33,9 @@ StatusCode PpmTester::initialize()
   MsgStream log( msgSvc(), name() );
 
   StatusCode sc = m_storeGate.retrieve();
-  if ( sc.isFailure() ) {
-    log << MSG::ERROR << "Couldn't connect to " << m_storeGate.typeAndName() 
-        << endreq;
+  if (sc.isFailure()) {
+    log << MSG::ERROR << "Couldn't connect to " << m_storeGate.typeAndName()
+                      << endreq;
     return sc;
   }
   m_towerKey = new LVL1::TriggerTowerKey();
@@ -84,51 +88,59 @@ void PpmTester::printTriggerTowers(MsgStream& log,
   TriggerTowerMap::const_iterator mapEnd  = m_ttMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
     const LVL1::TriggerTower* const tt = mapIter->second;
-    int emADCPeak = tt->emADCPeak();
-    int hadADCPeak = tt->hadADCPeak();
-    const int emADCSlices = (tt->emADC()).size();
-    const int hadADCSlices = (tt->hadADC()).size();
-    if (m_forceSlicesFadc && m_forceSlicesFadc < emADCSlices) {
-      emADCPeak = m_forceSlicesFadc / 2;
+    int emPeak       = tt->emPeak();
+    int hadPeak      = tt->hadPeak();
+    int emADCPeak    = tt->emADCPeak();
+    int hadADCPeak   = tt->hadADCPeak();
+    int emLUTSlices  = (tt->emLUT()).size();
+    int emADCSlices  = (tt->emADC()).size();
+    int hadLUTSlices = (tt->hadLUT()).size();
+    int hadADCSlices = (tt->hadADC()).size();
+    if (m_forceSlicesLut) {
+      emPeak  = ModifySlices::peak(emPeak, emLUTSlices, m_forceSlicesLut);
+      hadPeak = ModifySlices::peak(hadPeak, hadLUTSlices, m_forceSlicesLut);
+      emLUTSlices  = m_forceSlicesLut;
+      hadLUTSlices = m_forceSlicesLut;
     }
-    if (m_forceSlicesFadc && m_forceSlicesFadc < hadADCSlices) {
-      hadADCPeak = m_forceSlicesFadc / 2;
+    if (m_forceSlicesFadc) {
+      emADCPeak  = ModifySlices::peak(emADCPeak, emADCSlices,
+                                                            m_forceSlicesFadc);
+      hadADCPeak = ModifySlices::peak(hadADCPeak, hadADCSlices,
+                                                            m_forceSlicesFadc);
+      emADCSlices  = m_forceSlicesFadc;
+      hadADCSlices = m_forceSlicesFadc;
     }
     log << level
         << " EM:key/eta/phi/LUTpeak/FADCpeak/LUT/FADC/bcidLUT/bcidFADC/error: "
         << mapIter->first << "/" << tt->eta() << "/" << tt->phi() << "/"
-	<< tt->emPeak() << "/" << emADCPeak << "/";
-    printVec(tt->emLUT(),     log, level);
-    printAdc(tt->emADC(),     log, level);
-    printVec(tt->emBCIDvec(), log, level);
-    printAdc(tt->emBCIDext(), log, level);
+	<< emPeak << "/" << emADCPeak << "/";
+    std::vector<int> lut;
+    std::vector<int> fadc;
+    std::vector<int> bcidLut;
+    std::vector<int> bcidFadc;
+    ModifySlices::data(tt->emLUT(),     lut,      emLUTSlices);
+    ModifySlices::data(tt->emADC(),     fadc,     emADCSlices);
+    ModifySlices::data(tt->emBCIDvec(), bcidLut,  emLUTSlices);
+    ModifySlices::data(tt->emBCIDext(), bcidFadc, emADCSlices);
+    printVec(lut,      log, level);
+    printVec(fadc,     log, level);
+    printVec(bcidLut,  log, level);
+    printVec(bcidFadc, log, level);
     log << level << tt->emError() << "/" << endreq;
     log << level
         << "HAD:key/eta/phi/LUTpeak/FADCpeak/LUT/FADC/bcidLUT/bcidFADC/error: "
         << mapIter->first << "/" << tt->eta() << "/" << tt->phi() << "/"
-	<< tt->hadPeak() << "/" << hadADCPeak << "/";
-    printVec(tt->hadLUT(),     log, level);
-    printAdc(tt->hadADC(),     log, level);
-    printVec(tt->hadBCIDvec(), log, level);
-    printAdc(tt->hadBCIDext(), log, level);
+	<< hadPeak << "/" << hadADCPeak << "/";
+    ModifySlices::data(tt->hadLUT(),     lut,      hadLUTSlices);
+    ModifySlices::data(tt->hadADC(),     fadc,     hadADCSlices);
+    ModifySlices::data(tt->hadBCIDvec(), bcidLut,  hadLUTSlices);
+    ModifySlices::data(tt->hadBCIDext(), bcidFadc, hadADCSlices);
+    printVec(lut,      log, level);
+    printVec(fadc,     log, level);
+    printVec(bcidLut,  log, level);
+    printVec(bcidFadc, log, level);
     log << level << tt->hadError() << "/" << endreq;
   }
-}
-
-// Print FADC vector
-
-void PpmTester::printAdc(const std::vector<int>& vec, MsgStream& log,
-                                                const MSG::Level level) const
-{
-  const int slices = vec.size();
-  if (m_forceSlicesFadc && m_forceSlicesFadc < slices) {
-    const int offset = (slices - m_forceSlicesFadc) / 2;
-    std::vector<int> newVec;
-    for (int sl = 0; sl < m_forceSlicesFadc; ++sl) {
-      newVec.push_back(vec[sl + offset]);
-    }
-    printVec(newVec, log, level);
-  } else printVec(vec, log, level);
 }
 
 // Print a vector
@@ -157,3 +169,5 @@ void PpmTester::setupTTMap(const TriggerTowerCollection* const ttCollection)
     m_ttMap.insert(std::make_pair(key, tt));
   }
 }
+
+} // end namespace
