@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <stdint.h>
 
 #include "DataModel/DataVector.h"
 #include "GaudiKernel/Algorithm.h"

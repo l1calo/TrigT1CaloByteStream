@@ -1,7 +1,6 @@
 #ifndef TRIGT1CALOBYTESTREAM_CPMROISUBBLOCK_H
 #define TRIGT1CALOBYTESTREAM_CPMROISUBBLOCK_H
 
-#include <stdint.h>
 #include <vector>
 
 #include "TrigT1Calo/CPMRoI.h"

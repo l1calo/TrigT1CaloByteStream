@@ -1,6 +1,7 @@
 
 #include <string>
 #include <vector>
+#include <stdint.h>
 
 #include "ByteStreamCnvSvcBase/ByteStreamAddress.h"
 #include "ByteStreamCnvSvcBase/ByteStreamCnvSvcBase.h"

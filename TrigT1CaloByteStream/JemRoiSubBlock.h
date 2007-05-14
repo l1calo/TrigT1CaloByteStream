@@ -1,7 +1,6 @@
 #ifndef TRIGT1CALOBYTESTREAM_JEMROISUBBLOCK_H
 #define TRIGT1CALOBYTESTREAM_JEMROISUBBLOCK_H
 
-#include <stdint.h>
 #include <vector>
 
 #include "TrigT1Calo/JEMRoI.h"

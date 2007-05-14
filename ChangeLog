@@ -1,3 +1,8 @@
+2007-05-14  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-03-03
+	* Add missing <stdint.h>.
+
 2007-05-03  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-03-02
