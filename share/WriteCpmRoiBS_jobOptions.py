@@ -1,4 +1,6 @@
 # CPMRoI container to bytestream conversion
-theApp.Dlls += [ "TrigT1CaloByteStream" ]
-StreamBS = Algorithm( "StreamBS" )
+from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__CpmRoiByteStreamTool
+ByteStreamCnvSvc = Service( "ByteStreamCnvSvc" )
+ByteStreamCnvSvc += LVL1BS__CpmRoiByteStreamTool("CpmRoiByteStreamTool")
+StreamBS = AthenaOutputStream( "StreamBS" )
 StreamBS.ItemList  += [ "216508938#*" ]

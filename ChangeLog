@@ -1,3 +1,8 @@
+2007-07-12  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-03-04
+        * Update jobOptions for configurables.
+
 2007-05-14  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-03-03

@@ -1,10 +1,9 @@
 # JEP RoI bytestream to JEMRoI/... conversion
-# Specify the Converters
+from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__JepRoiByteStreamTool
 ByteStreamCnvSvc = Service( "ByteStreamCnvSvc" )
+ByteStreamCnvSvc += LVL1BS__JepRoiByteStreamTool("JepRoiByteStreamTool")
 ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::JEMRoI>" ]
 ByteStreamCnvSvc.InitCnvs += [ "LVL1::CMMRoI" ]
 ByteStreamAddressProviderSvc = Service( "ByteStreamAddressProviderSvc" )
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::JEMRoI>/JEMRoIs" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "LVL1::CMMRoI/CMMRoIs" ]
-# DLLs
-theApp.Dlls += [ "TrigT1CaloByteStream" ]
