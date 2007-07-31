@@ -1,5 +1,10 @@
 2007-07-31  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
+        * Tag TrigT1CaloByteStream-00-03-06
+        * Remove unwanted FAILURE return from JepRoiByteStreamTool.cxx
+
+2007-07-31  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
         * Tag TrigT1CaloByteStream-00-03-05
         * Add sub-status bits to error words.
         * Add options to specify input ROB IDs in jobOptions.

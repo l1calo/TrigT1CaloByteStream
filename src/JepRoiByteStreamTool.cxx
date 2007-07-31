@@ -421,7 +421,6 @@ StatusCode JepRoiByteStreamTool::convertBs(
           m_srcIdMap->daqOrRoi(sourceID) != 0) {
         log << MSG::DEBUG << "Wrong source identifier in data: "
 	    << MSG::hex << sourceID << MSG::dec << endreq;
-        return StatusCode::FAILURE;
       }
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
