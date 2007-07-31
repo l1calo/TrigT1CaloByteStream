@@ -186,9 +186,10 @@ void CpmTester::printCpmTowers(MsgStream& log, const MSG::Level level) const
     ModifySlices::data(tt->hadErrorVec(),  hadError,  slices);
     printVec(emEnergy,  log, level);
     printVec(hadEnergy, log, level);
+    log << level << MSG::hex;
     printVec(emError,   log, level);
     printVec(hadError,  log, level);
-    log << level << endreq;
+    log << level << MSG::dec << endreq;
   }
 }
 
@@ -250,9 +251,10 @@ void CpmTester::printCmmCpHits(MsgStream& log, const MSG::Level level) const
     ModifySlices::data(ch->ErrorVec1(), err1, slices);
     printVecH(hits0, log, level);
     printVecH(hits1, log, level);
+    log << level << MSG::hex;
     printVec(err0, log, level);
     printVec(err1, log, level);
-    log << level << endreq;
+    log << level << MSG::dec << endreq;
   }
 }
 
@@ -268,8 +270,13 @@ void CpmTester::printCpmRois(MsgStream& log, const MSG::Level level) const
     log << level << "crate/cpm/chip/loc/hits/error: "
 	<< roi->crate()    << "/" << roi->cpm() << "/" << roi->chip() << "/"
 	<< roi->location() << "/";
-    MSG::hex(log) << level << roi->hits() << "/" << roi->error() << "/";
-    MSG::dec(log) << level << endreq;
+    int hits = roi->hits();
+    for (int i = 0; i < 16; ++i) {
+      if (i == 8) log << level << ";";
+      else if (i > 0) log << level << ":";
+      log << level << ((hits >> i) & 0x1);
+    }
+    log << level << "/" << roi->error() << "/" << endreq;
   }
 }
 

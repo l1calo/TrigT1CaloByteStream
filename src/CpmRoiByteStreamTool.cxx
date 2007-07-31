@@ -8,6 +8,7 @@
 
 #include "TrigT1CaloByteStream/CpmCrateMappings.h"
 #include "TrigT1CaloByteStream/CpmRoiByteStreamTool.h"
+#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
 
 namespace LVL1BS {
@@ -28,17 +29,26 @@ CpmRoiByteStreamTool::CpmRoiByteStreamTool(const std::string& type,
                                            const std::string& name,
 				           const IInterface*  parent)
                       : AlgTool(type, name, parent),
-		        m_srcIdMap(0)
+		        m_srcIdMap(0), m_rodStatus(0)
 {
   declareInterface<CpmRoiByteStreamTool>(this);
 
-  declareProperty("CrateOffsetHw",  m_crateOffsetHw = 8);
-  declareProperty("CrateOffsetSw",  m_crateOffsetSw = 0);
+  declareProperty("CrateOffsetHw",  m_crateOffsetHw = 8,
+                  "Offset of CP crate numbers in bytestream");
+  declareProperty("CrateOffsetSw",  m_crateOffsetSw = 0,
+                  "Offset of CP crate numbers in RDOs");
+
+  // Properties for reading bytestream only
+  declareProperty("ROBSourceIDs",       m_sourceIDs,
+                  "ROB fragment source identifiers");
 
   // Properties for writing bytestream only
-  declareProperty("DataVersion",    m_version       = 1);
-  declareProperty("DataFormat",     m_dataFormat    = 1);
-  declareProperty("SlinksPerCrate", m_slinks        = 1);
+  declareProperty("DataVersion",    m_version       = 1,
+                  "Format version number in sub-block header");
+  declareProperty("DataFormat",     m_dataFormat    = 1,
+                  "Format identifier (0-1) in sub-block header");
+  declareProperty("SlinksPerCrate", m_slinks        = 1,
+                  "The number of S-Links per crate");
 
 }
 
@@ -56,6 +66,7 @@ StatusCode CpmRoiByteStreamTool::initialize()
   m_srcIdMap    = new L1CaloSrcIdMap();
   m_crates      = CpmCrateMappings::crates();
   m_modules     = CpmCrateMappings::modules();
+  m_rodStatus   = new std::vector<uint32_t>(2);
   return AlgTool::initialize();
 }
 
@@ -63,6 +74,7 @@ StatusCode CpmRoiByteStreamTool::initialize()
 
 StatusCode CpmRoiByteStreamTool::finalize()
 {
+  delete m_rodStatus;
   delete m_srcIdMap;
   return AlgTool::finalize();
 }
@@ -99,10 +111,12 @@ StatusCode CpmRoiByteStreamTool::convert(
 
     // Check identifier
     const uint32_t sourceID = (*rob)->rod_source_id();
-    if (m_srcIdMap->subDet(sourceID)   != m_subDetector ||
-        m_srcIdMap->daqOrRoi(sourceID) != 0) {
-      log << MSG::ERROR << "Wrong source identifier in data" << endreq;
-      return StatusCode::FAILURE;
+    if (debug) {
+      if (m_srcIdMap->subDet(sourceID)   != m_subDetector ||
+          m_srcIdMap->daqOrRoi(sourceID) != 0) {
+        log << MSG::DEBUG << "Wrong source identifier in data: "
+	    << MSG::hex << sourceID << MSG::dec << endreq;
+      }
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
     if (debug) {
@@ -154,9 +168,8 @@ StatusCode CpmRoiByteStreamTool::convert(
 	if (roi.setRoiWord(*payload)) {
 	  roiCollection->push_back(new LVL1::CPMRoI(*payload));
 	} else {
-	  log << MSG::ERROR << "Invalid RoI word ";
-	  MSG::hex(log) << MSG::ERROR << *payload;
-	  MSG::dec(log) << MSG::ERROR << endreq;
+	  log << MSG::ERROR << "Invalid RoI word "
+	      << MSG::hex << *payload << MSG::dec << endreq;
         }
 	++payload;
       }
@@ -180,6 +193,7 @@ StatusCode CpmRoiByteStreamTool::convert(
   m_fea.clear();
   const uint16_t minorVersion = 0x1001;
   m_fea.setRodMinorVersion(minorVersion);
+  m_rodStatusMap.clear();
 
   // Pointer to ROD data vector
 
@@ -206,7 +220,8 @@ StatusCode CpmRoiByteStreamTool::convert(
 
       if (mod%modulesPerSlink == 0) {
 	const int daqOrRoi = 0;  // 1 is for RoIB
-	const int slink = mod/modulesPerSlink;
+	const int slink = (m_slinks == 2) ? 2*(mod/modulesPerSlink)
+	                                  : mod/modulesPerSlink;
         if (debug) {
           log << MSG::DEBUG << "Treating crate " << hwCrate
                             << " slink " << slink << endreq;
@@ -220,6 +235,7 @@ StatusCode CpmRoiByteStreamTool::convert(
           const L1CaloUserHeader userHeader;
 	  theROD->push_back(userHeader.header());
         }
+	m_rodStatusMap.insert(make_pair(rodIdCpm, m_rodStatus));
       }
       if (debug) {
         log << MSG::DEBUG << "Module " << module << endreq;
@@ -266,6 +282,10 @@ StatusCode CpmRoiByteStreamTool::convert(
 
   m_fea.fill(re, log);
 
+  // Set ROD status words
+
+  L1CaloRodStatus::setStatus(re, m_rodStatusMap, m_srcIdMap);
+
   return StatusCode::SUCCESS;
 }
 
@@ -273,17 +293,19 @@ StatusCode CpmRoiByteStreamTool::convert(
 
 void CpmRoiByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
 {
-  const int maxCrates = m_crates + m_crateOffsetHw;
-  const int maxSlinks = m_srcIdMap->maxSlinks();
-  for (int hwCrate = m_crateOffsetHw; hwCrate < maxCrates; ++hwCrate) {
-    for (int slink = 0; slink < maxSlinks; ++slink) {
-      const int daqOrRoi = 0;
-      const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
-                                                           m_subDetector);
-      const uint32_t robId = m_srcIdMap->getRobID(rodId);
-      vID.push_back(robId);
+  if (m_sourceIDs.empty()) {
+    const int maxCrates = m_crates + m_crateOffsetHw;
+    const int maxSlinks = m_srcIdMap->maxSlinks();
+    for (int hwCrate = m_crateOffsetHw; hwCrate < maxCrates; ++hwCrate) {
+      for (int slink = 0; slink < maxSlinks; ++slink) {
+        const int daqOrRoi = 0;
+        const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
+                                                             m_subDetector);
+        const uint32_t robId = m_srcIdMap->getRobID(rodId);
+        vID.push_back(robId);
+      }
     }
-  }
+  } else vID = m_sourceIDs;
 }
 
 // Set up CPM RoI map

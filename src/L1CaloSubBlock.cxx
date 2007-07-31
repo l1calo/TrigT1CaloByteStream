@@ -164,6 +164,26 @@ void L1CaloSubBlock::setStatus(const uint32_t failingBCN,
   m_trailer = word;
 }
 
+// Set DAQ FIFO Overflow bit in Sub-status word
+
+void L1CaloSubBlock::setDaqOverflow(const int bit)
+{
+  if (bit) {
+    if (m_trailer) m_trailer |= (1 << s_daqOverflowBit);
+    else setStatus(0, false, false, false, true, false, false, false);
+  }
+}
+
+// Set G-Link Parity bit in Sub-status word
+
+void L1CaloSubBlock::setGlinkParity(const int bit)
+{
+  if (bit) {
+    if (m_trailer) m_trailer |= (1 << s_glinkParityBit);
+    else setStatus(0, false, false, false, false, false, false, true);
+  }
+}
+
 // Implemented by derived classes
 
 bool L1CaloSubBlock::pack()

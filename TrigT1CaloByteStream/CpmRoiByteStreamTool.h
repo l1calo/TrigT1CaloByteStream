@@ -83,6 +83,8 @@ class CpmRoiByteStreamTool : public AlgTool {
    int m_modules;
    /// Number of slinks per crate when writing out bytestream
    int m_slinks;
+   /// ROB source IDs
+   std::vector<uint32_t> m_sourceIDs;
    /// Sub-detector type
    eformat::SubDetector m_subDetector;
    /// Source ID converter
@@ -91,6 +93,10 @@ class CpmRoiByteStreamTool : public AlgTool {
    CpmRoiSubBlock m_subBlock;
    /// CPM RoI map
    CpmRoiMap m_roiMap;
+   /// ROD Status words
+   std::vector<uint32_t>* m_rodStatus;
+   /// ROD status map
+   std::map<uint32_t, std::vector<uint32_t>* > m_rodStatusMap;
    /// Event assembler
    FullEventAssembler<L1CaloSrcIdMap> m_fea;
 

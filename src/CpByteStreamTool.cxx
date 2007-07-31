@@ -8,6 +8,7 @@
 #include "TrigT1Calo/CPMHits.h"
 #include "TrigT1Calo/CPMTower.h"
 #include "TrigT1Calo/CPBSCollection.h"
+#include "TrigT1Calo/DataError.h"
 #include "TrigT1Calo/TriggerTowerKey.h"
 
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
@@ -16,6 +17,7 @@
 #include "TrigT1CaloByteStream/CpmCrateMappings.h"
 #include "TrigT1CaloByteStream/CpmSubBlock.h"
 #include "TrigT1CaloByteStream/CpByteStreamTool.h"
+#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
 #include "TrigT1CaloByteStream/ModifySlices.h"
@@ -37,19 +39,35 @@ CpByteStreamTool::CpByteStreamTool(const std::string& type,
                                    const std::string& name,
 				   const IInterface*  parent)
                   : AlgTool(type, name, parent),
-		    m_srcIdMap(0), m_cpmMaps(0), m_towerKey(0)
+		    m_srcIdMap(0), m_cpmMaps(0), m_towerKey(0),
+		    m_rodStatus(0)
 {
   declareInterface<CpByteStreamTool>(this);
 
-  declareProperty("CrateOffsetHw",  m_crateOffsetHw  = 8);
-  declareProperty("CrateOffsetSw",  m_crateOffsetSw  = 0);
+  declareProperty("CrateOffsetHw",  m_crateOffsetHw  = 8,
+                  "Offset of CP crate numbers in bytestream");
+  declareProperty("CrateOffsetSw",  m_crateOffsetSw  = 0,
+                  "Offset of CP crate numbers in RDOs");
+
+  // Properties for reading bytestream only
+  declareProperty("ROBSourceIDs",       m_sourceIDs,
+                  "ROB fragment source identifiers");
 
   // Properties for writing bytestream only
-  declareProperty("DataVersion",    m_version        = 1);
-  declareProperty("DataFormat",     m_dataFormat     = 1);
-  declareProperty("SlinksPerCrate", m_slinks         = 2);
-  declareProperty("ForceSlicesCPM", m_forceSlicesCpm = 0);
-  declareProperty("ForceSlicesCMM", m_forceSlicesCmm = 0);
+  declareProperty("DataVersion",    m_version        = 1,
+                  "Format version number in sub-block header");
+  declareProperty("DataFormat",     m_dataFormat     = 1,
+                  "Format identifier (0-1) in sub-block header");
+  declareProperty("SlinksPerCrate", m_slinks         = 2,
+                  "The number of S-Links per crate");
+  declareProperty("SimulSlicesCPM", m_dfltSlicesCpm  = 1,
+                  "The number of CPM slices in the simulation");
+  declareProperty("SimulSlicesCMM", m_dfltSlicesCmm  = 1,
+                  "The number of CMM slices in the simulation");
+  declareProperty("ForceSlicesCPM", m_forceSlicesCpm = 0,
+                  "If >0, the number of CPM slices in bytestream");
+  declareProperty("ForceSlicesCMM", m_forceSlicesCmm = 0,
+                  "If >0, the number of CMM slices in bytestream");
 
 }
 
@@ -70,6 +88,7 @@ StatusCode CpByteStreamTool::initialize()
   m_modules     = m_cpmMaps->modules();
   m_channels    = m_cpmMaps->channels();
   m_towerKey    = new LVL1::TriggerTowerKey();
+  m_rodStatus   = new std::vector<uint32_t>(2);
   return AlgTool::initialize();
 }
 
@@ -77,6 +96,7 @@ StatusCode CpByteStreamTool::initialize()
 
 StatusCode CpByteStreamTool::finalize()
 {
+  delete m_rodStatus;
   delete m_towerKey;
   delete m_cpmMaps;
   delete m_srcIdMap;
@@ -129,6 +149,7 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
   m_fea.clear();
   const uint16_t minorVersion = 0x1001;
   m_fea.setRodMinorVersion(minorVersion);
+  m_rodStatusMap.clear();
 
   // Pointer to ROD data vector
 
@@ -183,7 +204,8 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 
       if (mod%modulesPerSlink == 0) {
 	const int daqOrRoi = 0;
-	const int slink = mod/modulesPerSlink;
+	const int slink = (m_slinks == 2) ? 2*(mod/modulesPerSlink)
+	                                  : mod/modulesPerSlink;
         if (debug) {
           log << MSG::DEBUG << "Treating crate " << hwCrate
                             << " slink " << slink << endreq;
@@ -217,6 +239,7 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 	                                                        m_subDetector);
 	theROD = m_fea.getRodData(rodIdCpm);
 	theROD->push_back(userHeader.header());
+	m_rodStatusMap.insert(make_pair(rodIdCpm, m_rodStatus));
       }
       if (debug) {
         log << MSG::DEBUG << "Module " << module << endreq;
@@ -252,10 +275,18 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 	    ModifySlices::data(tt->emErrorVec(),   emError,  timeslicesNew);
 	    ModifySlices::data(tt->hadErrorVec(),  hadError, timeslicesNew);
             for (int slice = 0; slice < timeslicesNew; ++slice) {
-	      const int index = ( neutralFormat ) ? 0 : slice;
+	      const LVL1::DataError emErrBits(emError[slice]);
+	      const LVL1::DataError hadErrBits(hadError[slice]);
+	      const int emErr  =
+	                      (emErrBits.get(LVL1::DataError::LinkDown) << 1) |
+	                       emErrBits.get(LVL1::DataError::Parity);
+	      const int hadErr =
+	                     (hadErrBits.get(LVL1::DataError::LinkDown) << 1) |
+	                      hadErrBits.get(LVL1::DataError::Parity);
+	      const int index  = ( neutralFormat ) ? 0 : slice;
               CpmSubBlock* const subBlock = m_cpmBlocks[index];
               subBlock->fillTowerData(slice, chan, emData[slice],
-	                   hadData[slice], emError[slice], hadError[slice]);
+	                              hadData[slice], emErr, hadErr);
 	    }
           }
         }
@@ -354,11 +385,15 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 	ModifySlices::data(ch->ErrorVec0(), err0,  timeslicesCmmNew);
 	ModifySlices::data(ch->ErrorVec1(), err1,  timeslicesCmmNew);
 	for (int slice = 0; slice < timeslicesCmmNew; ++slice) {
+	  const LVL1::DataError err0Bits(err0[slice]);
+	  const LVL1::DataError err1Bits(err1[slice]);
 	  const int index = ( neutralFormat ) ? 0 : slice;
 	  CmmCpSubBlock* subBlock = m_cmmHit0Blocks[index];
-	  subBlock->setHits(slice, source, hits0[slice], err0[slice]);
+	  subBlock->setHits(slice, source, hits0[slice],
+	                           err0Bits.get(LVL1::DataError::Parity));
 	  subBlock = m_cmmHit1Blocks[index];
-	  subBlock->setHits(slice, source, hits1[slice], err1[slice]);
+	  subBlock->setHits(slice, source, hits1[slice],
+	                           err1Bits.get(LVL1::DataError::Parity));
         }
       }
     }
@@ -394,6 +429,10 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 
   m_fea.fill(re, log);
 
+  // Set ROD status words
+
+  L1CaloRodStatus::setStatus(re, m_rodStatusMap, m_srcIdMap);
+
   return StatusCode::SUCCESS;
 }
 
@@ -401,17 +440,19 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 
 void CpByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
 {
-  const int maxCrates = m_crates + m_crateOffsetHw;
-  const int maxSlinks = m_srcIdMap->maxSlinks();
-  for (int hwCrate = m_crateOffsetHw; hwCrate < maxCrates; ++hwCrate) {
-    for (int slink = 0; slink < maxSlinks; ++slink) {
-      const int daqOrRoi = 0;
-      const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
-                                                           m_subDetector);
-      const uint32_t robId = m_srcIdMap->getRobID(rodId);
-      vID.push_back(robId);
+  if (m_sourceIDs.empty()) {
+    const int maxCrates = m_crates + m_crateOffsetHw;
+    const int maxSlinks = m_srcIdMap->maxSlinks();
+    for (int hwCrate = m_crateOffsetHw; hwCrate < maxCrates; ++hwCrate) {
+      for (int slink = 0; slink < maxSlinks; ++slink) {
+        const int daqOrRoi = 0;
+        const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
+                                                             m_subDetector);
+        const uint32_t robId = m_srcIdMap->getRobID(rodId);
+        vID.push_back(robId);
+      }
     }
-  }
+  } else vID = m_sourceIDs;
 }
 
 // Convert bytestream to given container type
@@ -446,10 +487,12 @@ StatusCode CpByteStreamTool::convertBs(
 
     // Check identifier
     const uint32_t sourceID = (*rob)->rod_source_id();
-    if (m_srcIdMap->subDet(sourceID)   != m_subDetector ||
-        m_srcIdMap->daqOrRoi(sourceID) != 0) {
-      log << MSG::ERROR << "Wrong source identifier in data" << endreq;
-      return StatusCode::FAILURE;
+    if (debug) {
+      if (m_srcIdMap->subDet(sourceID)   != m_subDetector ||
+          m_srcIdMap->daqOrRoi(sourceID) != 0) {
+        log << MSG::DEBUG << "Wrong source identifier in data: "
+	    << MSG::hex << sourceID << MSG::dec << endreq;
+      }
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
     if (debug) {
@@ -586,7 +629,11 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock,
         }
       }
       const unsigned int hits = subBlock.hits(slice, source);
-      const int err = subBlock.hitsError(slice, source);
+      int err = subBlock.hitsError(slice, source);
+      LVL1::DataError errorBits;
+      errorBits.set(LVL1::DataError::Parity, err & 0x1);
+      errorBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
+      err = errorBits.error();
       if (hits || err) {
         LVL1::CMMCPHits* ch = findCmmCpHits(crate, dataID);
 	if ( ! ch ) {   // create new CMM hits
@@ -680,11 +727,21 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
       // Loop over tower channels and fill CPM towers
 
       for (int chan = 0; chan < m_channels; ++chan) {
-	const int em     = subBlock.emData(slice, chan);
-	const int had    = subBlock.hadData(slice, chan);
-	const int emErr  = subBlock.emError(slice, chan);
-	const int hadErr = subBlock.hadError(slice, chan);
-        if (em || had || emErr || hadErr) {
+	const int em  = subBlock.emData(slice, chan);
+	const int had = subBlock.hadData(slice, chan);
+	int emErr     = subBlock.emError(slice, chan);
+	int hadErr    = subBlock.hadError(slice, chan);
+	LVL1::DataError emErrBits;
+	emErrBits.set(LVL1::DataError::Parity, emErr & 0x1);
+	emErrBits.set(LVL1::DataError::LinkDown, (emErr >> 1) & 0x1);
+	emErrBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
+	int emErr1 = emErrBits.error();
+	LVL1::DataError hadErrBits;
+	hadErrBits.set(LVL1::DataError::Parity, hadErr & 0x1);
+	hadErrBits.set(LVL1::DataError::LinkDown, (hadErr >> 1) & 0x1);
+	hadErrBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
+	int hadErr1 = hadErrBits.error();
+        if (em || had || emErr1 || hadErr1) {
 	  ChannelCoordinate coord;
 	  if (m_cpmMaps->mapping(crate, module, chan, coord)) {
 	    const double eta = coord.eta();
@@ -697,8 +754,8 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
 	      std::vector<int> hadErrVec(timeslices);
 	      emVec[slice]     = em;
 	      hadVec[slice]    = had;
-	      emErrVec[slice]  = emErr;
-	      hadErrVec[slice] = hadErr;
+	      emErrVec[slice]  = emErr1;
+	      hadErrVec[slice] = hadErr1;
 	      tt = new LVL1::CPMTower(phi, eta, emVec, emErrVec,
 	                                        hadVec, hadErrVec, trigCpm);
 	      const unsigned int key = m_towerKey->ttKey(phi, eta);
@@ -711,12 +768,12 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
 	      std::vector<int> hadErrVec(tt->hadErrorVec());
 	      emVec[slice]     = em;
 	      hadVec[slice]    = had;
-	      emErrVec[slice]  = emErr;
-	      hadErrVec[slice] = hadErr;
+	      emErrVec[slice]  = emErr1;
+	      hadErrVec[slice] = hadErr1;
 	      tt->fill(emVec, emErrVec, hadVec, hadErrVec, trigCpm);
 	    }
-          } else {
-	    log << MSG::WARNING
+          } else if (debug && (em || had || emErr || hadErr)) {
+	    log << MSG::DEBUG
 	        << "Non-zero data but no channel mapping for channel "
 	        << chan << endreq;
           }
@@ -853,7 +910,7 @@ bool CpByteStreamTool::slinkSlices(const int crate, const int module,
                   const int modulesPerSlink, int& timeslices, int& trigCpm)
 {
   int slices = -1;
-  int trigC  =  0;
+  int trigC  = m_dfltSlicesCpm/2;
   for (int mod = module; mod < module + modulesPerSlink; ++mod) {
     for (int chan = 0; chan < m_channels; ++chan) {
       ChannelCoordinate coord;
@@ -905,7 +962,7 @@ bool CpByteStreamTool::slinkSlices(const int crate, const int module,
       }
     }
   }
-  if (slices < 0) slices = 1;
+  if (slices < 0) slices = m_dfltSlicesCpm;
   timeslices = slices;
   trigCpm    = trigC;
   return true;
@@ -917,7 +974,7 @@ bool CpByteStreamTool::slinkSlicesCmm(const int crate, int& timeslices,
                                                        int& trigCmm)
 {
   int slices = -1;
-  int trigC  =  0;
+  int trigC  = m_dfltSlicesCmm/2;
   const int maxDataID = LVL1::CMMCPHits::MAXID;
   for (int dataID = 0; dataID < maxDataID; ++dataID) {
     const int numdat = 4;
@@ -947,7 +1004,7 @@ bool CpByteStreamTool::slinkSlicesCmm(const int crate, int& timeslices,
       }
     }
   }
-  if (slices < 0) slices = 1;
+  if (slices < 0) slices = m_dfltSlicesCmm;
   timeslices = slices;
   trigCmm    = trigC;
   return true;

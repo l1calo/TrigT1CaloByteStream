@@ -27,6 +27,7 @@ const int      CmmJetSubBlock::s_fwdHitsBits;
 const int      CmmJetSubBlock::s_bunchCrossingBits;
 const int      CmmJetSubBlock::s_paddingBits;
 const int      CmmJetSubBlock::s_rightBit;
+const int      CmmJetSubBlock::s_fifoOverflowPin;
 
 
 CmmJetSubBlock::CmmJetSubBlock()
@@ -205,6 +206,8 @@ bool CmmJetSubBlock::packNeutral()
       // Bunch crossing number; Fifo overflow
       if (pin < s_bunchCrossingBits) {
         packerNeutral(pin, bunchCrossing() >> pin, 1);
+      } else if (pin == s_fifoOverflowPin) {
+        packerNeutral(pin, daqOverflow(), 1);
       } else packerNeutral(pin, 0, 1);
       // Padding
       if (pin < REMOTE_MAIN) packerNeutral(pin, 0, s_paddingBits);
@@ -245,9 +248,11 @@ bool CmmJetSubBlock::packUncompressed()
 bool CmmJetSubBlock::unpackNeutral()
 {
   resize();
+  int bunchCrossing = 0;
+  int overflow = 0;
+  int parity = 0;
   const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
-    int bunchCrossing = 0;
     unsigned int hits = 0;
     int error = 0;
     for (int pin = 0; pin <= TOTAL_MAIN; ++pin) {
@@ -258,11 +263,12 @@ bool CmmJetSubBlock::unpackNeutral()
       // Bunch crossing number; Fifo overflow
       if (pin < s_bunchCrossingBits) {
         bunchCrossing |= unpackerNeutral(pin, 1) << pin;
+      } else if (pin == s_fifoOverflowPin) {
+        overflow |= unpackerNeutral(pin, 1);
       } else unpackerNeutral(pin, 1);
       // Padding
       if (pin < REMOTE_MAIN) unpackerNeutral(pin, s_paddingBits);
     }
-    setBunchCrossing(bunchCrossing);
     // ET Map + padding
     setJetEtMap(slice, unpackerNeutral(REMOTE_MAIN, s_paddingBits));
     // Total forward (left + right)
@@ -278,9 +284,15 @@ bool CmmJetSubBlock::unpackNeutral()
     setJetHits(slice, LOCAL_FORWARD,
                       unpackerNeutral(lastpin, s_fwdHitsBits), 0);
     // G-Link parity errors
-    for (int pin = 0; pin <= lastpin; ++pin) unpackerNeutralParityError(pin);
+    for (int pin = 0; pin <= lastpin; ++pin) {
+      parity |= unpackerNeutralParityError(pin);
+    }
   }
-  return unpackerSuccess();;
+  setBunchCrossing(bunchCrossing);
+  setDaqOverflow(overflow);
+  setGlinkParity(parity);
+
+  return unpackerSuccess();
 }
 
 // Unpack uncompressed data

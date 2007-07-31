@@ -4,10 +4,12 @@
 
 #include "GaudiKernel/IInterface.h"
 
+#include "TrigT1Calo/DataError.h"
 #include "TrigT1Calo/TriggerTower.h"
 #include "TrigT1Calo/TriggerTowerKey.h"
 
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
+#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
 #include "TrigT1CaloByteStream/ModifySlices.h"
@@ -33,25 +35,38 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
 				     const IInterface*  parent)
                   : AlgTool(type, name, parent),
 		    m_srcIdMap(0), m_ppmMaps(0), m_towerKey(0),
-		    m_errorBlock(0)
+		    m_errorBlock(0), m_rodStatus(0)
 {
   declareInterface<PpmByteStreamTool>(this);
 
-  declareProperty("PrintCompStats",     m_printCompStats  = 0);
-  declareProperty("PedestalValue",      m_pedestal        = 10);
+  declareProperty("PrintCompStats",     m_printCompStats  = 0,
+                  "Print compressed format statistics");
+  declareProperty("PedestalValue",      m_pedestal        = 10,
+                  "Pedestal value - needed for compressed format only");
 
   // Properties for reading bytestream only
-  declareProperty("ZeroSuppress",       m_zeroSuppress    = 0);
+  declareProperty("ZeroSuppress",       m_zeroSuppress    = 0,
+                  "Only make trigger towers with non-zero EM or Had energy");
+  declareProperty("ROBSourceIDs",       m_sourceIDs,
+                  "ROB fragment source identifiers");
 
   // Properties for writing bytestream only
-  declareProperty("DataVersion",        m_version         = 1);
-  declareProperty("DataFormat",         m_dataFormat      = 1);
-  declareProperty("CompressionVersion", m_compVers        = 1);
-  declareProperty("SlinksPerCrate",     m_slinks          = 4);
-  declareProperty("SimulSlicesLUT",     m_dfltSlicesLut   = 1);
-  declareProperty("SimulSlicesFADC",    m_dfltSlicesFadc  = 7);
-  declareProperty("ForceSlicesLUT",     m_forceSlicesLut  = 0);
-  declareProperty("ForceSlicesFADC",    m_forceSlicesFadc = 0);
+  declareProperty("DataVersion",        m_version         = 1,
+                  "Format version number in sub-block header");
+  declareProperty("DataFormat",         m_dataFormat      = 1,
+                  "Format identifier (0-3) in sub-block header");
+  declareProperty("CompressionVersion", m_compVers        = 1,
+                  "Compressed format version number");
+  declareProperty("SlinksPerCrate",     m_slinks          = 4,
+                  "The number of S-Links per crate");
+  declareProperty("SimulSlicesLUT",     m_dfltSlicesLut   = 1,
+                  "The number of LUT slices in the simulation");
+  declareProperty("SimulSlicesFADC",    m_dfltSlicesFadc  = 7,
+                  "The number of FADC slices in the simulation");
+  declareProperty("ForceSlicesLUT",     m_forceSlicesLut  = 0,
+                  "If >0, the number of LUT slices in bytestream");
+  declareProperty("ForceSlicesFADC",    m_forceSlicesFadc = 0,
+                  "If >0, the number of FADC slices in bytestream");
 
 }
 
@@ -72,6 +87,7 @@ StatusCode PpmByteStreamTool::initialize()
   m_modules     = m_ppmMaps->modules();
   m_channels    = m_ppmMaps->channels();
   m_towerKey    = new LVL1::TriggerTowerKey();
+  m_rodStatus   = new std::vector<uint32_t>(2);
   return AlgTool::initialize();
 }
 
@@ -83,6 +99,7 @@ StatusCode PpmByteStreamTool::finalize()
     MsgStream log( msgSvc(), name() );
     printCompStats(log, MSG::INFO);
   }
+  delete m_rodStatus;
   delete m_errorBlock;
   delete m_towerKey;
   delete m_ppmMaps;
@@ -131,10 +148,12 @@ StatusCode PpmByteStreamTool::convert(
 
     // Check identifier
     const uint32_t sourceID = (*rob)->rod_source_id();
-    if (m_srcIdMap->subDet(sourceID) != m_subDetector ||
-        m_srcIdMap->daqOrRoi(sourceID) != 0) {
-      log << MSG::ERROR << "Wrong source identifier in data" << endreq;
-      return StatusCode::FAILURE;
+    if (debug) {
+      if (m_srcIdMap->subDet(sourceID) != m_subDetector ||
+          m_srcIdMap->daqOrRoi(sourceID) != 0) {
+        log << MSG::DEBUG << "Wrong source identifier in data: "
+	    << MSG::hex << sourceID << MSG::dec << endreq;
+      }
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
     if (debug) {
@@ -227,11 +246,12 @@ StatusCode PpmByteStreamTool::convert(
         if (block == 0) {
           crate = subBlock->crate();
 	  module = subBlock->module();
-	  if (debug) log << MSG::DEBUG << "Module " << module << endreq;
-	  if (crate != rodCrate) {
-	    log << MSG::ERROR << "Inconsistent crate number in ROD source ID"
-                << endreq;
-	    return StatusCode::FAILURE;
+	  if (debug) {
+	    log << MSG::DEBUG << "Module " << module << endreq;
+	    if (crate != rodCrate) {
+	      log << MSG::DEBUG << "Inconsistent crate number in ROD source ID"
+                  << endreq;
+	    }
           }
         } else {
           if (subBlock->crate() != crate) {
@@ -305,9 +325,20 @@ StatusCode PpmByteStreamTool::convert(
 		<< trigFadc << ", " << fadc.size() << endreq;
 	    return StatusCode::FAILURE;
           }
-	  int error = 0;
-	  if (m_errorBlock) error = m_errorBlock->ppmError(channel);
-	  else error = subBlock->ppmError(channel);
+	  LVL1::DataError errorBits(0);
+	  if (m_errorBlock) {
+	    errorBits.set(LVL1::DataError::PPMErrorWord,
+	                             m_errorBlock->ppmError(channel));
+	    errorBits.set(LVL1::DataError::SubStatusWord,
+	                             m_errorBlock->subStatus());
+          } else {
+	    errorBits.set(LVL1::DataError::PPMErrorWord,
+	                             subBlock->ppmError(channel));
+	    const PpmSubBlock* const lastBlock = m_ppmBlocks[numSubBlocks - 1];
+	    errorBits.set(LVL1::DataError::SubStatusWord,
+	                             lastBlock->subStatus());
+          }
+	  const int error = errorBits.error();
 
 	  // Only save non-zero data
 
@@ -320,8 +351,10 @@ StatusCode PpmByteStreamTool::convert(
           if (any || error) {
 	    ChannelCoordinate coord;
 	    if (!m_ppmMaps->mapping(crate, module, channel, coord)) {
-	      if (any) log << MSG::WARNING << "Unexpected non-zero data words"
-	                   << endreq;
+	      if (debug && any) {
+	        log << MSG::DEBUG << "Unexpected non-zero data words"
+	            << endreq;
+	      }
               continue;
             }
 	    const ChannelCoordinate::CaloLayer layer = coord.layer();
@@ -379,6 +412,7 @@ StatusCode PpmByteStreamTool::convert(
   m_fea.clear();
   const uint16_t minorVersion = 0x1001;
   m_fea.setRodMinorVersion(minorVersion);
+  m_rodStatusMap.clear();
 
   // Pointer to ROD data vector
 
@@ -459,6 +493,7 @@ StatusCode PpmByteStreamTool::convert(
 	                                                       m_subDetector);
 	theROD = m_fea.getRodData(rodIdPpm);
 	theROD->push_back(userHeader.header());
+	m_rodStatusMap.insert(make_pair(rodIdPpm, m_rodStatus));
       }
       if (debug) {
         log << MSG::DEBUG << "Module " << module << endreq;
@@ -494,7 +529,7 @@ StatusCode PpmByteStreamTool::convert(
 	  tt = findLayerTriggerTower(coord);
         }
 	if (tt ) {
-	  uint32_t err = 0;
+	  int err = 0;
 	  std::vector<int> lut;
 	  std::vector<int> fadc;
 	  std::vector<int> bcidLut;
@@ -515,10 +550,12 @@ StatusCode PpmByteStreamTool::convert(
           }
 	  subBlock.fillPpmData(channel, lut, fadc, bcidLut, bcidFadc);
 	  if (err) {
+	    const LVL1::DataError errorBits(err);
+	    const int errpp = errorBits.get(LVL1::DataError::PPMErrorWord);
 	    if (m_dataFormat == L1CaloSubBlock::UNCOMPRESSED) {
-	      errorBlock.fillPpmError(channel, err);
-	    } else subBlock.fillPpmError(channel, err);
-	    if (err >> 2) upstreamError = true;
+	      errorBlock.fillPpmError(channel, errpp);
+	    } else subBlock.fillPpmError(channel, errpp);
+	    if (errpp >> 2) upstreamError = true;
           }
         }
         if (chan == chanPerSubBlock - 1) {
@@ -592,6 +629,10 @@ StatusCode PpmByteStreamTool::convert(
   // Fill the raw event
 
   m_fea.fill(re, log);
+
+  // Set ROD status words
+
+  L1CaloRodStatus::setStatus(re, m_rodStatusMap, m_srcIdMap);
 
   return StatusCode::SUCCESS;
 }
@@ -759,16 +800,18 @@ bool PpmByteStreamTool::slinkSlices(const int crate, const int module,
 
 void PpmByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
 {
-  const int maxlinks = m_srcIdMap->maxSlinks();
-  for (int crate = 0; crate < m_crates; ++crate) {
-    for (int slink = 0; slink < maxlinks; ++slink) {
-      const int daqOrRoi = 0;
-      const uint32_t rodId = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
-                                                          m_subDetector);
-      const uint32_t robId = m_srcIdMap->getRobID(rodId);
-      vID.push_back(robId);
+  if (m_sourceIDs.empty()) {
+    const int maxlinks = m_srcIdMap->maxSlinks();
+    for (int crate = 0; crate < m_crates; ++crate) {
+      for (int slink = 0; slink < maxlinks; ++slink) {
+        const int daqOrRoi = 0;
+        const uint32_t rodId = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
+                                                            m_subDetector);
+        const uint32_t robId = m_srcIdMap->getRobID(rodId);
+        vID.push_back(robId);
+      }
     }
-  }
+  } else vID = m_sourceIDs;
 }
 
 } // end namespace

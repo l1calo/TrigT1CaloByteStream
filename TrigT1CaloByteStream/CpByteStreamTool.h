@@ -130,10 +130,16 @@ class CpByteStreamTool : public AlgTool {
    int m_modules;
    /// Number of slinks per crate when writing out bytestream
    int m_slinks;
+   /// Default number of CPM slices in simulation
+   int m_dfltSlicesCpm;
+   /// Default number of CMM slices in simulation
+   int m_dfltSlicesCmm;
    /// Force number of CPM slices in bytestream
    int m_forceSlicesCpm;
    /// Force number of CMM slices in bytestream
    int m_forceSlicesCmm;
+   /// ROB source IDs
+   std::vector<uint32_t> m_sourceIDs;
    /// Sub-detector type
    eformat::SubDetector m_subDetector;
    /// Source ID converter
@@ -160,6 +166,10 @@ class CpByteStreamTool : public AlgTool {
    CpmHitsMap   m_hitsMap;
    /// CMM-CP hits map
    CmmCpHitsMap m_cmmHitsMap;
+   /// ROD Status words
+   std::vector<uint32_t>* m_rodStatus;
+   /// ROD status map
+   std::map<uint32_t, std::vector<uint32_t>* > m_rodStatusMap;
    /// Event assembler
    FullEventAssembler<L1CaloSrcIdMap> m_fea;
 

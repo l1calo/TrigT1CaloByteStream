@@ -21,6 +21,7 @@ const int      CmmCpSubBlock::s_hitsBits;
 const int      CmmCpSubBlock::s_hitsErrorBits;
 const int      CmmCpSubBlock::s_bunchCrossingBits;
 const int      CmmCpSubBlock::s_paddingBits;
+const int      CmmCpSubBlock::s_fifoOverflowPin;
 
 
 CmmCpSubBlock::CmmCpSubBlock()
@@ -165,6 +166,8 @@ bool CmmCpSubBlock::packNeutral()
       // Bunch crossing number; Fifo overflow
       if (pin < s_bunchCrossingBits) {
         packerNeutral(pin, bunchCrossing() >> pin, 1);
+      } else if (pin == s_fifoOverflowPin) {
+	packerNeutral(pin, daqOverflow(), 1);
       } else packerNeutral(pin, 0, 1);
       // Padding
       packerNeutral(pin, 0, s_paddingBits);
@@ -192,9 +195,11 @@ bool CmmCpSubBlock::packUncompressed()
 bool CmmCpSubBlock::unpackNeutral()
 {
   resize();
+  int bunchCrossing = 0;
+  int overflow = 0;
+  int parity = 0;
   const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
-    int bunchCrossing = 0;
     for (int source = 1; source < MAX_SOURCE_ID; ++source) {
       const int pin = source - 1;
       // CPM hits; remote(3), local and total hits; parity error
@@ -204,15 +209,20 @@ bool CmmCpSubBlock::unpackNeutral()
       // Bunch crossing number; Fifo overflow
       if (pin < s_bunchCrossingBits) {
         bunchCrossing |= unpackerNeutral(pin, 1) << pin;
+      } else if (pin == s_fifoOverflowPin) {
+        overflow |= unpackerNeutral(pin, 1);
       } else unpackerNeutral(pin, 1);
       // Padding
       unpackerNeutral(pin, s_paddingBits);
       // G-Link parity errors
-      unpackerNeutralParityError(pin);
+      parity |= unpackerNeutralParityError(pin);
     }
-    setBunchCrossing(bunchCrossing);
   }
-  return unpackerSuccess();;
+  setBunchCrossing(bunchCrossing);
+  setDaqOverflow(overflow);
+  setGlinkParity(parity);
+
+  return unpackerSuccess();
 }
 
 // Unpack uncompressed data

@@ -88,6 +88,7 @@ class CmmEnergySubBlock : public CmmSubBlock {
    static const int      s_sumBits           = 15;
    static const int      s_bunchCrossingBits = 12;
    static const int      s_paddingBits       = 8;
+   static const int      s_fifoOverflowPin   = 15;
 
    int  sourceId(uint32_t word)      const;
    int  index(int slice, int source) const;

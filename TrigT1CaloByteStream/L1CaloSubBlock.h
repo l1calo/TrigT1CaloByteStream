@@ -58,6 +58,9 @@ class L1CaloSubBlock {
    bool     glinkProtocol()  const;
    bool     glinkParity()    const;
 
+   /// Return Sub-status word
+   uint32_t subStatus()      const;
+
    /// Set the Bunch Crossing number (neutral format only)
    void setBunchCrossing(int bc);
    /// Return the Bunch Crossing number (neutral format only)
@@ -77,6 +80,11 @@ class L1CaloSubBlock {
    void setStatus(uint32_t failingBCN, bool glinkTimeout, bool glinkDown,
                   bool upstreamError, bool daqOverflow, bool bcnMismatch,
 		  bool glinkProtocol, bool glinkParity);
+
+   /// Set DAQ FIFO Overflow bit in Sub-status word
+   void setDaqOverflow(int bit = 1);
+   /// Set G-Link Parity bit in Sub-status word
+   void setGlinkParity(int bit = 1);
 
    /// To be implemented in derived classes to pack data words
    virtual bool pack();
@@ -279,6 +287,11 @@ inline bool L1CaloSubBlock::glinkProtocol() const
 inline bool L1CaloSubBlock::glinkParity() const
 {
   return m_trailer & (0x1 << s_glinkParityBit);
+}
+
+inline uint32_t L1CaloSubBlock::subStatus() const
+{
+  return m_trailer;
 }
 
 inline void L1CaloSubBlock::setBunchCrossing(const int bc)

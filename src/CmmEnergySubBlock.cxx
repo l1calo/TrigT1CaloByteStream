@@ -34,6 +34,7 @@ const int      CmmEnergySubBlock::s_jemSumBits;
 const int      CmmEnergySubBlock::s_sumBits;
 const int      CmmEnergySubBlock::s_bunchCrossingBits;
 const int      CmmEnergySubBlock::s_paddingBits;
+const int      CmmEnergySubBlock::s_fifoOverflowPin;
 
 
 CmmEnergySubBlock::CmmEnergySubBlock()
@@ -336,6 +337,8 @@ bool CmmEnergySubBlock::packNeutral()
         packerNeutral(pin, bunchCrossing() >> pin, 1);
         // Padding
         packerNeutral(pin, 0, s_paddingBits);
+      } else if (pin == s_fifoOverflowPin) {
+        packerNeutral(pin, daqOverflow(), 1);
       } else packerNeutral(pin, 0, 1);
     }
     // Total Et
@@ -390,9 +393,11 @@ bool CmmEnergySubBlock::packUncompressed()
 bool CmmEnergySubBlock::unpackNeutral()
 {
   resize();
+  int bunchCrossing = 0;
+  int overflow = 0;
+  int parity = 0;
   const int slices = timeslices();
   for (int slice = 0; slice < slices; ++slice) {
-    int bunchCrossing = 0;
     for (int pin = 0; pin < s_maxJems; ++pin) {
       // JEM energy sums (jem == pin); parity error
       const unsigned int ex = unpackerNeutral(pin, s_jemSumBits);
@@ -405,9 +410,10 @@ bool CmmEnergySubBlock::unpackNeutral()
         bunchCrossing |= unpackerNeutral(pin, 1) << pin;
         // Padding
         unpackerNeutral(pin, s_paddingBits);
+      } else if (pin == s_fifoOverflowPin) {
+        overflow |= unpackerNeutral(pin, 1);
       } else unpackerNeutral(pin, 1);
     }
-    setBunchCrossing(bunchCrossing);
     // Total Et
     int pin = s_bunchCrossingBits;
     unsigned int etTot = unpackerNeutral(pin, s_paddingBits);
@@ -450,9 +456,13 @@ bool CmmEnergySubBlock::unpackNeutral()
     setSubsums(slice, TOTAL,  exTot, eyTot, etTot,
                               exErrTot, eyErrTot, etErrTot);
     // G-Link parity errors
-    for (int p = 0; p <= pin; ++p) unpackerNeutralParityError(p);
+    for (int p = 0; p <= pin; ++p) parity |= unpackerNeutralParityError(p);
   }
-  return unpackerSuccess();;
+  setBunchCrossing(bunchCrossing);
+  setDaqOverflow(overflow);
+  setGlinkParity(parity);
+
+  return unpackerSuccess();
 }
 
 // Unpack uncompressed data

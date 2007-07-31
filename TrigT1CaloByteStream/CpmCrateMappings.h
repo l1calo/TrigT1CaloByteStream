@@ -25,7 +25,7 @@ class CpmCrateMappings {
    static int  crates();
    /// Return the number of modules per crate
    static int  modules();
-   /// Return the number of jet element channels per module
+   /// Return the number of CPM tower channels per module
    static int  channels();
 
  private:

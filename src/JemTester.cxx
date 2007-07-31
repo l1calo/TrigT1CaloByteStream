@@ -256,10 +256,11 @@ void JemTester::printJetElements(MsgStream& log, const MSG::Level level) const
     ModifySlices::data(je->linkErrorVec(), linkError, slices);
     printVec(emEnergy,  log, level);
     printVec(hadEnergy, log, level);
+    log << level << MSG::hex;
     printVec(emError,   log, level);
     printVec(hadError,  log, level);
     printVec(linkError, log, level);
-    log << level << endreq;
+    log << level << MSG::dec << endreq;
   }
 }
 
@@ -388,11 +389,11 @@ void JemTester::printCmmHits(MsgStream& log, const MSG::Level level) const
         log << level << thr;
       }
     }
-    log << level << "/";
+    log << level << "/" << MSG::hex;
     std::vector<int> errorVec;
     ModifySlices::data(jh->ErrorVec(), errorVec, slices);
     printVec(errorVec, log, level);
-    log << level << endreq;
+    log << level << MSG::dec << endreq;
   }
 }
 
@@ -428,10 +429,11 @@ void JemTester::printCmmSums(MsgStream& log, const MSG::Level level) const
     printVecU(exVec, log, level);
     printVecU(eyVec, log, level);
     printVecU(etVec, log, level);
+    log << level << MSG::hex;
     printVec(exError, log, level);
     printVec(eyError, log, level);
     printVec(etError, log, level);
-    log << level << endreq;
+    log << level << MSG::dec << endreq;
   }
 }
 
@@ -447,8 +449,13 @@ void JemTester::printJemRois(MsgStream& log, const MSG::Level level) const
     log << level << "crate/jem/frame/loc/fwd/hits/error: "
         << roi->crate() << "/" << roi->jem() << "/" << roi->frame() << "/"
 	<< roi->location() << "/" << roi->forward() << "/";
-    MSG::hex(log) << level << roi->hits() << "/" << roi->error() << "/";
-    MSG::dec(log) << level << endreq;
+    const int hits = roi->hits();
+    const int numHits = (roi->forward()) ? 4 : 8;
+    for (int i = 0; i < numHits; ++i) {
+      if (i > 0) log << level << ":";
+      log << level << ((hits >> i) & 0x1);
+    }
+    log << level << "/" << roi->error() << "/" << endreq;
   }
 }
 
@@ -457,13 +464,13 @@ void JemTester::printJemRois(MsgStream& log, const MSG::Level level) const
 void JemTester::printCmmRois(const LVL1::CMMRoI* const roi, MsgStream& log,
                                                  const MSG::Level level) const
 {
-  log << level << "jetEtHits/sumEtHits/missingEtHits/Ex/Ey/Et;error: ";
-  MSG::hex(log) << level << roi->jetEtHits() << ";" << roi->jetEtError() << "/"
-                << roi->sumEtHits() << ";" << roi->sumEtError() << "/"
-		<< roi->missingEtHits() << ";" << roi->missingEtError() << "/";
-  MSG::dec(log) << level << roi->ex() << ";" << roi->exError() << "/"
-                         << roi->ey() << ";" << roi->eyError() << "/"
-                         << roi->et() << ";" << roi->etError() << "/" << endreq;
+  log << level << "CMMRoI:jetEtHits/sumEtHits/missingEtHits/Ex/Ey/Et;error: "
+      << MSG::hex << roi->jetEtHits() << ";" << roi->jetEtError() << "/"
+      << roi->sumEtHits() << ";" << roi->sumEtError() << "/"
+      << roi->missingEtHits() << ";" << roi->missingEtError() << "/"
+      << MSG::dec << roi->ex() << ";" << roi->exError() << "/"
+      << roi->ey() << ";" << roi->eyError() << "/"
+      << roi->et() << ";" << roi->etError() << "/" << endreq;
 }
 
 // Print a vector

@@ -121,6 +121,8 @@ class PpmByteStreamTool : public AlgTool {
    int m_pedestal;
    /// Zero suppression on input
    int m_zeroSuppress;
+   /// ROB source IDs
+   std::vector<uint32_t> m_sourceIDs;
    /// Sub-detector type
    eformat::SubDetector m_subDetector;
    /// Source ID converter
@@ -141,6 +143,10 @@ class PpmByteStreamTool : public AlgTool {
    TriggerTowerMapConst m_ttEmMap;
    /// Trigger tower map for conversion Had to bytestream
    TriggerTowerMapConst m_ttHadMap;
+   /// ROD Status words
+   std::vector<uint32_t>* m_rodStatus;
+   /// ROD status map
+   std::map<uint32_t, std::vector<uint32_t>* > m_rodStatusMap;
    /// Event assembler
    FullEventAssembler<L1CaloSrcIdMap> m_fea;
 

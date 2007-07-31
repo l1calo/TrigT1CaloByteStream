@@ -1,3 +1,14 @@
+2007-07-31  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-03-05
+        * Add sub-status bits to error words.
+        * Add options to specify input ROB IDs in jobOptions.
+        * Downgrade some cross-checks to DEBUG messages.
+        * Increase ROD status words from one to two
+          - uses new class L1CaloRodStatus.
+        * Change CPM slink numbers to 0,2 instead of 0,1.
+        * Improve XxxTester printouts.
+
 2007-07-12  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-03-04

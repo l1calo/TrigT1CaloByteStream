@@ -126,7 +126,7 @@ void PpmTester::printTriggerTowers(MsgStream& log,
     printVec(fadc,     log, level);
     printVec(bcidLut,  log, level);
     printVec(bcidFadc, log, level);
-    log << level << tt->emError() << "/" << endreq;
+    log << level << MSG::hex << tt->emError() << MSG::dec << "/" << endreq;
     log << level
         << "HAD:key/eta/phi/LUTpeak/FADCpeak/LUT/FADC/bcidLUT/bcidFADC/error: "
         << mapIter->first << "/" << tt->eta() << "/" << tt->phi() << "/"
@@ -139,7 +139,7 @@ void PpmTester::printTriggerTowers(MsgStream& log,
     printVec(fadc,     log, level);
     printVec(bcidLut,  log, level);
     printVec(bcidFadc, log, level);
-    log << level << tt->hadError() << "/" << endreq;
+    log << level << MSG::hex << tt->hadError() << MSG::dec << "/" << endreq;
   }
 }
 
