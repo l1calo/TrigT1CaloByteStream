@@ -1,3 +1,8 @@
+2007-08-03  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-03-07
+        * Set RoI bit in RoI source IDs.
+
 2007-07-31  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-03-06

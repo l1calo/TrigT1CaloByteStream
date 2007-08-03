@@ -113,7 +113,7 @@ StatusCode CpmRoiByteStreamTool::convert(
     const uint32_t sourceID = (*rob)->rod_source_id();
     if (debug) {
       if (m_srcIdMap->subDet(sourceID)   != m_subDetector ||
-          m_srcIdMap->daqOrRoi(sourceID) != 0) {
+          m_srcIdMap->daqOrRoi(sourceID) != 1) {
         log << MSG::DEBUG << "Wrong source identifier in data: "
 	    << MSG::hex << sourceID << MSG::dec << endreq;
       }
@@ -219,7 +219,7 @@ StatusCode CpmRoiByteStreamTool::convert(
       // Pack required number of modules per slink
 
       if (mod%modulesPerSlink == 0) {
-	const int daqOrRoi = 0;  // 1 is for RoIB
+	const int daqOrRoi = 1;
 	const int slink = (m_slinks == 2) ? 2*(mod/modulesPerSlink)
 	                                  : mod/modulesPerSlink;
         if (debug) {
@@ -298,7 +298,7 @@ void CpmRoiByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
     const int maxSlinks = m_srcIdMap->maxSlinks();
     for (int hwCrate = m_crateOffsetHw; hwCrate < maxCrates; ++hwCrate) {
       for (int slink = 0; slink < maxSlinks; ++slink) {
-        const int daqOrRoi = 0;
+        const int daqOrRoi = 1;
         const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
                                                              m_subDetector);
         const uint32_t robId = m_srcIdMap->getRobID(rodId);
