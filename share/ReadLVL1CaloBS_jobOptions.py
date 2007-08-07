@@ -1,4 +1,7 @@
 # Bytestream to TrigT1Calo objects conversions
+from AthenaCommon.AppMgr import ServiceMgr
+from ByteStreamCnvSvc.ByteStreamCnvSvcConf import ByteStreamCnvSvc
+ServiceMgr += ByteStreamCnvSvc()
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__PpmByteStreamTool
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__CpByteStreamTool
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__CpmRoiByteStreamTool
