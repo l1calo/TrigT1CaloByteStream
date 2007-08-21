@@ -471,16 +471,10 @@ StatusCode JepRoiByteStreamTool::convertBs(
 		    << endreq;
 		return StatusCode::FAILURE;
               }
-	      const int mask = 0x3fff; // 14 bits
-	      const int sign = 0x4000; // sign bit
-	      const int exp = subBlock.ex(slice, CmmEnergySubBlock::TOTAL);
-	      int ex = exp & mask;
-	      if (exp & sign) ex = -ex;
-	      const int eyp = subBlock.ey(slice, CmmEnergySubBlock::TOTAL);
-	      int ey = eyp & mask;
-	      if (eyp & sign) ey = -ey;
 	      const LVL1::CMMRoI roi(0, subBlock.sumEtHits(slice),
-	                   subBlock.missingEtHits(slice), ex, ey,
+	                   subBlock.missingEtHits(slice),
+			   subBlock.ex(slice, CmmEnergySubBlock::TOTAL),
+			   subBlock.ey(slice, CmmEnergySubBlock::TOTAL),
 			   subBlock.et(slice, CmmEnergySubBlock::TOTAL),
 			   0, 0, 0,
 			   subBlock.exError(slice, CmmEnergySubBlock::TOTAL),

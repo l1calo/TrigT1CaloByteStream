@@ -1,3 +1,8 @@
+2007-08-21  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-03-09
+        * Correct signed ex, ey formats in JepRoiByteStreamTool.cxx
+
 2007-08-07  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-03-08
