@@ -43,6 +43,9 @@ bool CpmCrateMappings::mapping(const int crate, int module, const int channel,
   const int phiBin = ((channel / 2) / s_etaBinsPerRow) * 2
                                     + channel % 2 - 2;  // allow for overlap
 
+  // Ignore overlap channels for now
+  if (phiBin < 0 || phiBin > 15) return false;
+
   // End modules only have one column (Is that right?)
   if ((module == 0 && etaBin != s_etaBinsPerRow - 1) ||
       (module == s_modules - 1 && etaBin != 0)) return false;

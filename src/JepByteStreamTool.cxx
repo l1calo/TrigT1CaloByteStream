@@ -1093,7 +1093,7 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock,
 	                        emErrBits.error(), hadErrBits.error(),
 	         	        jetEle.linkError());
           } else if (debug && jetEle.data()) {
-	    log << MSG::DEBUG
+	    log << MSG::VERBOSE
 	        << "Non-zero data but no channel mapping for channel "
 	        << chan << endreq;
           }

@@ -64,6 +64,9 @@ bool JemCrateMappings::mapping(const int crate, const int module,
   const int etaBin = chan % s_etaBinsPerRow;
   const int phiBin = chan / s_etaBinsPerRow - 1;  // allow for overlap
 
+  // Ignore overlap channels for now
+  if (phiBin < 0 || phiBin > 7) return false;
+
   // Phi granularity doubles at FCAL
 
   const double phiBase = M_PI/2. * double(crate)

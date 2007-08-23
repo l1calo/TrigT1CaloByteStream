@@ -1,3 +1,8 @@
+2007-08-23  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-03-10
+        * Better treatment of phi overlaps in CPM towers and Jet elements.
+
 2007-08-21  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-03-09

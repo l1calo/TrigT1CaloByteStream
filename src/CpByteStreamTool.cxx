@@ -773,7 +773,7 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
 	      tt->fill(emVec, emErrVec, hadVec, hadErrVec, trigCpm);
 	    }
           } else if (debug && (em || had || emErr || hadErr)) {
-	    log << MSG::DEBUG
+	    log << MSG::VERBOSE
 	        << "Non-zero data but no channel mapping for channel "
 	        << chan << endreq;
           }
