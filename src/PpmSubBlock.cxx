@@ -89,6 +89,7 @@ int PpmSubBlock::slicesFadc() const
   if (slices == 0 && format() == NEUTRAL) {
     slices = dataWords()/(s_asicChannels*s_dataBits) - slicesLut();
   }
+  if (slices == 0) slices = 5;
   return slices;
 }
 
@@ -97,7 +98,7 @@ int PpmSubBlock::slicesFadc() const
 int PpmSubBlock::slicesLut() const
 {
   int slices = slices1();
-  if (slices == 0 && format() == NEUTRAL) slices = 1;
+  if (slices == 0) slices = 1;
   return slices;
 }
 

@@ -184,6 +184,7 @@ int JemSubBlock::timeslices() const
   if (slices == 0 && format() == NEUTRAL) {
     slices = dataWords() / s_glinkBitsPerSlice;
   }
+  if (slices == 0) slices = 1;
   return slices;
 }
 
