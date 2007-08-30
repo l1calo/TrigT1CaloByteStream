@@ -148,9 +148,9 @@ StatusCode CpmRoiByteStreamTool::convert(
                             << "  Module " << m_subBlock.module() << endreq;
         }
         // Unpack sub-block
-        if ( !m_subBlock.unpack()) {
-          log << MSG::ERROR << "CPM RoI sub-block unpacking failed" << endreq;
-          return StatusCode::FAILURE;
+        if (m_subBlock.dataWords() && !m_subBlock.unpack()) {
+          log << MSG::DEBUG << "CPM RoI sub-block unpacking failed" << endreq;
+          //return StatusCode::FAILURE;
         }
 	const int numChips = 8;
 	const int numLocs  = 2;
@@ -168,7 +168,7 @@ StatusCode CpmRoiByteStreamTool::convert(
 	if (roi.setRoiWord(*payload)) {
 	  roiCollection->push_back(new LVL1::CPMRoI(*payload));
 	} else {
-	  log << MSG::ERROR << "Invalid RoI word "
+	  log << MSG::DEBUG << "Invalid RoI word "
 	      << MSG::hex << *payload << MSG::dec << endreq;
         }
 	++payload;

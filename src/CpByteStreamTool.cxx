@@ -533,7 +533,7 @@ StatusCode CpByteStreamTool::convertBs(
         payload = subBlock.read(payload, payloadEnd);
 	if (collection == CMM_CP_HITS) {
 	  StatusCode sc = decodeCmmCp(subBlock, trigCmm);
-	  if (sc.isFailure()) return sc;
+	  //if (sc.isFailure()) return sc;
         }
       } else {
         // CPM
@@ -541,7 +541,7 @@ StatusCode CpByteStreamTool::convertBs(
         payload = subBlock.read(payload, payloadEnd);
 	if (collection == CPM_TOWERS || collection == CPM_HITS) {
 	  StatusCode sc = decodeCpm(subBlock, trigCpm, collection);
-	  if (sc.isFailure()) return sc;
+	  //if (sc.isFailure()) return sc;
         }
       }
     }
@@ -552,8 +552,7 @@ StatusCode CpByteStreamTool::convertBs(
 
 // Unpack CMM-CP sub-block
 
-StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock,
-                                                           const int trigCmm)
+StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
 {
   MsgStream log( msgSvc(), name() );
   const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
@@ -575,10 +574,11 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock,
     return StatusCode::FAILURE;
   }
   if (timeslices <= trigCmm) {
-    log << MSG::ERROR << "Triggered CMM slice from header "
+    log << MSG::DEBUG << "Triggered CMM slice from header "
         << "inconsistent with number of slices: "
-        << trigCmm << ", " << timeslices << endreq;
-    return StatusCode::FAILURE;
+        << trigCmm << ", " << timeslices << ", reset to 0" << endreq;
+    trigCmm = 0;
+    //return StatusCode::FAILURE;
   }
   if (timeslices <= sliceNum) {
     log << MSG::ERROR << "Total slices inconsistent with slice number: "
@@ -586,9 +586,9 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock,
     return StatusCode::FAILURE;
   }
   // Unpack sub-block
-  if ( !subBlock.unpack()) {
-    log << MSG::ERROR << "CMM-CP sub-block unpacking failed" << endreq;
-    return StatusCode::FAILURE;
+  if (subBlock.dataWords() && !subBlock.unpack()) {
+    log << MSG::DEBUG << "CMM-CP sub-block unpacking failed" << endreq;
+    //return StatusCode::FAILURE;
   }
 
   // Retrieve required data
@@ -677,7 +677,7 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock,
 // Unpack CPM sub-block
 
 StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
-                           const int trigCpm, const CollectionType collection)
+                                 int trigCpm, const CollectionType collection)
 {
   MsgStream log( msgSvc(), name() );
   const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
@@ -697,10 +697,11 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
     return StatusCode::FAILURE;
   }
   if (timeslices <= trigCpm) {
-    log << MSG::ERROR << "Triggered CPM slice from header "
+    log << MSG::DEBUG << "Triggered CPM slice from header "
         << "inconsistent with number of slices: "
-        << trigCpm << ", " << timeslices << endreq;
-    return StatusCode::FAILURE;
+        << trigCpm << ", " << timeslices << ", reset to 0" << endreq;
+    trigCpm = 0;
+    //return StatusCode::FAILURE;
   }
   if (timeslices <= sliceNum) {
     log << MSG::ERROR << "Total slices inconsistent with slice number: "
@@ -708,9 +709,9 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
     return StatusCode::FAILURE;
   }
   // Unpack sub-block
-  if ( !subBlock.unpack()) {
-    log << MSG::ERROR << "CPM sub-block unpacking failed" << endreq;
-    return StatusCode::FAILURE;
+  if (subBlock.dataWords() && !subBlock.unpack()) {
+    log << MSG::DEBUG << "CPM sub-block unpacking failed" << endreq;
+    //return StatusCode::FAILURE;
   }
 
   // Retrieve required data

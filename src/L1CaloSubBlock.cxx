@@ -357,7 +357,7 @@ uint32_t L1CaloSubBlock::unpackerNeutral(const int pin, const int nbits)
     }
     m_currentPinBit[pin] += nbits;
     m_oddParity[pin] = parityBit(m_oddParity[pin], word, nbits);
-  } //else m_unpackerFlag = false;
+  } else m_unpackerFlag = false;
   return word;
 }
 

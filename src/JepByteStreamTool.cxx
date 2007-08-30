@@ -641,14 +641,14 @@ StatusCode JepByteStreamTool::convertBs(
           payload = subBlock.read(payload, payloadEnd);
 	  if (collection == CMM_HITS) {
 	    StatusCode sc = decodeCmmJet(subBlock, trigCmm);
-	    if (sc.isFailure()) return sc;
+	    //if (sc.isFailure()) return sc;
           }
         } else {
 	  CmmEnergySubBlock subBlock;
 	  payload = subBlock.read(payload, payloadEnd);
 	  if (collection == CMM_SUMS) {
 	    StatusCode sc = decodeCmmEnergy(subBlock, trigCmm);
-	    if (sc.isFailure()) return sc;
+	    //if (sc.isFailure()) return sc;
           }
 	}
       } else {
@@ -658,7 +658,7 @@ StatusCode JepByteStreamTool::convertBs(
 	if (collection == JET_ELEMENTS || collection == JET_HITS ||
 	                                  collection == ENERGY_SUMS) {
 	  StatusCode sc = decodeJem(subBlock, trigJem, collection);
-	  if (sc.isFailure()) return sc;
+	  //if (sc.isFailure()) return sc;
         }
       }
     }
@@ -670,7 +670,7 @@ StatusCode JepByteStreamTool::convertBs(
 // Unpack CMM-Energy sub-block
 
 StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
-                                                        const int trigCmm)
+                                                              int trigCmm)
 {
   MsgStream log( msgSvc(), name() );
   const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
@@ -692,10 +692,11 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
     return StatusCode::FAILURE;
   }
   if (timeslices <= trigCmm) {
-    log << MSG::ERROR << "Triggered CMM slice from header "
+    log << MSG::DEBUG << "Triggered CMM slice from header "
         << "inconsistent with number of slices: "
-        << trigCmm << ", " << timeslices << endreq;
-    return StatusCode::FAILURE;
+        << trigCmm << ", " << timeslices << ", reset to 0" << endreq;
+    trigCmm = 0;
+    //return StatusCode::FAILURE;
   }
   if (timeslices <= sliceNum) {
     log << MSG::ERROR << "Total slices inconsistent with slice number: "
@@ -703,9 +704,9 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
     return StatusCode::FAILURE;
   }
   // Unpack sub-block
-  if ( !subBlock.unpack()) {
-    log << MSG::ERROR << "CMM-Energy sub-block unpacking failed" << endreq;
-    return StatusCode::FAILURE;
+  if (subBlock.dataWords() && !subBlock.unpack()) {
+    log << MSG::DEBUG << "CMM-Energy sub-block unpacking failed" << endreq;
+    //return StatusCode::FAILURE;
   }
 
   // Retrieve required data
@@ -873,7 +874,7 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
 // Unpack CMM-Jet sub-block
 
 StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
-                                                     const int trigCmm)
+                                                                  int trigCmm)
 {
   MsgStream log( msgSvc(), name() );
   const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
@@ -895,10 +896,11 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
     return StatusCode::FAILURE;
   }
   if (timeslices <= trigCmm) {
-    log << MSG::ERROR << "Triggered CMM slice from header "
+    log << MSG::DEBUG << "Triggered CMM slice from header "
         << "inconsistent with number of slices: "
-        << trigCmm << ", " << timeslices << endreq;
-    return StatusCode::FAILURE;
+        << trigCmm << ", " << timeslices << ", reset to 0" << endreq;
+    trigCmm = 0;
+    //return StatusCode::FAILURE;
   }
   if (timeslices <= sliceNum) {
     log << MSG::ERROR << "Total slices inconsistent with slice number: "
@@ -906,9 +908,9 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
     return StatusCode::FAILURE;
   }
   // Unpack sub-block
-  if ( !subBlock.unpack()) {
-    log << MSG::ERROR << "CMM-Jet sub-block unpacking failed" << endreq;
-    return StatusCode::FAILURE;
+  if (subBlock.dataWords() && !subBlock.unpack()) {
+    log << MSG::DEBUG << "CMM-Jet sub-block unpacking failed" << endreq;
+    //return StatusCode::FAILURE;
   }
 
   // Retrieve required data
@@ -1014,8 +1016,7 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
 
 // Unpack JEM sub-block
 
-StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock,
-                                        const int trigJem,
+StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
                                         const CollectionType collection)
 {
   MsgStream log( msgSvc(), name() );
@@ -1036,10 +1037,11 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock,
     return StatusCode::FAILURE;
   }
   if (timeslices <= trigJem) {
-    log << MSG::ERROR << "Triggered JEM slice from header "
+    log << MSG::DEBUG << "Triggered JEM slice from header "
         << "inconsistent with number of slices: "
-        << trigJem << ", " << timeslices << endreq;
-    return StatusCode::FAILURE;
+        << trigJem << ", " << timeslices << ", reset to 0" << endreq;
+    trigJem = 0;
+    //return StatusCode::FAILURE;
   }
   if (timeslices <= sliceNum) {
     log << MSG::ERROR << "Total slices inconsistent with slice number: "
@@ -1047,9 +1049,9 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock,
     return StatusCode::FAILURE;
   }
   // Unpack sub-block
-  if ( !subBlock.unpack()) {
-    log << MSG::ERROR << "JEM sub-block unpacking failed" << endreq;
-    return StatusCode::FAILURE;
+  if (subBlock.dataWords() && !subBlock.unpack()) {
+    log << MSG::DEBUG << "JEM sub-block unpacking failed" << endreq;
+    //return StatusCode::FAILURE;
   }
 
   // Retrieve required data

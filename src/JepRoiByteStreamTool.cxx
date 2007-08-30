@@ -453,10 +453,10 @@ StatusCode JepRoiByteStreamTool::convertBs(
             CmmJetSubBlock subBlock;
             payload = subBlock.read(payload, payloadEnd);
 	    if (collection == CMM_ROI) {
-	      if ( !subBlock.unpack()) {
-	        log << MSG::ERROR << "CMM-Jet sub-block unpacking failed"
+	      if (subBlock.dataWords() && !subBlock.unpack()) {
+	        log << MSG::DEBUG << "CMM-Jet sub-block unpacking failed"
 		    << endreq;
-		return StatusCode::FAILURE;
+		//return StatusCode::FAILURE;
               }
 	      const LVL1::CMMRoI roi(subBlock.jetEtMap(slice),
 	                             0,0,0,0,0,0,0,0,0,0,0);
@@ -466,10 +466,10 @@ StatusCode JepRoiByteStreamTool::convertBs(
 	    CmmEnergySubBlock subBlock;
 	    payload = subBlock.read(payload, payloadEnd);
 	    if (collection == CMM_ROI) {
-	      if ( !subBlock.unpack()) {
-	        log << MSG::ERROR << "CMM-Energy sub-block unpacking failed"
+	      if (subBlock.dataWords() && !subBlock.unpack()) {
+	        log << MSG::DEBUG << "CMM-Energy sub-block unpacking failed"
 		    << endreq;
-		return StatusCode::FAILURE;
+		//return StatusCode::FAILURE;
               }
 	      const LVL1::CMMRoI roi(0, subBlock.sumEtHits(slice),
 	                   subBlock.missingEtHits(slice),
@@ -490,10 +490,10 @@ StatusCode JepRoiByteStreamTool::convertBs(
           JemRoiSubBlock subBlock;
           payload = subBlock.read(payload, payloadEnd);
 	  if (collection == JEM_ROI) {
-	    if ( !subBlock.unpack()) {
-	      log << MSG::ERROR << "JEM RoI sub-block unpacking failed"
+	    if (subBlock.dataWords() && !subBlock.unpack()) {
+	      log << MSG::DEBUG << "JEM RoI sub-block unpacking failed"
 	          << endreq;
-              return StatusCode::FAILURE;
+              //return StatusCode::FAILURE;
             }
 	    for (int frame = 0; frame < 8; ++frame) {
 	      for (int forward = 0; forward < 2; ++forward) {
@@ -518,7 +518,7 @@ StatusCode JepRoiByteStreamTool::convertBs(
 	    m_cmCollection->setRoiWord(*payload);
 	  }
         } else {
-	  log << MSG::ERROR << "Invalid RoI word "
+	  log << MSG::DEBUG << "Invalid RoI word "
 	      << MSG::hex << *payload << MSG::dec << endreq;
         }
 	++payload;

@@ -230,19 +230,17 @@ StatusCode PpmByteStreamTool::convert(
           log << MSG::ERROR << "Unexpected data sequence" << endreq;
 	  return StatusCode::FAILURE;
         }
+        if (chanPerSubBlock != m_channels && 
+	    L1CaloSubBlock::seqno(*payload) != block * chanPerSubBlock) {
+          log << MSG::DEBUG << "Unexpected channel sequence number: "
+	      << L1CaloSubBlock::seqno(*payload) << " expected " 
+	      << block * chanPerSubBlock << endreq;
+	  if ( !m_ppmBlocks.empty()) break;
+	  else return StatusCode::FAILURE;
+        }
         PpmSubBlock* const subBlock = new PpmSubBlock();
         m_ppmBlocks.push_back(subBlock);
         payload = subBlock->read(payload, payloadEnd);
-        if (payload == payloadEnd && block != numSubBlocks - 1) {
-          log << MSG::ERROR << "Premature end of data" << endreq;
-	  return StatusCode::FAILURE;
-        }
-        if (chanPerSubBlock != m_channels && 
-	    subBlock->seqno() != block * chanPerSubBlock) {
-          log << MSG::ERROR << "Unexpected first channel: "
-	      << subBlock->seqno() << endreq;
-	  return StatusCode::FAILURE;
-        }
         if (block == 0) {
           crate = subBlock->crate();
 	  module = subBlock->module();
@@ -264,6 +262,11 @@ StatusCode PpmByteStreamTool::convert(
 	        << endreq;
 	    return StatusCode::FAILURE;
           }
+        }
+        if (payload == payloadEnd && block != numSubBlocks - 1) {
+          log << MSG::DEBUG << "Premature end of data" << endreq;
+	  break;
+	  //return StatusCode::FAILURE;
         }
       }
 
@@ -287,23 +290,24 @@ StatusCode PpmByteStreamTool::convert(
 	        << endreq;
 	    return StatusCode::FAILURE;
           }
-	  if ( !m_errorBlock->unpack()) {
-	    log << MSG::ERROR << "Unpacking error block failed" << endreq;
-	    return StatusCode::FAILURE;
+	  if (m_errorBlock->dataWords() && !m_errorBlock->unpack()) {
+	    log << MSG::DEBUG << "Unpacking error block failed" << endreq;
+	    //return StatusCode::FAILURE;
 	  }
         }
       }
 
       // Loop over sub-blocks and fill trigger towers
 
-      for (int block = 0; block < numSubBlocks; ++block) {
+      const int actualSubBlocks = m_ppmBlocks.size();
+      for (int block = 0; block < actualSubBlocks; ++block) {
         PpmSubBlock* const subBlock = m_ppmBlocks[block];
 	subBlock->setLutOffset(trigLut);
 	subBlock->setFadcOffset(trigFadc);
 	subBlock->setPedestal(m_pedestal);
-        if ( !subBlock->unpack()) {
-	  log << MSG::ERROR << "Unpacking PPM sub-block failed" << endreq;
-	  return StatusCode::FAILURE;
+        if (subBlock->dataWords() && !subBlock->unpack()) {
+	  log << MSG::DEBUG << "Unpacking PPM sub-block failed" << endreq;
+	  //return StatusCode::FAILURE;
         }
 	if (m_printCompStats) addCompStats(subBlock->compStats());
         for (int chan = 0; chan < chanPerSubBlock; ++chan) {
@@ -313,17 +317,21 @@ StatusCode PpmByteStreamTool::convert(
 	  std::vector<int> bcidLut;
 	  std::vector<int> bcidFadc;
 	  subBlock->ppmData(channel, lut, fadc, bcidLut, bcidFadc);
+	  int trigLutKeep  = trigLut;
+	  int trigFadcKeep = trigFadc;
 	  if (lut.size() < size_t(trigLut + 1)) {
-	    log << MSG::ERROR << "Triggered LUT slice from header "
+	    log << MSG::DEBUG << "Triggered LUT slice from header "
 	        << "inconsistent with number of slices: "
-		<< trigLut << ", " << lut.size() << endreq;
-	    return StatusCode::FAILURE;
+		<< trigLut << ", " << lut.size() << ", reset to 0" << endreq;
+	    trigLutKeep = 0;
+	    //return StatusCode::FAILURE;
           }
 	  if (fadc.size() < size_t(trigFadc + 1)) {
-	    log << MSG::ERROR << "Triggered FADC slice from header "
+	    log << MSG::DEBUG << "Triggered FADC slice from header "
 	        << "inconsistent with number of slices: "
-		<< trigFadc << ", " << fadc.size() << endreq;
-	    return StatusCode::FAILURE;
+		<< trigFadc << ", " << fadc.size() << ", reset to 0" << endreq;
+	    trigFadcKeep = 0;
+	    //return StatusCode::FAILURE;
           }
 	  LVL1::DataError errorBits(0);
 	  if (m_errorBlock) {
@@ -334,7 +342,8 @@ StatusCode PpmByteStreamTool::convert(
           } else {
 	    errorBits.set(LVL1::DataError::PPMErrorWord,
 	                             subBlock->ppmError(channel));
-	    const PpmSubBlock* const lastBlock = m_ppmBlocks[numSubBlocks - 1];
+	    const PpmSubBlock* const lastBlock =
+	                                      m_ppmBlocks[actualSubBlocks - 1];
 	    errorBits.set(LVL1::DataError::SubStatusWord,
 	                             lastBlock->subStatus());
           }
@@ -370,10 +379,10 @@ StatusCode PpmByteStreamTool::convert(
             }
             if (layer == ChannelCoordinate::EM) {  // EM
 	      tt->addEM(fadc, lut, bcidFadc, bcidLut, error,
-	                                           trigLut, trigFadc);
+	                                           trigLutKeep, trigFadcKeep);
             } else {                               // Had
 	      tt->addHad(fadc, lut, bcidFadc, bcidLut, error,
-	                                            trigLut, trigFadc);
+	                                           trigLutKeep, trigFadcKeep);
             }
           }
         }
