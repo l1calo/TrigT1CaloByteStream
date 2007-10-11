@@ -1,3 +1,8 @@
+2007-10-11  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-03-13
+        * Correct minimum CPM number in CMMCPHits (0->1)
+
 2007-08-30  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-03-12

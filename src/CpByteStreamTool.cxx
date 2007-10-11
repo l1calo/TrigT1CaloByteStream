@@ -349,7 +349,7 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
     // CMM-CP
 
     const int maxDataID = LVL1::CMMCPHits::MAXID;
-    for (int dataID = 0; dataID < maxDataID; ++dataID) {
+    for (int dataID = 1; dataID < maxDataID; ++dataID) {
       int source = dataID;
       if (dataID > m_modules) {
         if (summing == CmmSubBlock::CRATE && 
@@ -603,7 +603,7 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
 
     // Jet hit counts
 
-    for (int source = 0; source < maxSid; ++source) {
+    for (int source = 1; source < maxSid; ++source) {
       int dataID = source;
       if (source > m_modules) {
         if (summing == CmmSubBlock::CRATE &&
