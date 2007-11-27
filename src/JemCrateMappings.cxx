@@ -47,12 +47,12 @@ JemCrateMappings::JemCrateMappings()
 
 // Return eta, phi mapping for given crate/module/channel.
 
-bool JemCrateMappings::mapping(const int crate, const int module,
-                               const int channel,
-			       ChannelCoordinate& coord) const
+int JemCrateMappings::mapping(const int crate, const int module,
+                              const int channel,
+                              ChannelCoordinate& coord) const
 {
   if (crate < 0 || crate >= s_crates || module < 0 || module >= s_modules ||
-      channel < 0 || channel >= s_channels) return false;
+      channel < 0 || channel >= s_channels) return 0;
 
   // Channel remapping needed at extreme eta
 
@@ -60,12 +60,9 @@ bool JemCrateMappings::mapping(const int crate, const int module,
   const int quadMod = module % s_modulesPerQuadrant;
   if      (quadMod == s_extremeNegModule) chan = m_negChans[channel];
   else if (quadMod == s_extremePosModule) chan = m_posChans[channel];
-  if (chan < 0) return false;
+  if (chan < 0) return 0;
   const int etaBin = chan % s_etaBinsPerRow;
   const int phiBin = chan / s_etaBinsPerRow - 1;  // allow for overlap
-
-  // Ignore overlap channels for now
-  if (phiBin < 0 || phiBin > 7) return false;
 
   // Phi granularity doubles at FCAL
 
@@ -101,7 +98,8 @@ bool JemCrateMappings::mapping(const int crate, const int module,
   coord.setPhi(phi);
   coord.setEtaGranularity(etaGran);
   coord.setPhiGranularity(phiGran);
-  return true;
+  // Return 2 for overlap channel, 1 for core
+  return (phiBin < 0 || phiBin > 7) ? 2 : 1;
 }
 
 int JemCrateMappings::crates()

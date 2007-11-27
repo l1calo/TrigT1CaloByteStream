@@ -62,7 +62,8 @@ class JemTester : public Algorithm {
    typedef std::map<uint32_t, const LVL1::JEMRoI*>   JemRoiMap;
 
    /// Print the jet elements
-   void printJetElements(MsgStream& log, MSG::Level level) const;
+   void printJetElements(const std::string& source,
+                         MsgStream& log, MSG::Level level) const;
    /// Print the jet hits
    void printJetHits(MsgStream& log, MSG::Level level)     const;
    /// Print the energy sums
@@ -72,10 +73,11 @@ class JemTester : public Algorithm {
    /// Print the CMM energy sums
    void printCmmSums(MsgStream& log, MSG::Level level)     const;
    /// Print the JEM RoIs
-   void printJemRois(MsgStream& log, MSG::Level level)     const;
+   void printJemRois(const std::string& source,
+                     MsgStream& log, MSG::Level level)     const;
    /// Print the CMM RoIs
-   void printCmmRois(const LVL1::CMMRoI* roi, MsgStream& log,
-                                              MSG::Level level) const;
+   void printCmmRois(const std::string& source, const LVL1::CMMRoI* roi,
+                     MsgStream& log, MSG::Level level)     const;
 
    /// Print a vector
    void printVec(const std::vector<int>& vec, MsgStream& log,
@@ -115,6 +117,12 @@ class JemTester : public Algorithm {
    std::string m_jemRoiLocation;
    /// CMM RoI container StoreGate key
    std::string m_cmmRoiLocation;
+   /// JEM RoI from RoIB container StoreGate key
+   std::string m_jemRoiLocationRoib;
+   /// CMM RoI from RoIB container StoreGate key
+   std::string m_cmmRoiLocationRoib;
+   /// Jet element overlap container StoreGate key
+   std::string m_jetElementLocationOverlap;
    /// Force number of JEM slices
    int m_forceSlicesJem;
    /// Force number of CMM slices
@@ -133,6 +141,12 @@ class JemTester : public Algorithm {
    int m_jemRoiPrint;
    /// CMM RoI print flag
    int m_cmmRoiPrint;
+   /// JEM RoI from RoIB print flag
+   int m_jemRoiPrintRoib;
+   /// CMM RoI from RoIB print flag
+   int m_cmmRoiPrintRoib;
+   /// Jet element overlap print flag
+   int m_jetElementPrintOverlap;
 
    /// Jet element map
    JetElementMap m_jeMap;

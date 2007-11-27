@@ -39,6 +39,7 @@ CpByteStreamTool::CpByteStreamTool(const std::string& type,
                                    const std::string& name,
 				   const IInterface*  parent)
                   : AlgTool(type, name, parent),
+		    m_coreOverlap(1),
 		    m_srcIdMap(0), m_cpmMaps(0), m_towerKey(0),
 		    m_rodStatus(0)
 {
@@ -436,10 +437,17 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
   return StatusCode::SUCCESS;
 }
 
-// Fill a vector with all possible Source Identifiers
+// Return reference to vector with all possible Source Identifiers
 
-void CpByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
+const std::vector<uint32_t>& CpByteStreamTool::sourceIDs(
+                                               const std::string& sgKey)
 {
+  // Check if overlap tower channels wanted
+  const std::string flag("Overlap");
+  const std::string::size_type pos = sgKey.find(flag);
+  m_coreOverlap =
+   (pos == std::string::npos || pos != sgKey.length() - flag.length()) ? 1 : 2;
+
   if (m_sourceIDs.empty()) {
     const int maxCrates = m_crates + m_crateOffsetHw;
     const int maxSlinks = m_srcIdMap->maxSlinks();
@@ -449,10 +457,11 @@ void CpByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
         const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
                                                              m_subDetector);
         const uint32_t robId = m_srcIdMap->getRobID(rodId);
-        vID.push_back(robId);
+        m_sourceIDs.push_back(robId);
       }
     }
-  } else vID = m_sourceIDs;
+  }
+  return m_sourceIDs;
 }
 
 // Convert bytestream to given container type
@@ -744,7 +753,8 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
 	int hadErr1 = hadErrBits.error();
         if (em || had || emErr1 || hadErr1) {
 	  ChannelCoordinate coord;
-	  if (m_cpmMaps->mapping(crate, module, chan, coord)) {
+	  int coreOrOverlap = m_cpmMaps->mapping(crate, module, chan, coord);
+	  if (coreOrOverlap == m_coreOverlap) {
 	    const double eta = coord.eta();
 	    const double phi = coord.phi();
 	    LVL1::CPMTower* tt = findCpmTower(eta, phi);
@@ -773,7 +783,8 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
 	      hadErrVec[slice] = hadErr1;
 	      tt->fill(emVec, emErrVec, hadVec, hadErrVec, trigCpm);
 	    }
-          } else if (debug && (em || had || emErr || hadErr)) {
+          } else if (debug && (em || had || emErr || hadErr)
+	                   && !coreOrOverlap) {
 	    log << MSG::VERBOSE
 	        << "Non-zero data but no channel mapping for channel "
 	        << chan << endreq;

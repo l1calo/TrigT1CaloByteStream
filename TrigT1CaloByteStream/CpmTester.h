@@ -55,13 +55,15 @@ class CpmTester : public Algorithm {
    typedef std::map<uint32_t,     const LVL1::CPMRoI*>    CpmRoiMap;
 
    /// Print the CPM towers
-   void printCpmTowers(MsgStream& log, MSG::Level level) const;
+   void printCpmTowers(const std::string& source,
+                       MsgStream& log, MSG::Level level) const;
    /// Print the CPM hits
    void printCpmHits(MsgStream& log, MSG::Level level)   const;
    /// Print the CMM-CP hits
    void printCmmCpHits(MsgStream& log, MSG::Level level) const;
    /// Print the CPM RoIs
-   void printCpmRois(MsgStream& log, MSG::Level level)   const;
+   void printCpmRois(const std::string& source,
+                     MsgStream& log, MSG::Level level)   const;
 
    /// Print a vector
    void printVec(const std::vector<int>& vec, MsgStream& log,
@@ -91,6 +93,10 @@ class CpmTester : public Algorithm {
    std::string m_cmmCpHitsLocation;
    /// CPM RoI container StoreGate key
    std::string m_cpmRoiLocation;
+   /// CPM RoI from RoIB container StoreGate key
+   std::string m_cpmRoiLocationRoib;
+   /// CPM tower overlap container StoreGate key
+   std::string m_cpmTowerLocationOverlap;
    /// Force number of CPM slices
    int m_forceSlicesCpm;
    /// Force number of CMM slices
@@ -103,6 +109,10 @@ class CpmTester : public Algorithm {
    int m_cmmCpHitsPrint;
    /// CPM RoI print flag
    int m_cpmRoiPrint;
+   /// CPM RoI from RoIB print flag
+   int m_cpmRoiPrintRoib;
+   /// CPM tower overlap print flag
+   int m_cpmTowerPrintOverlap;
 
    /// CPM tower map
    CpmTowerMap  m_ttMap;

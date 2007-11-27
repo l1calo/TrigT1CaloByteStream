@@ -78,8 +78,8 @@ class JepByteStreamTool : public AlgTool {
    /// Convert JEP Container to bytestream
    StatusCode convert(const LVL1::JEPBSCollection* jep, RawEventWrite* re);
 
-   /// Fill a vector with all possible Source Identifiers
-   void sourceIDs(std::vector<uint32_t>& vID) const;
+   /// Return reference to vector with all possible Source Identifiers
+   const std::vector<uint32_t>& sourceIDs(const std::string& sgKey);
 
  private:
    enum CollectionType { JET_ELEMENTS, JET_HITS, ENERGY_SUMS,
@@ -161,6 +161,8 @@ class JepByteStreamTool : public AlgTool {
    int m_forceSlicesJem;
    /// Force number of CMM slices in bytestream
    int m_forceSlicesCmm;
+   /// Jet elements to accept (1=Core, 2=Overlap)
+   int m_coreOverlap;
    /// ROB source IDs
    std::vector<uint32_t> m_sourceIDs;
    /// Sub-detector type

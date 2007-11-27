@@ -60,8 +60,8 @@ class PpmByteStreamTool : public AlgTool {
    StatusCode convert(const DataVector<LVL1::TriggerTower>* ttCollection,
                       RawEventWrite* re);
 
-   /// Fill a vector with all possible Source Identifiers
-   void sourceIDs(std::vector<uint32_t>& vID) const;
+   /// Return reference to vector with all possible Source Identifiers
+   const std::vector<uint32_t>& sourceIDs();
 
  private:
    typedef DataVector<LVL1::TriggerTower>                TriggerTowerCollection;

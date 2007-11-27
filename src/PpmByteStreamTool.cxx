@@ -805,9 +805,9 @@ bool PpmByteStreamTool::slinkSlices(const int crate, const int module,
   return true;
 }
 
-// Fill a vector with all possible Source Identifiers
+// Return reference to vector with all possible Source Identifiers
 
-void PpmByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
+const std::vector<uint32_t>& PpmByteStreamTool::sourceIDs()
 {
   if (m_sourceIDs.empty()) {
     const int maxlinks = m_srcIdMap->maxSlinks();
@@ -817,10 +817,11 @@ void PpmByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
         const uint32_t rodId = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
                                                             m_subDetector);
         const uint32_t robId = m_srcIdMap->getRobID(rodId);
-        vID.push_back(robId);
+        m_sourceIDs.push_back(robId);
       }
     }
-  } else vID = m_sourceIDs;
+  }
+  return m_sourceIDs;
 }
 
 } // end namespace

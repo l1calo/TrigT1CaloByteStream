@@ -42,6 +42,7 @@ JepByteStreamTool::JepByteStreamTool(const std::string& type,
                                      const std::string& name,
 				     const IInterface*  parent)
                   : AlgTool(type, name, parent),
+		    m_coreOverlap(1),
 		    m_srcIdMap(0), m_jemMaps(0), m_elementKey(0),
 		    m_rodStatus(0)
 {
@@ -543,10 +544,17 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
   return StatusCode::SUCCESS;
 }
 
-// Fill a vector with all possible Source Identifiers
+// Return reference to vector with all possible Source Identifiers
 
-void JepByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
+const std::vector<uint32_t>& JepByteStreamTool::sourceIDs(
+                                                const std::string& sgKey)
 {
+  // Check if overlap jet element channels wanted
+  const std::string flag("Overlap");
+  const std::string::size_type pos = sgKey.find(flag);
+  m_coreOverlap =
+   (pos == std::string::npos || pos != sgKey.length() - flag.length()) ? 1 : 2;
+
   if (m_sourceIDs.empty()) {
     const int maxCrates = m_crates + m_crateOffsetHw;
     const int maxSlinks = m_srcIdMap->maxSlinks();
@@ -556,10 +564,11 @@ void JepByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
         const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
                                                              m_subDetector);
         const uint32_t robId = m_srcIdMap->getRobID(rodId);
-        vID.push_back(robId);
+        m_sourceIDs.push_back(robId);
       }
     }
-  } else vID = m_sourceIDs;
+  }
+  return m_sourceIDs;
 }
 
 // Convert bytestream to given container type
@@ -1075,7 +1084,8 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
 	hadErrBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
         if (jetEle.data() || emErrBits.error()) {
 	  ChannelCoordinate coord;
-	  if (m_jemMaps->mapping(crate, module, chan, coord)) {
+	  int coreOrOverlap = m_jemMaps->mapping(crate, module, chan, coord);
+	  if (coreOrOverlap == m_coreOverlap) {
 	    const double eta = coord.eta();
 	    const double phi = coord.phi();
 	    LVL1::JetElement* je = findJetElement(eta, phi);
@@ -1094,7 +1104,7 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
 	    je->addSlice(slice, jetEle.emData(), jetEle.hadData(),
 	                        emErrBits.error(), hadErrBits.error(),
 	         	        jetEle.linkError());
-          } else if (debug && jetEle.data()) {
+          } else if (debug && jetEle.data() && !coreOrOverlap) {
 	    log << MSG::VERBOSE
 	        << "Non-zero data but no channel mapping for channel "
 	        << chan << endreq;

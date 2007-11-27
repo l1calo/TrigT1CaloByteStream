@@ -49,6 +49,8 @@ JepRoiByteStreamTool::JepRoiByteStreamTool(const std::string& type,
   // Properties for reading bytestream only
   declareProperty("ROBSourceIDs",       m_sourceIDs,
                   "ROB fragment source identifiers");
+  declareProperty("ROBSourceIDsRoIB",   m_sourceIDsRoIB,
+                  "ROB fragment source identifiers");
 
   // Properties for writing bytestream only
   declareProperty("DataVersion",    m_version       = 1,
@@ -365,11 +367,17 @@ StatusCode JepRoiByteStreamTool::convert(
   return StatusCode::SUCCESS;
 }
 
-// Fill a vector with all possible Source Identifiers
+// Return reference to vector with all possible Source Identifiers
 
-void JepRoiByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
+const std::vector<uint32_t>& JepRoiByteStreamTool::sourceIDs(
+                                                   const std::string& sgKey)
 {
-  if (m_sourceIDs.empty()) {
+  const std::string flag("RoIB");
+  const std::string::size_type pos = sgKey.find(flag);
+  const bool roiDaq =
+           (pos == std::string::npos || pos != sgKey.length() - flag.length());
+  const bool empty  = (roiDaq) ? m_sourceIDs.empty() : m_sourceIDsRoIB.empty();
+  if (empty) {
     const int maxCrates = m_crates + m_crateOffsetHw;
     const int maxSlinks = m_srcIdMap->maxSlinks();
     for (int hwCrate = m_crateOffsetHw; hwCrate < maxCrates; ++hwCrate) {
@@ -378,10 +386,13 @@ void JepRoiByteStreamTool::sourceIDs(std::vector<uint32_t>& vID) const
         const uint32_t rodId = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
                                                              m_subDetector);
         const uint32_t robId = m_srcIdMap->getRobID(rodId);
-        vID.push_back(robId);
+	if (roiDaq) {
+	  if (slink < 2) m_sourceIDs.push_back(robId);
+	} else if (slink >= 2) m_sourceIDsRoIB.push_back(robId);
       }
     }
-  } else vID = m_sourceIDs;
+  }
+  return (roiDaq) ? m_sourceIDs : m_sourceIDsRoIB;
 }
 
 // Convert bytestream to given container type

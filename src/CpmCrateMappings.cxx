@@ -23,12 +23,12 @@ CpmCrateMappings::CpmCrateMappings()
 
 // Return eta, phi mapping for given crate/module/channel.
 
-bool CpmCrateMappings::mapping(const int crate, int module, const int channel,
+int CpmCrateMappings::mapping(const int crate, int module, const int channel,
                                           ChannelCoordinate& coord) const
 {
   --module; // CPM modules are numbered 1 to s_modules
   if (crate < 0 || crate >= s_crates || module < 0 || module >= s_modules ||
-      channel < 0 || channel >= s_channels) return false;
+      channel < 0 || channel >= s_channels) return 0;
 
   // Channels numbered thus:
   //
@@ -43,12 +43,9 @@ bool CpmCrateMappings::mapping(const int crate, int module, const int channel,
   const int phiBin = ((channel / 2) / s_etaBinsPerRow) * 2
                                     + channel % 2 - 2;  // allow for overlap
 
-  // Ignore overlap channels for now
-  if (phiBin < 0 || phiBin > 15) return false;
-
   // End modules only have one column (Is that right?)
   if ((module == 0 && etaBin != s_etaBinsPerRow - 1) ||
-      (module == s_modules - 1 && etaBin != 0)) return false;
+      (module == s_modules - 1 && etaBin != 0)) return 0;
 
   const double phiBase = M_PI/2. * double(crate);
   double phi           = phiBase + s_phiGran * (double(phiBin) + 0.5);
@@ -61,7 +58,8 @@ bool CpmCrateMappings::mapping(const int crate, int module, const int channel,
   coord.setPhi(phi);
   coord.setEtaGranularity(s_etaGran);
   coord.setPhiGranularity(s_phiGran);
-  return true;
+  // Return 2 for overlap channel, 1 otherwise
+  return (phiBin < 0 || phiBin > 15) ? 2 : 1;
 }
 
 int CpmCrateMappings::crates()

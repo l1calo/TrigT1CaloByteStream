@@ -69,8 +69,8 @@ class CpByteStreamTool : public AlgTool {
    /// Convert CP Container to bytestream
    StatusCode convert(const LVL1::CPBSCollection* cp, RawEventWrite* re);
 
-   /// Fill a vector with all possible Source Identifiers
-   void sourceIDs(std::vector<uint32_t>& vID) const;
+   /// Return reference to vector with all possible Source Identifiers
+   const std::vector<uint32_t>& sourceIDs(const std::string& sgKey);
 
  private:
 
@@ -138,6 +138,8 @@ class CpByteStreamTool : public AlgTool {
    int m_forceSlicesCpm;
    /// Force number of CMM slices in bytestream
    int m_forceSlicesCmm;
+   /// Tower channels to accept (1=Core, 2=Overlap)
+   int m_coreOverlap;
    /// ROB source IDs
    std::vector<uint32_t> m_sourceIDs;
    /// Sub-detector type

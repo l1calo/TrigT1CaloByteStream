@@ -35,11 +35,20 @@ JemTester::JemTester(const std::string& name, ISvcLocator* pSvcLocator)
            m_jemRoiLocation     = LVL1::TrigT1CaloDefs::JEMRoILocation);
   declareProperty("CMMRoILocation",
            m_cmmRoiLocation     = LVL1::TrigT1CaloDefs::CMMRoILocation);
+  declareProperty("JEMRoILocationRoIB",
+           m_jemRoiLocationRoib =
+	                 LVL1::TrigT1CaloDefs::JEMRoILocation + "RoIB");
+  declareProperty("CMMRoILocationRoIB",
+           m_cmmRoiLocationRoib =
+	                 LVL1::TrigT1CaloDefs::CMMRoILocation + "RoIB");
+  declareProperty("JetElementLocationOverlap",
+           m_jetElementLocationOverlap =
+	                 LVL1::TrigT1CaloDefs::JetElementLocation + "Overlap");
 
   declareProperty("ForceSlicesJEM",  m_forceSlicesJem  = 0);
   declareProperty("ForceSlicesCMM",  m_forceSlicesCmm  = 0);
 
-  // By default print everything
+  // By default print everything except RoIB RoIs and jet element overlap
   declareProperty("JetElementPrint", m_jetElementPrint = 1);
   declareProperty("JEMHitsPrint",    m_jemHitsPrint    = 1);
   declareProperty("JEMEtSumsPrint",  m_jemEtSumsPrint  = 1);
@@ -47,6 +56,9 @@ JemTester::JemTester(const std::string& name, ISvcLocator* pSvcLocator)
   declareProperty("CMMEtSumsPrint",  m_cmmEtSumsPrint  = 1);
   declareProperty("JEMRoIPrint",     m_jemRoiPrint     = 1);
   declareProperty("CMMRoIPrint",     m_cmmRoiPrint     = 1);
+  declareProperty("JEMRoIPrintRoIB", m_jemRoiPrintRoib = 0);
+  declareProperty("CMMRoIPrintRoIB", m_cmmRoiPrintRoib = 0);
+  declareProperty("JetElementPrintOverlap", m_jetElementPrintOverlap = 0);
 }
 
 JemTester::~JemTester()
@@ -78,12 +90,12 @@ StatusCode JemTester::execute()
 
   if (m_jetElementPrint) {
 
-    // Find jet elements
+    // Find core jet elements
 
     const JetElementCollection* jeCollection = 0;
     StatusCode sc = m_storeGate->retrieve(jeCollection, m_jetElementLocation);
     if (sc.isFailure() || !jeCollection || jeCollection->empty()) {
-      log << MSG::INFO << "No Jet Elements found" << endreq;
+      log << MSG::INFO << "No core Jet Elements found" << endreq;
     } else {
 
       // Order by eta, phi
@@ -92,7 +104,28 @@ StatusCode JemTester::execute()
 
       // Print the jet elements
 
-      printJetElements(log, MSG::INFO);
+      printJetElements("core", log, MSG::INFO);
+    }
+  }
+
+  if (m_jetElementPrintOverlap) {
+
+    // Find overlap jet elements
+
+    const JetElementCollection* jeCollection = 0;
+    StatusCode sc = m_storeGate->retrieve(jeCollection,
+                                          m_jetElementLocationOverlap);
+    if (sc.isFailure() || !jeCollection || jeCollection->empty()) {
+      log << MSG::INFO << "No overlap Jet Elements found" << endreq;
+    } else {
+
+      // Order by eta, phi
+
+      setupJeMap(jeCollection);
+
+      // Print the jet elements
+
+      printJetElements("overlap", log, MSG::INFO);
     }
   }
 
@@ -192,7 +225,27 @@ StatusCode JemTester::execute()
 
       // Print the JEM RoIs
 
-      printJemRois(log, MSG::INFO);
+      printJemRois("DAQ", log, MSG::INFO);
+    }
+  }
+
+  if (m_jemRoiPrintRoib) {
+
+    // Find JEM RoIs from RoIB
+
+    const JemRoiCollection* jrCollection = 0;
+    StatusCode sc = m_storeGate->retrieve(jrCollection, m_jemRoiLocationRoib);
+    if (sc.isFailure() || !jrCollection || jrCollection->empty()) {
+      log << MSG::INFO << "No JEM RoIs from RoIB found" << endreq;
+    } else {
+
+      // Order by RoI word
+
+      setupJemRoiMap(jrCollection);
+
+      // Print the JEM RoIs from RoIB
+
+      printJemRois("RoIB", log, MSG::INFO);
     }
   }
 
@@ -202,13 +255,35 @@ StatusCode JemTester::execute()
 
     const LVL1::CMMRoI* crCollection = 0;
     StatusCode sc = m_storeGate->retrieve(crCollection, m_cmmRoiLocation);
-    if (sc.isFailure() || !crCollection) {
+    if (sc.isFailure() || !crCollection || (!crCollection->jetEtRoiWord()   &&
+                                            !crCollection->energyRoiWord0() &&
+					    !crCollection->energyRoiWord1() &&
+					    !crCollection->energyRoiWord2())) {
       log << MSG::INFO << "No CMM RoIs found" << endreq;
     } else {
 
       // Print the CMM RoIs
 
-      printCmmRois(crCollection, log, MSG::INFO);
+      printCmmRois("DAQ", crCollection, log, MSG::INFO);
+    }
+  }
+
+  if (m_cmmRoiPrintRoib) {
+
+    // Find CMM RoIs from RoIB
+
+    const LVL1::CMMRoI* crCollection = 0;
+    StatusCode sc = m_storeGate->retrieve(crCollection, m_cmmRoiLocationRoib);
+    if (sc.isFailure() || !crCollection || (!crCollection->jetEtRoiWord()   &&
+                                            !crCollection->energyRoiWord0() &&
+					    !crCollection->energyRoiWord1() &&
+					    !crCollection->energyRoiWord2())) {
+      log << MSG::INFO << "No CMM RoIs from RoIB found" << endreq;
+    } else {
+
+      // Print the CMM RoIs from RoIB
+
+      printCmmRois("RoIB", crCollection, log, MSG::INFO);
     }
   }
 
@@ -226,9 +301,11 @@ StatusCode JemTester::finalize()
 
 // Print the jet elements
 
-void JemTester::printJetElements(MsgStream& log, const MSG::Level level) const
+void JemTester::printJetElements(const std::string& source,
+                                 MsgStream& log, const MSG::Level level) const
 {
-  log << level << "Number of Jet Elements = " << m_jeMap.size() << endreq;
+  log << level << "Number of " << source << " Jet Elements = "
+               << m_jeMap.size() << endreq;
   JetElementMap::const_iterator mapIter = m_jeMap.begin();
   JetElementMap::const_iterator mapEnd  = m_jeMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
@@ -439,9 +516,11 @@ void JemTester::printCmmSums(MsgStream& log, const MSG::Level level) const
 
 // Print the JEM RoIs
 
-void JemTester::printJemRois(MsgStream& log, const MSG::Level level) const
+void JemTester::printJemRois(const std::string& source,
+                             MsgStream& log, const MSG::Level level) const
 {
-  log << level << "Number of JEM RoIs = " << m_roiMap.size() << endreq;
+  log << level << "Number of JEM RoIs (" << source << ") = " << m_roiMap.size()
+      << endreq;
   JemRoiMap::const_iterator mapIter = m_roiMap.begin();
   JemRoiMap::const_iterator mapEnd  = m_roiMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
@@ -461,10 +540,12 @@ void JemTester::printJemRois(MsgStream& log, const MSG::Level level) const
 
 // Print the CMM RoIs
 
-void JemTester::printCmmRois(const LVL1::CMMRoI* const roi, MsgStream& log,
+void JemTester::printCmmRois(const std::string& source,
+                             const LVL1::CMMRoI* const roi, MsgStream& log,
                                                  const MSG::Level level) const
 {
-  log << level << "CMMRoI:jetEtHits/sumEtHits/missingEtHits/Ex/Ey/Et;error: "
+  log << level << "CMMRoI(" << source
+      << "):jetEtHits/sumEtHits/missingEtHits/Ex/Ey/Et;error: "
       << MSG::hex << roi->jetEtHits() << ";" << roi->jetEtError() << "/"
       << roi->sumEtHits() << ";" << roi->sumEtError() << "/"
       << roi->missingEtHits() << ";" << roi->missingEtError() << "/"

@@ -23,7 +23,7 @@ class JemCrateMappings {
    JemCrateMappings();
 
    /// Return eta, phi mapping for given crate/module/channel
-   bool mapping(int crate, int module, int channel,
+   int mapping(int crate, int module, int channel,
                                        ChannelCoordinate& coord) const;
    /// Return the number of crates
    static int  crates();

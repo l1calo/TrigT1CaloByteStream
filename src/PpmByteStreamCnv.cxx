@@ -125,8 +125,7 @@ StatusCode PpmByteStreamCnv::createObj( IOpaqueAddress* pAddr,
   if (debug) log << MSG::DEBUG << " Creating Objects " << nm << endreq;
 
   // get SourceIDs
-  std::vector<uint32_t> vID;
-  m_tool->sourceIDs(vID);
+  const std::vector<uint32_t>& vID(m_tool->sourceIDs());
 
   // get ROB fragments
   IROBDataProviderSvc::VROBFRAG robFrags;
@@ -135,14 +134,13 @@ StatusCode PpmByteStreamCnv::createObj( IOpaqueAddress* pAddr,
   // size check
   DataVector<LVL1::TriggerTower>* const ttCollection =
                                            new DataVector<LVL1::TriggerTower>;
-  if (robFrags.size() == 0) {
-    log << MSG::ERROR << " Number of ROB fragments is " << robFrags.size()
-        << endreq;
-    pObj = SG::asStorable(ttCollection) ;
-    return StatusCode::SUCCESS;
-  } else if (debug) {
+  if (debug) {
     log << MSG::DEBUG << " Number of ROB fragments is " << robFrags.size()
         << endreq;
+  }
+  if (robFrags.size() == 0) {
+    pObj = SG::asStorable(ttCollection) ;
+    return StatusCode::SUCCESS;
   }
 
   StatusCode sc = m_tool->convert(robFrags, ttCollection);

@@ -9,6 +9,7 @@ ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::CMMJetHits>" ]
 ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::CMMEtSums>" ]
 ByteStreamAddressProviderSvc = Service( "ByteStreamAddressProviderSvc" )
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::JetElement>/JetElements" ]
+ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::JetElement>/JetElementsOverlap" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::JEMHits>/JEMHits" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::JEMEtSums>/JEMEtSums" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::CMMJetHits>/CMMJetHits" ]

@@ -19,22 +19,30 @@ CpmTester::CpmTester(const std::string& name, ISvcLocator* pSvcLocator)
 		       m_towerKey(0)
 {
   declareProperty("CPMTowerLocation",
-           m_cpmTowerLocation  = LVL1::TrigT1CaloDefs::CPMTowerLocation);
+           m_cpmTowerLocation   = LVL1::TrigT1CaloDefs::CPMTowerLocation);
   declareProperty("CPMHitsLocation",
-           m_cpmHitsLocation   = LVL1::TrigT1CaloDefs::CPMHitsLocation);
+           m_cpmHitsLocation    = LVL1::TrigT1CaloDefs::CPMHitsLocation);
   declareProperty("CMMCPHitsLocation",
-           m_cmmCpHitsLocation = LVL1::TrigT1CaloDefs::CMMCPHitsLocation);
+           m_cmmCpHitsLocation  = LVL1::TrigT1CaloDefs::CMMCPHitsLocation);
   declareProperty("CPMRoILocation",
-           m_cpmRoiLocation    = LVL1::TrigT1CaloDefs::CPMRoILocation);
+           m_cpmRoiLocation     = LVL1::TrigT1CaloDefs::CPMRoILocation);
+  declareProperty("CPMRoILocationRoIB",
+           m_cpmRoiLocationRoib =
+	                   LVL1::TrigT1CaloDefs::CPMRoILocation + "RoIB");
+  declareProperty("CPMTowerLocationOverlap",
+           m_cpmTowerLocationOverlap =
+	                   LVL1::TrigT1CaloDefs::CPMTowerLocation + "Overlap");
 
   declareProperty("ForceSlicesCPM", m_forceSlicesCpm = 0);
   declareProperty("ForceSlicesCMM", m_forceSlicesCmm = 0);
 
-  // By default print everything
-  declareProperty("CPMTowerPrint",  m_cpmTowerPrint  = 1);
-  declareProperty("CPMHitsPrint",   m_cpmHitsPrint   = 1);
-  declareProperty("CMMCPHitsPrint", m_cmmCpHitsPrint = 1);
-  declareProperty("CPMRoIPrint",    m_cpmRoiPrint    = 1);
+  // By default print everything except RoIB RoIs and Tower overlap
+  declareProperty("CPMTowerPrint",   m_cpmTowerPrint   = 1);
+  declareProperty("CPMHitsPrint",    m_cpmHitsPrint    = 1);
+  declareProperty("CMMCPHitsPrint",  m_cmmCpHitsPrint  = 1);
+  declareProperty("CPMRoIPrint",     m_cpmRoiPrint     = 1);
+  declareProperty("CPMRoIPrintRoIB", m_cpmRoiPrintRoib = 0);
+  declareProperty("CPMTowerPrintOverlap", m_cpmTowerPrintOverlap = 0);
 }
 
 CpmTester::~CpmTester()
@@ -71,7 +79,7 @@ StatusCode CpmTester::execute()
     const CpmTowerCollection* ttCollection = 0;
     StatusCode sc = m_storeGate->retrieve(ttCollection, m_cpmTowerLocation);
     if (sc.isFailure() || !ttCollection || ttCollection->empty()) {
-      log << MSG::INFO << "No CPM towers found" << endreq;
+      log << MSG::INFO << "No core CPM towers found" << endreq;
     } else {
 
       // Order by eta, phi
@@ -80,7 +88,28 @@ StatusCode CpmTester::execute()
 
       // Print the CPM towers
 
-      printCpmTowers(log, MSG::INFO);
+      printCpmTowers("core", log, MSG::INFO);
+    }
+  }
+
+  if (m_cpmTowerPrintOverlap) {
+
+    // Find overlap CPM towers
+
+    const CpmTowerCollection* ttCollection = 0;
+    StatusCode sc = m_storeGate->retrieve(ttCollection,
+                                          m_cpmTowerLocationOverlap);
+    if (sc.isFailure() || !ttCollection || ttCollection->empty()) {
+      log << MSG::INFO << "No overlap CPM towers found" << endreq;
+    } else {
+
+      // Order by eta, phi
+
+      setupCpmTowerMap(ttCollection);
+
+      // Print the overlap CPM towers
+
+      printCpmTowers("overlap", log, MSG::INFO);
     }
   }
 
@@ -140,7 +169,27 @@ StatusCode CpmTester::execute()
 
       // Print the CPM RoIs
 
-      printCpmRois(log, MSG::INFO);
+      printCpmRois("DAQ", log, MSG::INFO);
+    }
+  }
+
+  if (m_cpmRoiPrintRoib) {
+
+    // Find CPM RoIs from RoIB
+
+    const CpmRoiCollection* roiCollection = 0;
+    StatusCode sc = m_storeGate->retrieve(roiCollection, m_cpmRoiLocationRoib);
+    if (sc.isFailure() || !roiCollection || roiCollection->empty()) {
+      log << MSG::INFO << "No CPM RoIs from RoIB found" << endreq;
+    } else {
+
+      // Order by RoI word
+
+      setupCpmRoiMap(roiCollection);
+
+      // Print the CPM RoIs from RoIB
+
+      printCpmRois("RoIB", log, MSG::INFO);
     }
   }
 
@@ -158,9 +207,11 @@ StatusCode CpmTester::finalize()
 
 // Print the CPM towers
 
-void CpmTester::printCpmTowers(MsgStream& log, const MSG::Level level) const
+void CpmTester::printCpmTowers(const std::string& source,
+                               MsgStream& log, const MSG::Level level) const
 {
-  log << level << "Number of CPM towers = " << m_ttMap.size() << endreq;
+  log << level << "Number of " << source << " CPM towers = "
+               << m_ttMap.size() << endreq;
   CpmTowerMap::const_iterator mapIter = m_ttMap.begin();
   CpmTowerMap::const_iterator mapEnd  = m_ttMap.end();
   for (; mapIter != mapEnd; ++mapIter) {
@@ -260,9 +311,11 @@ void CpmTester::printCmmCpHits(MsgStream& log, const MSG::Level level) const
 
 // Print the CPM RoIs
 
-void CpmTester::printCpmRois(MsgStream& log, const MSG::Level level) const
+void CpmTester::printCpmRois(const std::string& source,
+                             MsgStream& log, const MSG::Level level) const
 {
-  log << level << "Number of CPM RoIs = " << m_roiMap.size() << endreq;
+  log << level << "Number of CPM RoIs (" << source << ") = " << m_roiMap.size()
+      << endreq;
   CpmRoiMap::const_iterator mapIter = m_roiMap.begin();
   CpmRoiMap::const_iterator mapEnd  = m_roiMap.end();
   for (; mapIter != mapEnd; ++mapIter) {

@@ -56,8 +56,8 @@ class CpmRoiByteStreamTool : public AlgTool {
    StatusCode convert(const DataVector<LVL1::CPMRoI>* roiCollection,
                       RawEventWrite* re);
 
-   /// Fill a vector with all possible Source Identifiers
-   void sourceIDs(std::vector<uint32_t>& vID) const;
+   /// Return reference to vector with all possible Source Identifiers
+   const std::vector<uint32_t>& sourceIDs(const std::string& sgKey);
 
  private:
 
@@ -85,6 +85,8 @@ class CpmRoiByteStreamTool : public AlgTool {
    int m_slinks;
    /// ROB source IDs
    std::vector<uint32_t> m_sourceIDs;
+   /// ROB source IDs for RoIB
+   std::vector<uint32_t> m_sourceIDsRoIB;
    /// Sub-detector type
    eformat::SubDetector m_subDetector;
    /// Source ID converter
