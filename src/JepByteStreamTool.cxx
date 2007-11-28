@@ -650,14 +650,14 @@ StatusCode JepByteStreamTool::convertBs(
           payload = subBlock.read(payload, payloadEnd);
 	  if (collection == CMM_HITS) {
 	    StatusCode sc = decodeCmmJet(subBlock, trigCmm);
-	    //if (sc.isFailure()) return sc;
+	    if (sc.isFailure() && debug) log << MSG::DEBUG << "decodeCmmJet failed" << endreq;
           }
         } else {
 	  CmmEnergySubBlock subBlock;
 	  payload = subBlock.read(payload, payloadEnd);
 	  if (collection == CMM_SUMS) {
 	    StatusCode sc = decodeCmmEnergy(subBlock, trigCmm);
-	    //if (sc.isFailure()) return sc;
+	    if (sc.isFailure() && debug) log << MSG::DEBUG << "decodeCmmEnergy failed" << endreq;
           }
 	}
       } else {
@@ -667,7 +667,7 @@ StatusCode JepByteStreamTool::convertBs(
 	if (collection == JET_ELEMENTS || collection == JET_HITS ||
 	                                  collection == ENERGY_SUMS) {
 	  StatusCode sc = decodeJem(subBlock, trigJem, collection);
-	  //if (sc.isFailure()) return sc;
+	  if (sc.isFailure() && debug) log << MSG::DEBUG << "decodeJem failed" << endreq;
         }
       }
     }
