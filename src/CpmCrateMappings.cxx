@@ -49,7 +49,9 @@ int CpmCrateMappings::mapping(const int crate, int module, const int channel,
 
   const double phiBase = M_PI/2. * double(crate);
   double phi           = phiBase + s_phiGran * (double(phiBin) + 0.5);
-  if (phi < 0.) phi += 2.*M_PI;
+  const double twoPi   = 2.*M_PI;
+  if (phi < 0.)          phi += twoPi;
+  else if (phi >= twoPi) phi -= twoPi;
 
   const double etaBase = s_etaGran * s_etaBinsPerRow * (module - s_modules/2);
   const double eta     = etaBase + s_etaGran * (double(etaBin) + 0.5);

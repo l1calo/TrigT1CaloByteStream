@@ -76,7 +76,9 @@ int JemCrateMappings::mapping(const int crate, const int module,
     else                        phi += s_phiGran / 2.;
     phiGran += s_phiGran;
   }
-  if (phi < 0.) phi += 2.*M_PI;
+  const double twoPi = 2.*M_PI;
+  if (phi < 0.)          phi += twoPi;
+  else if (phi >= twoPi) phi -= twoPi;
 
   // Eta granularity varies at endcap/FCAL
 

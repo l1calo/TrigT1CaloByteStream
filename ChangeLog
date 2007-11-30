@@ -1,3 +1,8 @@
+2007-11-27  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+
+        * Tag TrigT1CaloByteStream-00-03-16
+        * Check for phi>2pi in overlap channels.
+
 2007-11-28  Alan Watson <Alan.Watson@cern.ch>
         * CpByteStreamTool.cxx, JepByteStreamTool.cxx: fix unchecked
           StatusCodes
