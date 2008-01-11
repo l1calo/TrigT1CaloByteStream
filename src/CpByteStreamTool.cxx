@@ -542,7 +542,9 @@ StatusCode CpByteStreamTool::convertBs(
         payload = subBlock.read(payload, payloadEnd);
 	if (collection == CMM_CP_HITS) {
 	  StatusCode sc = decodeCmmCp(subBlock, trigCmm);
-	  if (sc.isFailure() && debug) log << MSG::DEBUG << "decodeCmmCp failed" << endreq;
+	  if (sc.isFailure() && debug) {
+	    log << MSG::DEBUG << "decodeCmmCp failed" << endreq;
+	  }
         }
       } else {
         // CPM
@@ -550,7 +552,9 @@ StatusCode CpByteStreamTool::convertBs(
         payload = subBlock.read(payload, payloadEnd);
 	if (collection == CPM_TOWERS || collection == CPM_HITS) {
 	  StatusCode sc = decodeCpm(subBlock, trigCpm, collection);
-	  if (sc.isFailure() && debug) log << MSG::DEBUG << "decodeCpm failed" << endreq;
+	  if (sc.isFailure() && debug) {
+	    log << MSG::DEBUG << "decodeCpm failed" << endreq;
+	  }
         }
       }
     }

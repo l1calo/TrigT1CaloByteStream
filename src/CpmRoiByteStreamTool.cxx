@@ -27,9 +27,9 @@ const InterfaceID& CpmRoiByteStreamTool::interfaceID()
 
 CpmRoiByteStreamTool::CpmRoiByteStreamTool(const std::string& type,
                                            const std::string& name,
-				           const IInterface*  parent)
+                                           const IInterface*  parent)
                       : AlgTool(type, name, parent),
-		        m_srcIdMap(0), m_rodStatus(0)
+                        m_srcIdMap(0), m_rodStatus(0)
 {
   declareInterface<CpmRoiByteStreamTool>(this);
 
@@ -117,14 +117,14 @@ StatusCode CpmRoiByteStreamTool::convert(
       if (m_srcIdMap->subDet(sourceID)   != m_subDetector ||
           m_srcIdMap->daqOrRoi(sourceID) != 1) {
         log << MSG::DEBUG << "Wrong source identifier in data: "
-	    << MSG::hex << sourceID << MSG::dec << endreq;
+            << MSG::hex << sourceID << MSG::dec << endreq;
       }
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
     if (debug) {
       log << MSG::DEBUG << "Treating crate " << rodCrate 
                         << " slink " << m_srcIdMap->slink(sourceID)
-			<< endreq;
+                        << endreq;
     }
 
     // First word may be User Header
@@ -159,8 +159,8 @@ StatusCode CpmRoiByteStreamTool::convert(
 	for (int chip = 0; chip < numChips; ++chip) {
 	  for (int loc = 0; loc < numLocs; ++loc) {
 	    const LVL1::CPMRoI roi = m_subBlock.roi(chip, loc);
-	    if (roi.hits() || roi.error()) {
-	      roiCollection->push_back(new LVL1::CPMRoI(roi));
+            if (roi.hits() || roi.error()) {
+              roiCollection->push_back(new LVL1::CPMRoI(roi));
             }
           }
         }
