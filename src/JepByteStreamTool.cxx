@@ -20,7 +20,7 @@
 #include "TrigT1CaloByteStream/JemCrateMappings.h"
 #include "TrigT1CaloByteStream/JemSubBlock.h"
 #include "TrigT1CaloByteStream/JepByteStreamTool.h"
-#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
+//#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
 #include "TrigT1CaloByteStream/ModifySlices.h"
@@ -539,7 +539,7 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 
   // Set ROD status words
 
-  L1CaloRodStatus::setStatus(re, m_rodStatusMap, m_srcIdMap);
+  //L1CaloRodStatus::setStatus(re, m_rodStatusMap, m_srcIdMap);
 
   return StatusCode::SUCCESS;
 }
@@ -650,14 +650,18 @@ StatusCode JepByteStreamTool::convertBs(
           payload = subBlock.read(payload, payloadEnd);
 	  if (collection == CMM_HITS) {
 	    StatusCode sc = decodeCmmJet(subBlock, trigCmm);
-	    if (sc.isFailure() && debug) log << MSG::DEBUG << "decodeCmmJet failed" << endreq;
+	    if (sc.isFailure() && debug) {
+	      log << MSG::DEBUG << "decodeCmmJet failed" << endreq;
+	    }
           }
         } else {
 	  CmmEnergySubBlock subBlock;
 	  payload = subBlock.read(payload, payloadEnd);
 	  if (collection == CMM_SUMS) {
 	    StatusCode sc = decodeCmmEnergy(subBlock, trigCmm);
-	    if (sc.isFailure() && debug) log << MSG::DEBUG << "decodeCmmEnergy failed" << endreq;
+	    if (sc.isFailure() && debug) {
+	      log << MSG::DEBUG << "decodeCmmEnergy failed" << endreq;
+	    }
           }
 	}
       } else {
@@ -667,7 +671,9 @@ StatusCode JepByteStreamTool::convertBs(
 	if (collection == JET_ELEMENTS || collection == JET_HITS ||
 	                                  collection == ENERGY_SUMS) {
 	  StatusCode sc = decodeJem(subBlock, trigJem, collection);
-	  if (sc.isFailure() && debug) log << MSG::DEBUG << "decodeJem failed" << endreq;
+	  if (sc.isFailure() && debug) {
+	    log << MSG::DEBUG << "decodeJem failed" << endreq;
+	  }
         }
       }
     }

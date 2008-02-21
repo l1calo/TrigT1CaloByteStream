@@ -8,7 +8,7 @@
 
 #include "TrigT1CaloByteStream/CpmCrateMappings.h"
 #include "TrigT1CaloByteStream/CpmRoiByteStreamTool.h"
-#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
+//#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
 
 namespace LVL1BS {
@@ -286,7 +286,7 @@ StatusCode CpmRoiByteStreamTool::convert(
 
   // Set ROD status words
 
-  L1CaloRodStatus::setStatus(re, m_rodStatusMap, m_srcIdMap);
+  //L1CaloRodStatus::setStatus(re, m_rodStatusMap, m_srcIdMap);
 
   return StatusCode::SUCCESS;
 }

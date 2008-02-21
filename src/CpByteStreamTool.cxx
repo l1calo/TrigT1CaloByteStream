@@ -17,7 +17,7 @@
 #include "TrigT1CaloByteStream/CpmCrateMappings.h"
 #include "TrigT1CaloByteStream/CpmSubBlock.h"
 #include "TrigT1CaloByteStream/CpByteStreamTool.h"
-#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
+//#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
 #include "TrigT1CaloByteStream/ModifySlices.h"
@@ -432,7 +432,7 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 
   // Set ROD status words
 
-  L1CaloRodStatus::setStatus(re, m_rodStatusMap, m_srcIdMap);
+  //L1CaloRodStatus::setStatus(re, m_rodStatusMap, m_srcIdMap);
 
   return StatusCode::SUCCESS;
 }

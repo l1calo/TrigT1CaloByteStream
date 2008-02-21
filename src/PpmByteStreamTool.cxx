@@ -9,7 +9,7 @@
 #include "TrigT1Calo/TriggerTowerKey.h"
 
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
-#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
+//#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 #include "TrigT1CaloByteStream/L1CaloUserHeader.h"
 #include "TrigT1CaloByteStream/ModifySlices.h"
@@ -641,7 +641,7 @@ StatusCode PpmByteStreamTool::convert(
 
   // Set ROD status words
 
-  L1CaloRodStatus::setStatus(re, m_rodStatusMap, m_srcIdMap);
+  //L1CaloRodStatus::setStatus(re, m_rodStatusMap, m_srcIdMap);
 
   return StatusCode::SUCCESS;
 }
