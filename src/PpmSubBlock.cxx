@@ -1,6 +1,7 @@
 
 #include "TrigT1CaloByteStream/PpmCompressionV00.h"
 #include "TrigT1CaloByteStream/PpmCompressionV01.h"
+#include "TrigT1CaloByteStream/PpmCompressionV02.h"
 #include "TrigT1CaloByteStream/PpmCrateMappings.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
 
@@ -39,7 +40,8 @@ const int      PpmSubBlock::s_channelDisabledBit;
 
 PpmSubBlock::PpmSubBlock() : m_globalError(0), m_globalDone(false),
                              m_lutOffset(-1), m_fadcOffset(-1),
-			     m_pedestal(10)
+			     m_pedestal(10), m_fadcBaseline(0),
+			     m_fadcThreshold(0)
 {
 }
 
@@ -249,6 +251,7 @@ bool PpmSubBlock::pack()
           }
 	  break;
         case COMPRESSED:
+        case SUPERCOMPRESSED:
 	  switch (seqno()) {
 	    case 0:
 	      rc = PpmCompressionV00::pack(*this);
@@ -256,12 +259,12 @@ bool PpmSubBlock::pack()
 	    case 1:
 	      rc = PpmCompressionV01::pack(*this);
 	      break;
+	    case 2:
+	      rc = PpmCompressionV02::pack(*this);
+	      break;
 	    default:
 	      break;
           }
-	  break;
-        case SUPERCOMPRESSED:
-	  rc = packSuperCompressed();
 	  break;
         default:
 	  break;
@@ -293,6 +296,7 @@ bool PpmSubBlock::unpack()
           }
 	  break;
         case COMPRESSED:
+        case SUPERCOMPRESSED:
 	  switch (seqno()) {
 	    case 0:
 	      rc = PpmCompressionV00::unpack(*this);
@@ -300,12 +304,12 @@ bool PpmSubBlock::unpack()
 	    case 1:
 	      rc = PpmCompressionV01::unpack(*this);
 	      break;
+	    case 2:
+	      rc = PpmCompressionV02::unpack(*this);
+	      break;
 	    default:
 	      break;
           }
-	  break;
-        case SUPERCOMPRESSED:
-	  rc = unpackSuperCompressed();
 	  break;
         default:
 	  break;
@@ -349,13 +353,6 @@ bool PpmSubBlock::packNeutral()
     ++pos;
   }
   return true;
-}
-
-// Pack super-compressed data
-
-bool PpmSubBlock::packSuperCompressed()
-{
-  return false;
 }
 
 // Pack uncompressed data
@@ -416,13 +413,6 @@ bool PpmSubBlock::unpackNeutral()
     m_errormap.push_back(error);
   }
   return rc;
-}
-
-// Unpack super-compressed data
-
-bool PpmSubBlock::unpackSuperCompressed()
-{
-  return false;
 }
 
 // Unpack uncompressed data

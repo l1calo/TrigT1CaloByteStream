@@ -55,20 +55,16 @@ CpByteStreamTool::CpByteStreamTool(const std::string& type,
                   "ROB fragment source identifiers");
 
   // Properties for writing bytestream only
-  declareProperty("DataVersion",    m_version        = 1,
+  declareProperty("DataVersion",    m_version     = 1,
                   "Format version number in sub-block header");
-  declareProperty("DataFormat",     m_dataFormat     = 1,
+  declareProperty("DataFormat",     m_dataFormat  = 1,
                   "Format identifier (0-1) in sub-block header");
-  declareProperty("SlinksPerCrate", m_slinks         = 2,
+  declareProperty("SlinksPerCrate", m_slinks      = 2,
                   "The number of S-Links per crate");
-  declareProperty("SimulSlicesCPM", m_dfltSlicesCpm  = 1,
-                  "The number of CPM slices in the simulation");
-  declareProperty("SimulSlicesCMM", m_dfltSlicesCmm  = 1,
-                  "The number of CMM slices in the simulation");
-  declareProperty("ForceSlicesCPM", m_forceSlicesCpm = 0,
-                  "If >0, the number of CPM slices in bytestream");
-  declareProperty("ForceSlicesCMM", m_forceSlicesCmm = 0,
-                  "If >0, the number of CMM slices in bytestream");
+  declareProperty("SimulSlices",    m_dfltSlices  = 1,
+                  "The number of slices in the simulation");
+  declareProperty("ForceSlices",    m_forceSlices = 0,
+                  "If >0, the number of slices in bytestream");
 
 }
 
@@ -148,7 +144,7 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
   // Clear the event assembler
 
   m_fea.clear();
-  const uint16_t minorVersion = 0x1001;
+  const uint16_t minorVersion = 0x1002;
   m_fea.setRodMinorVersion(minorVersion);
   m_rodStatusMap.clear();
 
@@ -167,37 +163,13 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
   const bool neutralFormat   = m_dataFormat == L1CaloSubBlock::NEUTRAL;
   const int  modulesPerSlink = m_modules / m_slinks;
   int timeslices    = 1;
-  int timeslicesCmm = 1;
   int trigCpm       = 0;
-  int trigCmm       = 0;
-  int timeslicesNew    = 1;
-  int timeslicesCmmNew = 1;
-  int trigCpmNew       = 0;
-  int trigCmmNew       = 0;
+  int timeslicesNew = 1;
+  int trigCpmNew    = 0;
   for (int crate=0; crate < m_crates; ++crate) {
     const int hwCrate = crate + m_crateOffsetHw;
 
-    // Get CMM number of slices and triggered slice offset for this crate
-
-    if ( ! slinkSlicesCmm(crate, timeslicesCmm, trigCmm)) {
-      log << MSG::ERROR << "Inconsistent number of CMM slices or "
-          << "triggered slice offsets in data for crate " << hwCrate << endreq;
-      return StatusCode::FAILURE;
-    }
-    timeslicesCmmNew = (m_forceSlicesCmm) ? m_forceSlicesCmm : timeslicesCmm;
-    trigCmmNew       = ModifySlices::peak(trigCmm, timeslicesCmm,
-                                                   timeslicesCmmNew);
-    if (debug) {
-      log << MSG::DEBUG << "CMM Slices/offset: " << timeslicesCmm
-                        << " " << trigCmm;
-      if (timeslicesCmm != timeslicesCmmNew) {
-        log << MSG::DEBUG << " modified to " << timeslicesCmmNew
-	                  << " " << trigCmmNew;
-      }
-      log << MSG::DEBUG << endreq;
-    }
-
-    // Unfortunately CPM modules are numbered 1 to m_modules
+    // CPM modules are numbered 1 to m_modules
     for (int module=1; module <= m_modules; ++module) {
       const int mod = module - 1;
 
@@ -220,7 +192,7 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 	      << hwCrate << " slink " << slink << endreq;
 	  return StatusCode::FAILURE;
         }
-	timeslicesNew = (m_forceSlicesCpm) ? m_forceSlicesCpm : timeslices;
+	timeslicesNew = (m_forceSlices) ? m_forceSlices : timeslices;
 	trigCpmNew    = ModifySlices::peak(trigCpm, timeslices, timeslicesNew);
         if (debug) {
 	  log << MSG::DEBUG << "Data Version/Format: " << m_version
@@ -235,7 +207,6 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
         }
         L1CaloUserHeader userHeader;
         userHeader.setCpm(trigCpmNew);
-        userHeader.setCpCmm(trigCmmNew);
 	const uint32_t rodIdCpm = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
 	                                                        m_subDetector);
 	theROD = m_fea.getRodData(rodIdCpm);
@@ -333,16 +304,16 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
     m_cmmHit1Blocks.clear();
     const int summing = (crate == m_crates - 1) ? CmmSubBlock::SYSTEM
                                                 : CmmSubBlock::CRATE;
-    for (int slice = 0; slice < timeslicesCmmNew; ++slice) {
+    for (int slice = 0; slice < timeslicesNew; ++slice) {
       CmmCpSubBlock* const h0Block = new CmmCpSubBlock();
       h0Block->setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                             summing, CmmSubBlock::CMM_CP,
-			    CmmSubBlock::RIGHT, timeslicesCmmNew);
+			    CmmSubBlock::RIGHT, timeslicesNew);
       m_cmmHit0Blocks.push_back(h0Block);
       CmmCpSubBlock* const h1Block = new CmmCpSubBlock();
       h1Block->setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                             summing, CmmSubBlock::CMM_CP,
-			    CmmSubBlock::LEFT, timeslicesCmmNew);
+			    CmmSubBlock::LEFT, timeslicesNew);
       m_cmmHit1Blocks.push_back(h1Block);
       if (neutralFormat) break;
     }
@@ -381,11 +352,11 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
         std::vector<unsigned int> hits1;
         std::vector<int> err0;
         std::vector<int> err1;
-	ModifySlices::data(ch->HitsVec0(),  hits0, timeslicesCmmNew);
-	ModifySlices::data(ch->HitsVec1(),  hits1, timeslicesCmmNew);
-	ModifySlices::data(ch->ErrorVec0(), err0,  timeslicesCmmNew);
-	ModifySlices::data(ch->ErrorVec1(), err1,  timeslicesCmmNew);
-	for (int slice = 0; slice < timeslicesCmmNew; ++slice) {
+	ModifySlices::data(ch->HitsVec0(),  hits0, timeslicesNew);
+	ModifySlices::data(ch->HitsVec1(),  hits1, timeslicesNew);
+	ModifySlices::data(ch->ErrorVec0(), err0,  timeslicesNew);
+	ModifySlices::data(ch->ErrorVec1(), err1,  timeslicesNew);
+	for (int slice = 0; slice < timeslicesNew; ++slice) {
 	  const LVL1::DataError err0Bits(err0[slice]);
 	  const LVL1::DataError err1Bits(err1[slice]);
 	  const int index = ( neutralFormat ) ? 0 : slice;
@@ -511,7 +482,9 @@ StatusCode CpByteStreamTool::convertBs(
     }
 
     // First word is User Header
-    const L1CaloUserHeader userHeader(*payload);
+    L1CaloUserHeader userHeader(*payload);
+    const int minorVersion = (*rob)->rod_version() & 0xffff;
+    userHeader.setVersion(minorVersion);
     const int headerWords = userHeader.words();
     if (headerWords != 1 && debug) {
       log << MSG::DEBUG << "Unexpected number of user header words: "
@@ -522,9 +495,11 @@ StatusCode CpByteStreamTool::convertBs(
     const int trigCpm = userHeader.cpm();
     const int trigCmm = userHeader.cpCmm();
     if (debug) {
-      log << MSG::DEBUG << "CPM triggered slice offset: " << trigCpm
+      log << MSG::DEBUG << "Minor format version number: " << MSG::hex
+                        << minorVersion << MSG::dec << endreq;
+      log << MSG::DEBUG << "CPM triggered slice offset: "  << trigCpm
                         << endreq;
-      log << MSG::DEBUG << "CMM triggered slice offset: " << trigCmm
+      log << MSG::DEBUG << "CMM triggered slice offset: "  << trigCmm
                         << endreq;
     }
 
@@ -926,7 +901,7 @@ bool CpByteStreamTool::slinkSlices(const int crate, const int module,
                   const int modulesPerSlink, int& timeslices, int& trigCpm)
 {
   int slices = -1;
-  int trigC  = m_dfltSlicesCpm/2;
+  int trigC  = m_dfltSlices/2;
   for (int mod = module; mod < module + modulesPerSlink; ++mod) {
     for (int chan = 0; chan < m_channels; ++chan) {
       ChannelCoordinate coord;
@@ -978,51 +953,41 @@ bool CpByteStreamTool::slinkSlices(const int crate, const int module,
       }
     }
   }
-  if (slices < 0) slices = m_dfltSlicesCpm;
-  timeslices = slices;
-  trigCpm    = trigC;
-  return true;
-}
-
-// Get number of CMM slices and triggered slice offset for current crate
-
-bool CpByteStreamTool::slinkSlicesCmm(const int crate, int& timeslices,
-                                                       int& trigCmm)
-{
-  int slices = -1;
-  int trigC  = m_dfltSlicesCmm/2;
-  const int maxDataID = LVL1::CMMCPHits::MAXID;
-  for (int dataID = 0; dataID < maxDataID; ++dataID) {
-    const int numdat = 4;
-    std::vector<unsigned int> sums(numdat);
-    std::vector<int> sizes(numdat);
-    const LVL1::CMMCPHits* const hits = findCmmCpHits(crate, dataID);
-    if (hits) {
-      sums[0] = std::accumulate((hits->HitsVec0()).begin(),
-                                           (hits->HitsVec0()).end(), 0);
-      sums[1] = std::accumulate((hits->HitsVec1()).begin(),
-                                           (hits->HitsVec1()).end(), 0);
-      sums[2] = std::accumulate((hits->ErrorVec0()).begin(),
-                                           (hits->ErrorVec0()).end(), 0);
-      sums[3] = std::accumulate((hits->ErrorVec1()).begin(),
-                                           (hits->ErrorVec1()).end(), 0);
-      sizes[0] = (hits->HitsVec0()).size();
-      sizes[1] = (hits->HitsVec1()).size();
-      sizes[2] = (hits->ErrorVec0()).size();
-      sizes[3] = (hits->ErrorVec1()).size();
-      const int peak = hits->peak();
-      for (int i = 0; i < 2; ++i) {
-        if (sums[i] == 0) continue;
-        if (slices < 0) {
-	  slices = sizes[i];
-	  trigC  = peak;
-        } else if (slices != sizes[i] || trigC != peak) return false;
+  // CMM last slink of crate
+  if (module/modulesPerSlink == m_slinks - 1) {
+    const int maxDataID = LVL1::CMMCPHits::MAXID;
+    for (int dataID = 0; dataID < maxDataID; ++dataID) {
+      const int numdat = 4;
+      std::vector<unsigned int> sums(numdat);
+      std::vector<int> sizes(numdat);
+      const LVL1::CMMCPHits* const hits = findCmmCpHits(crate, dataID);
+      if (hits) {
+        sums[0] = std::accumulate((hits->HitsVec0()).begin(),
+                                             (hits->HitsVec0()).end(), 0);
+        sums[1] = std::accumulate((hits->HitsVec1()).begin(),
+                                             (hits->HitsVec1()).end(), 0);
+        sums[2] = std::accumulate((hits->ErrorVec0()).begin(),
+                                             (hits->ErrorVec0()).end(), 0);
+        sums[3] = std::accumulate((hits->ErrorVec1()).begin(),
+                                             (hits->ErrorVec1()).end(), 0);
+        sizes[0] = (hits->HitsVec0()).size();
+        sizes[1] = (hits->HitsVec1()).size();
+        sizes[2] = (hits->ErrorVec0()).size();
+        sizes[3] = (hits->ErrorVec1()).size();
+        const int peak = hits->peak();
+        for (int i = 0; i < numdat; ++i) {
+          if (sums[i] == 0) continue;
+          if (slices < 0) {
+	    slices = sizes[i];
+	    trigC  = peak;
+          } else if (slices != sizes[i] || trigC != peak) return false;
+        }
       }
     }
   }
-  if (slices < 0) slices = m_dfltSlicesCmm;
+  if (slices < 0) slices = m_dfltSlices;
   timeslices = slices;
-  trigCmm    = trigC;
+  trigCpm    = trigC;
   return true;
 }
 

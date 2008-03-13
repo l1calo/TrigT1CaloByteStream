@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <vector>
 
+#include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 #include "TrigT1CaloByteStream/PpmCompressionV00.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
 
@@ -20,6 +21,7 @@ const int PpmCompressionV00::s_lutBcidBits;
 
 bool PpmCompressionV00::pack(PpmSubBlock& subBlock)
 {
+  if (subBlock.format() != L1CaloSubBlock::COMPRESSED) return false;
   const int sliceL = subBlock.slicesLut();
   const int sliceF = subBlock.slicesFadc();
   if (sliceL != 1 || sliceF != 5) return false;
@@ -152,6 +154,7 @@ bool PpmCompressionV00::pack(PpmSubBlock& subBlock)
 
 bool PpmCompressionV00::unpack(PpmSubBlock& subBlock)
 {
+  if (subBlock.format() != L1CaloSubBlock::COMPRESSED) return false;
   const int sliceL = subBlock.slicesLut();
   const int sliceF = subBlock.slicesFadc();
   if (sliceL != 1 || sliceF != 5) return false;

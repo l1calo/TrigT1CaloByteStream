@@ -4,46 +4,68 @@
 #include <vector>
 
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
-#include "TrigT1CaloByteStream/PpmCompressionV01.h"
+#include "TrigT1CaloByteStream/PpmCompressionV02.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
 
 namespace LVL1BS {
 
 // Static constants
 
-const int PpmCompressionV01::s_formats;
-const int PpmCompressionV01::s_lowerRange;
-const int PpmCompressionV01::s_upperRange;
-const int PpmCompressionV01::s_peakOnly;
-const int PpmCompressionV01::s_lutDataBits;
-const int PpmCompressionV01::s_lutBcidBits;
-const int PpmCompressionV01::s_fadcDataBits;
-const int PpmCompressionV01::s_glinkPins;
-const int PpmCompressionV01::s_statusBits;
-const int PpmCompressionV01::s_errorBits;
-const int PpmCompressionV01::s_statusMask;
+const int PpmCompressionV02::s_formats;
+const int PpmCompressionV02::s_fadcRange;
+const int PpmCompressionV02::s_peakOnly;
+const int PpmCompressionV02::s_lutDataBits;
+const int PpmCompressionV02::s_lutBcidBits;
+const int PpmCompressionV02::s_fadcDataBits;
+const int PpmCompressionV02::s_glinkPins;
+const int PpmCompressionV02::s_statusBits;
+const int PpmCompressionV02::s_errorBits;
+const int PpmCompressionV02::s_statusMask;
 
 // Pack data
 
-bool PpmCompressionV01::pack(PpmSubBlock& subBlock)
+bool PpmCompressionV02::pack(PpmSubBlock& subBlock)
 {
-  if (subBlock.format() != L1CaloSubBlock::COMPRESSED) return false;
+  const int dataFormat = subBlock.format();
+  if (dataFormat != L1CaloSubBlock::COMPRESSED &&
+      dataFormat != L1CaloSubBlock::SUPERCOMPRESSED) return false;
   const int sliceL = subBlock.slicesLut();
   const int sliceF = subBlock.slicesFadc();
   if (sliceL != 1 || sliceF != 5) return false;
-  const int trigOffset = subBlock.fadcOffset();
-  const int pedestal   = subBlock.pedestal();
-  const int channels   = subBlock.channelsPerSubBlock();
+  const int trigOffset    = subBlock.fadcOffset();
+  const int fadcBaseline  = subBlock.fadcBaseline();
+  const int fadcThreshold = subBlock.fadcThreshold();
+  const int channels      = subBlock.channelsPerSubBlock();
+  const bool superCompressed = (dataFormat == L1CaloSubBlock::SUPERCOMPRESSED);
   subBlock.setStreamed();
   std::vector<uint32_t> compStats(s_formats);
-  std::vector<int> fadcDout(sliceF-1);
-  std::vector<int> fadcBout(sliceF-1);
-  std::vector<int> fadcLens(sliceF-1);
+  std::vector<int>      pinsPresent(s_glinkPins);
+  std::vector<int>      fadcDout(sliceF-1);
+  std::vector<int>      fadcLens(sliceF-1);
   for (int chan = 0; chan < channels; ++chan) {
     std::vector<int> lutData;
     std::vector<int> lutBcid;
     std::vector<int> fadcData;
     std::vector<int> fadcBcid;
+    if (superCompressed) {
+      const int pin = chan % s_glinkPins;
+      if (pin == 0) { // data preceded by channel bitmap
+        for (int p = 0; p < s_glinkPins; ++p) {
+	  subBlock.ppmData(p+chan, lutData, fadcData, lutBcid, fadcBcid);
+	  pinsPresent[p] = lutData[0] || lutBcid[0];
+	  if ( !pinsPresent[p] ) {
+	    for (int sl = 0; sl < sliceF; ++sl) {
+	      if (fadcData[sl] >= fadcThreshold || fadcBcid[sl]) {
+		pinsPresent[p] = 1;
+		break;
+	      }
+	    }
+          }
+          subBlock.packer(pinsPresent[p], 1);
+        }
+      }
+      if ( !pinsPresent[pin] ) continue;
+    }
     subBlock.ppmData(chan, lutData, fadcData, lutBcid, fadcBcid);
     const int lutLen = subBlock.minBits(lutData[0]);
     int  minFadc   = 0;
@@ -69,12 +91,11 @@ bool PpmCompressionV01::pack(PpmSubBlock& subBlock)
       } else subBlock.packer(0, 1);
       format = 6;
     } else {
-      const bool minFadcInRange = minFadc >= pedestal - s_lowerRange &&
-                                  minFadc <= pedestal + s_upperRange;
+      const bool minFadcInRange = minFadc >= fadcBaseline &&
+                                  minFadc <= fadcBaseline + s_fadcRange;
       int  anyFadcBcid = 0;
       int  maxFadcLen = 0;
       int  idx = 0;
-      int  idy = 0;
       for (int sl = 0; sl < sliceF; ++sl) {
         if (sl != 0) {
 	  fadcDout[idx] = fadcData[sl] - minFadc;
@@ -84,11 +105,8 @@ bool PpmCompressionV01::pack(PpmSubBlock& subBlock)
 	  }
 	  ++idx;
         }
-	if (sl != trigOffset) {
-	  fadcBout[idy] = fadcBcid[sl];
-	  anyFadcBcid  |= fadcBout[idy];
-	  ++idy;
-        }
+	if      (sl != trigOffset)                 anyFadcBcid |= fadcBcid[sl];
+	else if (fadcBcid[sl] != lutBcid[0] & 0x1) anyFadcBcid |= 1;
       }
       if (lutData[0] == 0 && lutBcid[0] == 0 &&
                           !anyFadcBcid && minFadcInRange && maxFadcLen < 4) {
@@ -96,7 +114,7 @@ bool PpmCompressionV01::pack(PpmSubBlock& subBlock)
         int header = minOffset;
 	if (maxFadcLen == 3) header += 5;
 	subBlock.packer(header, 4);
-	minFadc -= pedestal - s_lowerRange;
+	minFadc -= fadcBaseline;
 	subBlock.packer(minFadc, 4);
 	if (maxFadcLen < 2) maxFadcLen = 2;
 	for (int idx = 0; idx < sliceF-1; ++idx) {
@@ -115,7 +133,7 @@ bool PpmCompressionV01::pack(PpmSubBlock& subBlock)
 	  subBlock.packer(1, 1);
 	  subBlock.packer(lutData[0], 3);
 	} else subBlock.packer(0, 1);
-	minFadc -= pedestal - s_lowerRange;
+	minFadc -= fadcBaseline;
 	subBlock.packer(minFadc, 4);
 	for (int idx = 0; idx < sliceF-1; ++idx) {
 	  subBlock.packer(fadcDout[idx], 4);
@@ -140,13 +158,13 @@ bool PpmCompressionV01::pack(PpmSubBlock& subBlock)
 	  subBlock.packer(lutBcid[0], s_lutBcidBits);
 	}
 	if (anyFadcBcid) {
-	  for (int idx = 0; idx < sliceF-1; ++idx) {
-	    subBlock.packer(fadcBout[idx], 1);
+	  for (int idx = 0; idx < sliceF; ++idx) {
+	    subBlock.packer(fadcBcid[idx], 1);
           }
         }
 	if (minFadcInRange) {
 	  subBlock.packer(0, 1);
-	  minFadc -= pedestal - s_lowerRange;
+	  minFadc -= fadcBaseline;
 	  subBlock.packer(minFadc, 4);
         } else {
 	  subBlock.packer(1, 1);
@@ -198,19 +216,32 @@ bool PpmCompressionV01::pack(PpmSubBlock& subBlock)
 
 // Unpack data
 
-bool PpmCompressionV01::unpack(PpmSubBlock& subBlock)
+bool PpmCompressionV02::unpack(PpmSubBlock& subBlock)
 {
-  if (subBlock.format() != L1CaloSubBlock::COMPRESSED) return false;
+  const int dataFormat = subBlock.format();
+  if (dataFormat != L1CaloSubBlock::COMPRESSED &&
+      dataFormat != L1CaloSubBlock::SUPERCOMPRESSED) return false;
   const int sliceL = subBlock.slicesLut();
   const int sliceF = subBlock.slicesFadc();
   if (sliceL != 1 || sliceF != 5) return false;
-  const int trigOffset = subBlock.fadcOffset();
-  const int pedestal   = subBlock.pedestal();
-  const int channels   = subBlock.channelsPerSubBlock();
+  const int trigOffset   = subBlock.fadcOffset();
+  const int fadcBaseline = subBlock.fadcBaseline();
+  const int channels     = subBlock.channelsPerSubBlock();
+  const bool superCompressed = (dataFormat == L1CaloSubBlock::SUPERCOMPRESSED);
   subBlock.setStreamed();
   subBlock.unpackerInit();
   std::vector<uint32_t> compStats(s_formats);
+  std::vector<int>      pinsPresent(s_glinkPins);
   for (int chan = 0; chan < channels; ++chan) {
+    if (superCompressed) {
+      const int pin = chan % s_glinkPins;
+      if (pin == 0) { // data preceded by channel bitmap
+        for (int p = 0; p < s_glinkPins; ++p) {
+          pinsPresent[p] = subBlock.unpacker(1);
+        }
+      }
+      if ( !pinsPresent[pin] ) continue;
+    }
     std::vector<int> lutData;
     std::vector<int> lutBcid;
     std::vector<int> fadcData;
@@ -225,7 +256,7 @@ bool PpmCompressionV01::unpack(PpmSubBlock& subBlock)
       lutData.push_back(0);
       lutBcid.push_back(0);
       // FADC
-      const int minFadc = subBlock.unpacker(4) + pedestal - s_lowerRange;
+      const int minFadc = subBlock.unpacker(4) + fadcBaseline;
       fadcData.push_back(minFadc);
       fadcBcid.push_back(0);
       for (int sl = 1; sl < sliceF; ++sl) {
@@ -249,7 +280,7 @@ bool PpmCompressionV01::unpack(PpmSubBlock& subBlock)
 	lutData.push_back(lut);
 	lutBcid.push_back(bcid);
 	// FADC as formats 0,1
-        const int minFadc = subBlock.unpacker(4) + pedestal - s_lowerRange;
+        const int minFadc = subBlock.unpacker(4) + fadcBaseline;
         fadcData.push_back(minFadc);
         fadcBcid.push_back(0);
         for (int sl = 1; sl < sliceF; ++sl) {
@@ -270,13 +301,13 @@ bool PpmCompressionV01::unpack(PpmSubBlock& subBlock)
 	// FADC
 	for (int sl = 0; sl < sliceF; ++sl) {
 	  int fbcid = 0;
-	  if (sl == trigOffset) fbcid = bcid & 0x1; // take from LUT word
-	  else if (anyBcid) fbcid = subBlock.unpacker(1);
+	  if (anyBcid) fbcid = subBlock.unpacker(1);
+	  else if (sl == trigOffset) fbcid = bcid & 0x1; // take from LUT word
 	  fadcBcid.push_back(fbcid);
         }
 	int minFadc = 0;
 	if (subBlock.unpacker(1)) minFadc = subBlock.unpacker(format * 2);
-	else minFadc = subBlock.unpacker(4) + pedestal - s_lowerRange;
+	else minFadc = subBlock.unpacker(4) + fadcBaseline;
         fadcData.push_back(minFadc);
 	for (int sl = 1; sl < sliceF; ++sl) {
 	  int len = 4;

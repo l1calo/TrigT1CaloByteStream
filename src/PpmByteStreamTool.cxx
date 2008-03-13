@@ -42,7 +42,7 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
   declareProperty("PrintCompStats",     m_printCompStats  = 0,
                   "Print compressed format statistics");
   declareProperty("PedestalValue",      m_pedestal        = 10,
-                  "Pedestal value - needed for compressed format only");
+                  "Pedestal value - needed for compressed formats 0,1 only");
 
   // Properties for reading bytestream only
   declareProperty("ZeroSuppress",       m_zeroSuppress    = 0,
@@ -55,8 +55,12 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
                   "Format version number in sub-block header");
   declareProperty("DataFormat",         m_dataFormat      = 1,
                   "Format identifier (0-3) in sub-block header");
-  declareProperty("CompressionVersion", m_compVers        = 1,
+  declareProperty("CompressionVersion", m_compVers        = 2,
                   "Compressed format version number");
+  declareProperty("FADCBaseline",       m_fadcBaseline    = 0,
+                  "FADC baseline lower bound for compressed formats");
+  declareProperty("FADCThreshold",      m_fadcThreshold   = 1,
+                  "FADC threshold for super-compressed format");
   declareProperty("SlinksPerCrate",     m_slinks          = 4,
                   "The number of S-Links per crate");
   declareProperty("SimulSlicesLUT",     m_dfltSlicesLut   = 1,
@@ -163,7 +167,9 @@ StatusCode PpmByteStreamTool::convert(
     }
 
     // First word is User Header
-    const L1CaloUserHeader userHeader(*payload);
+    L1CaloUserHeader userHeader(*payload);
+    const int minorVersion = (*rob)->rod_version() & 0xffff;
+    userHeader.setVersion(minorVersion);
     const int headerWords = userHeader.words();
     if (headerWords != 1 && debug) {
       log << MSG::DEBUG << "Unexpected number of user header words: "
@@ -173,10 +179,16 @@ StatusCode PpmByteStreamTool::convert(
     // triggered slice offsets
     const int trigLut  = userHeader.ppmLut();
     const int trigFadc = userHeader.ppmFadc();
+    // FADC baseline lower bound
+    m_fadcBaseline = userHeader.lowerBound();
     if (debug) {
-      log << MSG::DEBUG << "LUT triggered slice offset: " << trigLut
+      log << MSG::DEBUG << "Minor format version number: " << MSG::hex 
+                        << minorVersion << MSG::dec << endreq;
+      log << MSG::DEBUG << "LUT triggered slice offset:  " << trigLut
                         << endreq;
       log << MSG::DEBUG << "FADC triggered slice offset: " << trigFadc
+                        << endreq;
+      log << MSG::DEBUG << "FADC baseline lower bound:   " << m_fadcBaseline
                         << endreq;
     }
 
@@ -305,6 +317,7 @@ StatusCode PpmByteStreamTool::convert(
 	subBlock->setLutOffset(trigLut);
 	subBlock->setFadcOffset(trigFadc);
 	subBlock->setPedestal(m_pedestal);
+	subBlock->setFadcBaseline(m_fadcBaseline);
         if (subBlock->dataWords() && !subBlock->unpack()) {
 	  log << MSG::DEBUG << "Unpacking PPM sub-block failed" << endreq;
 	  //return StatusCode::FAILURE;
@@ -419,7 +432,7 @@ StatusCode PpmByteStreamTool::convert(
   // Clear the event assembler
 
   m_fea.clear();
-  const uint16_t minorVersion = 0x1001;
+  const uint16_t minorVersion = 0x1002;
   m_fea.setRodMinorVersion(minorVersion);
   m_rodStatusMap.clear();
 
@@ -498,6 +511,7 @@ StatusCode PpmByteStreamTool::convert(
         L1CaloUserHeader userHeader;
         userHeader.setPpmLut(trigLutNew);
         userHeader.setPpmFadc(trigFadcNew);
+	userHeader.setLowerBound(m_fadcBaseline);
 	const uint32_t rodIdPpm = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
 	                                                       m_subDetector);
 	theROD = m_fea.getRodData(rodIdPpm);
@@ -521,7 +535,7 @@ StatusCode PpmByteStreamTool::convert(
 	}
         if (chan == 0) {
 	  subBlock.clear();
-	  if (m_dataFormat == L1CaloSubBlock::COMPRESSED) {
+	  if (m_dataFormat >= L1CaloSubBlock::COMPRESSED) {
 	    subBlock.setPpmHeader(m_version, m_dataFormat, m_compVers, crate,
 	                          module, slicesFadcNew, slicesLutNew);
           } else {
@@ -531,6 +545,8 @@ StatusCode PpmByteStreamTool::convert(
 	  subBlock.setLutOffset(trigLutNew);
 	  subBlock.setFadcOffset(trigFadcNew);
 	  subBlock.setPedestal(m_pedestal);
+	  subBlock.setFadcBaseline(m_fadcBaseline);
+	  subBlock.setFadcThreshold(m_fadcThreshold);
         }
         const LVL1::TriggerTower* tt = 0;
 	ChannelCoordinate coord;

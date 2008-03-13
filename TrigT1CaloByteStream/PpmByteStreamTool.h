@@ -119,6 +119,10 @@ class PpmByteStreamTool : public AlgTool {
    int m_forceSlicesFadc;
    /// Pedestal value
    int m_pedestal;
+   /// FADC baseline lower bound
+   int m_fadcBaseline;
+   /// FADC threshold for super-compressed format
+   int m_fadcThreshold;
    /// Zero suppression on input
    int m_zeroSuppress;
    /// ROB source IDs

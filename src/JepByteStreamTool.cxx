@@ -58,20 +58,16 @@ JepByteStreamTool::JepByteStreamTool(const std::string& type,
                   "ROB fragment source identifiers");
 
   // Properties for writing bytestream only
-  declareProperty("DataVersion",    m_version        = 1,
+  declareProperty("DataVersion",    m_version     = 1,
                   "Format version number in sub-block header");
-  declareProperty("DataFormat",     m_dataFormat     = 1,
+  declareProperty("DataFormat",     m_dataFormat  = 1,
                   "Format identifier (0-1) in sub-block header");
-  declareProperty("SlinksPerCrate", m_slinks         = 4,
+  declareProperty("SlinksPerCrate", m_slinks      = 4,
                   "The number of S-Links per crate");
-  declareProperty("SimulSlicesJEM", m_dfltSlicesJem  = 1,
-                  "The number of JEM slices in the simulation");
-  declareProperty("SimulSlicesCMM", m_dfltSlicesCmm  = 1,
-                  "The number of CMM slices in the simulation");
-  declareProperty("ForceSlicesJEM", m_forceSlicesJem = 0,
-                  "If >0, the number of JEM slices in bytestream");
-  declareProperty("ForceSlicesCMM", m_forceSlicesCmm = 0,
-                  "If >0, the number of CMM slices in bytestream");
+  declareProperty("SimulSlices",    m_dfltSlices  = 1,
+                  "The number of slices in the simulation");
+  declareProperty("ForceSlices",    m_forceSlices = 0,
+                  "If >0, the number of slices in bytestream");
 
 }
 
@@ -173,7 +169,7 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
   // Clear the event assembler
 
   m_fea.clear();
-  const uint16_t minorVersion = 0x1001;
+  const uint16_t minorVersion = 0x1002;
   m_fea.setRodMinorVersion(minorVersion);
   m_rodStatusMap.clear();
 
@@ -194,35 +190,11 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
   const bool neutralFormat = m_dataFormat == L1CaloSubBlock::NEUTRAL;
   const int modulesPerSlink = m_modules / m_slinks;
   int timeslices       = 1;
-  int timeslicesCmm    = 1;
   int trigJem          = 0;
-  int trigCmm          = 0;
   int timeslicesNew    = 1;
-  int timeslicesCmmNew = 1;
   int trigJemNew       = 0;
-  int trigCmmNew       = 0;
   for (int crate=0; crate < m_crates; ++crate) {
     const int hwCrate = crate + m_crateOffsetHw;
-
-    // Get CMM number of slices and triggered slice offset for this crate
-
-    if ( ! slinkSlicesCmm(crate, timeslicesCmm, trigCmm)) {
-      log << MSG::ERROR << "Inconsistent number of CMM slices or "
-          << "triggered slice offsets in data for crate " << hwCrate << endreq;
-      return StatusCode::FAILURE;
-    }
-    timeslicesCmmNew = (m_forceSlicesCmm) ? m_forceSlicesCmm : timeslicesCmm;
-    trigCmmNew       = ModifySlices::peak(trigCmm, timeslicesCmm,
-                                                   timeslicesCmmNew);
-    if (debug) {
-      log << MSG::DEBUG << "CMM Slices/offset: " << timeslicesCmm
-                        << " " << trigCmm;
-      if (timeslicesCmm != timeslicesCmmNew) {
-        log << MSG::DEBUG << " modified to " << timeslicesCmmNew
-	                  << " " << trigCmmNew;
-      }
-      log << MSG::DEBUG << endreq;
-    }
 
     for (int module=0; module < m_modules; ++module) {
 
@@ -244,7 +216,7 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 	      << hwCrate << " slink " << slink << endreq;
 	  return StatusCode::FAILURE;
         }
-	timeslicesNew = (m_forceSlicesJem) ? m_forceSlicesJem : timeslices;
+	timeslicesNew = (m_forceSlices) ? m_forceSlices : timeslices;
 	trigJemNew    = ModifySlices::peak(trigJem, timeslices, timeslicesNew);
         if (debug) {
 	  log << MSG::DEBUG << "Data Version/Format: " << m_version
@@ -259,7 +231,6 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
         }
         L1CaloUserHeader userHeader;
         userHeader.setJem(trigJemNew);
-        userHeader.setJepCmm(trigCmmNew);
 	const uint32_t rodIdJem = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
 	                                                        m_subDetector);
 	theROD = m_fea.getRodData(rodIdJem);
@@ -368,16 +339,16 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
     m_cmmJetBlocks.clear();
     const int summing = (crate == m_crates - 1) ? CmmSubBlock::SYSTEM
                                                 : CmmSubBlock::CRATE;
-    for (int slice = 0; slice < timeslicesCmmNew; ++slice) {
+    for (int slice = 0; slice < timeslicesNew; ++slice) {
       CmmEnergySubBlock* const enBlock = new CmmEnergySubBlock();
       enBlock->setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                             summing, CmmSubBlock::CMM_ENERGY,
-			    CmmSubBlock::LEFT, timeslicesCmmNew);
+			    CmmSubBlock::LEFT, timeslicesNew);
       m_cmmEnergyBlocks.push_back(enBlock);
       CmmJetSubBlock* const jetBlock = new CmmJetSubBlock();
       jetBlock->setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                              summing, CmmSubBlock::CMM_JET,
-			     CmmSubBlock::RIGHT, timeslicesCmmNew);
+			     CmmSubBlock::RIGHT, timeslicesNew);
       m_cmmJetBlocks.push_back(jetBlock);
       if (neutralFormat) break;
     }
@@ -415,13 +386,13 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
         std::vector<int> exErr;
         std::vector<int> eyErr;
         std::vector<int> etErr;
-	ModifySlices::data(sums->ExVec(), ex, timeslicesCmmNew);
-	ModifySlices::data(sums->EyVec(), ey, timeslicesCmmNew);
-	ModifySlices::data(sums->EtVec(), et, timeslicesCmmNew);
-	ModifySlices::data(sums->ExErrorVec(), exErr, timeslicesCmmNew);
-	ModifySlices::data(sums->EyErrorVec(), eyErr, timeslicesCmmNew);
-	ModifySlices::data(sums->EtErrorVec(), etErr, timeslicesCmmNew);
-	for (int slice = 0; slice < timeslicesCmmNew; ++slice) {
+	ModifySlices::data(sums->ExVec(), ex, timeslicesNew);
+	ModifySlices::data(sums->EyVec(), ey, timeslicesNew);
+	ModifySlices::data(sums->EtVec(), et, timeslicesNew);
+	ModifySlices::data(sums->ExErrorVec(), exErr, timeslicesNew);
+	ModifySlices::data(sums->EyErrorVec(), eyErr, timeslicesNew);
+	ModifySlices::data(sums->EtErrorVec(), etErr, timeslicesNew);
+	for (int slice = 0; slice < timeslicesNew; ++slice) {
 	  const LVL1::DataError exErrBits(exErr[slice]);
 	  const LVL1::DataError eyErrBits(eyErr[slice]);
 	  const LVL1::DataError etErrBits(etErr[slice]);
@@ -502,9 +473,9 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
       if ( ch ) {
         std::vector<unsigned int> hits;
         std::vector<int> errs;
-	ModifySlices::data(ch->HitsVec(),  hits, timeslicesCmmNew);
-	ModifySlices::data(ch->ErrorVec(), errs, timeslicesCmmNew);
-	for (int slice = 0; slice < timeslicesCmmNew; ++slice) {
+	ModifySlices::data(ch->HitsVec(),  hits, timeslicesNew);
+	ModifySlices::data(ch->ErrorVec(), errs, timeslicesNew);
+	for (int slice = 0; slice < timeslicesNew; ++slice) {
 	  const LVL1::DataError errBits(errs[slice]);
 	  const int index = ( neutralFormat ) ? 0 : slice;
 	  CmmJetSubBlock* const subBlock = m_cmmJetBlocks[index];
@@ -618,7 +589,9 @@ StatusCode JepByteStreamTool::convertBs(
     }
 
     // First word is User Header
-    const L1CaloUserHeader userHeader(*payload);
+    L1CaloUserHeader userHeader(*payload);
+    const int minorVersion = (*rob)->rod_version() & 0xffff;
+    userHeader.setVersion(minorVersion);
     const int headerWords = userHeader.words();
     if (headerWords != 1 && debug) {
       log << MSG::DEBUG << "Unexpected number of user header words: "
@@ -629,6 +602,8 @@ StatusCode JepByteStreamTool::convertBs(
     const int trigJem = userHeader.jem();
     const int trigCmm = userHeader.jepCmm();
     if (debug) {
+      log << MSG::DEBUG << "Minor format version number: " << MSG::hex
+                        << minorVersion << MSG::dec << endreq;
       log << MSG::DEBUG << "JEM triggered slice offset: " << trigJem
                         << endreq;
       log << MSG::DEBUG << "CMM triggered slice offset: " << trigCmm
@@ -1340,7 +1315,7 @@ bool JepByteStreamTool::slinkSlices(const int crate, const int module,
                   const int modulesPerSlink, int& timeslices, int& trigJem)
 {
   int slices = -1;
-  int trigJ  = m_dfltSlicesJem/2;
+  int trigJ  = m_dfltSlices/2;
   for (int mod = module; mod < module + modulesPerSlink; ++mod) {
     for (int chan = 0; chan < m_channels; ++chan) {
       ChannelCoordinate coord;
@@ -1412,78 +1387,68 @@ bool JepByteStreamTool::slinkSlices(const int crate, const int module,
       }
     }
   }
-  if (slices < 0) slices = m_dfltSlicesJem;
-  timeslices = slices;
-  trigJem    = trigJ;
-  return true;
-}
-
-// Get number of CMM slices and triggered slice offset for current crate
-
-bool JepByteStreamTool::slinkSlicesCmm(const int crate, int& timeslices,
-                                                        int& trigCmm)
-{
-  int slices = -1;
-  int trigC  = m_dfltSlicesCmm/2;
-  const int maxDataID1 = LVL1::CMMJetHits::MAXID;
-  const int maxDataID2 = LVL1::CMMEtSums::MAXID;
-  const int maxDataID  = (maxDataID1 > maxDataID2) ? maxDataID1 : maxDataID2;
-  for (int dataID = 0; dataID < maxDataID; ++dataID) {
-    const int numdat = 6;
-    std::vector<unsigned int> sums(numdat);
-    std::vector<int> sizes(numdat);
-    const LVL1::CMMJetHits* hits = 0;
-    if (dataID < maxDataID1) hits = findCmmHits(crate, dataID);
-    if (hits) {
-      sums[0] = std::accumulate((hits->HitsVec()).begin(),
-                                           (hits->HitsVec()).end(), 0);
-      sums[1] = std::accumulate((hits->ErrorVec()).begin(),
-                                           (hits->ErrorVec()).end(), 0);
-      sizes[0] = (hits->HitsVec()).size();
-      sizes[1] = (hits->ErrorVec()).size();
-      const int peak = hits->peak();
-      for (int i = 0; i < 2; ++i) {
-        if (sums[i] == 0) continue;
-        if (slices < 0) {
-	  slices = sizes[i];
-	  trigC  = peak;
-        } else if (slices != sizes[i] || trigC != peak) return false;
+  // CMM last slink of crate
+  if (module/modulesPerSlink == m_slinks - 1) {
+    const int maxDataID1 = LVL1::CMMJetHits::MAXID;
+    const int maxDataID2 = LVL1::CMMEtSums::MAXID;
+    const int maxDataID  = (maxDataID1 > maxDataID2) ? maxDataID1 : maxDataID2;
+    for (int dataID = 0; dataID < maxDataID; ++dataID) {
+      const int numdat = 6;
+      std::vector<unsigned int> sums(numdat);
+      std::vector<int> sizes(numdat);
+      const LVL1::CMMJetHits* hits = 0;
+      if (dataID < maxDataID1) hits = findCmmHits(crate, dataID);
+      if (hits) {
+        sums[0] = std::accumulate((hits->HitsVec()).begin(),
+                                             (hits->HitsVec()).end(), 0);
+        sums[1] = std::accumulate((hits->ErrorVec()).begin(),
+                                             (hits->ErrorVec()).end(), 0);
+        sizes[0] = (hits->HitsVec()).size();
+        sizes[1] = (hits->ErrorVec()).size();
+        const int peak = hits->peak();
+        for (int i = 0; i < 2; ++i) {
+          if (sums[i] == 0) continue;
+          if (slices < 0) {
+	    slices = sizes[i];
+	    trigJ  = peak;
+          } else if (slices != sizes[i] || trigJ != peak) return false;
+        }
       }
-    }
-    const LVL1::CMMEtSums* et = 0;
-    if (dataID < maxDataID2) et = findCmmSums(crate, dataID);
-    if (et) {
-      sums[0] = std::accumulate((et->ExVec()).begin(),
-				(et->ExVec()).end(), 0);
-      sums[1] = std::accumulate((et->EyVec()).begin(),
-                                (et->EyVec()).end(), 0);
-      sums[2] = std::accumulate((et->EtVec()).begin(),
-                                (et->EtVec()).end(), 0);
-      sums[3] = std::accumulate((et->ExErrorVec()).begin(),
-                                (et->ExErrorVec()).end(), 0);
-      sums[4] = std::accumulate((et->EyErrorVec()).begin(),
-                                (et->EyErrorVec()).end(), 0);
-      sums[5] = std::accumulate((et->EtErrorVec()).begin(),
-                                (et->EtErrorVec()).end(), 0);
-      sizes[0] = (et->ExVec()).size();
-      sizes[1] = (et->EyVec()).size();
-      sizes[2] = (et->EtVec()).size();
-      sizes[3] = (et->ExErrorVec()).size();
-      sizes[4] = (et->EyErrorVec()).size();
-      sizes[5] = (et->EtErrorVec()).size();
-      const int peak = et->peak();
-      for (int i = 0; i < numdat; ++i) {
-        if (sums[i] == 0) continue;
-	if (slices < 0) {
-	  slices = sizes[i];
-	  trigC  = peak;
-        } else if (slices != sizes[i] || trigC != peak) return false;
+      const LVL1::CMMEtSums* et = 0;
+      if (dataID < maxDataID2) et = findCmmSums(crate, dataID);
+      if (et) {
+        sums[0] = std::accumulate((et->ExVec()).begin(),
+  				  (et->ExVec()).end(), 0);
+        sums[1] = std::accumulate((et->EyVec()).begin(),
+                                  (et->EyVec()).end(), 0);
+        sums[2] = std::accumulate((et->EtVec()).begin(),
+                                  (et->EtVec()).end(), 0);
+        sums[3] = std::accumulate((et->ExErrorVec()).begin(),
+                                  (et->ExErrorVec()).end(), 0);
+        sums[4] = std::accumulate((et->EyErrorVec()).begin(),
+                                  (et->EyErrorVec()).end(), 0);
+        sums[5] = std::accumulate((et->EtErrorVec()).begin(),
+                                  (et->EtErrorVec()).end(), 0);
+        sizes[0] = (et->ExVec()).size();
+        sizes[1] = (et->EyVec()).size();
+        sizes[2] = (et->EtVec()).size();
+        sizes[3] = (et->ExErrorVec()).size();
+        sizes[4] = (et->EyErrorVec()).size();
+        sizes[5] = (et->EtErrorVec()).size();
+        const int peak = et->peak();
+        for (int i = 0; i < numdat; ++i) {
+          if (sums[i] == 0) continue;
+	  if (slices < 0) {
+	    slices = sizes[i];
+	    trigJ  = peak;
+          } else if (slices != sizes[i] || trigJ != peak) return false;
+        }
       }
     }
   }
-  if (slices < 0) slices = m_dfltSlicesCmm;
+  if (slices < 0) slices = m_dfltSlices;
   timeslices = slices;
-  trigCmm    = trigC;
+  trigJem    = trigJ;
   return true;
 }
 

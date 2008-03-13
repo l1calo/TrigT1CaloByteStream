@@ -84,10 +84,14 @@ class PpmSubBlock : public L1CaloSubBlock {
            void setLutOffset(int offset);
 	   void setFadcOffset(int offset);
 	   void setPedestal(int pedval);
+	   void setFadcBaseline(int baseline);
+	   void setFadcThreshold(int threshold);
    //  Return triggered slice offsets, pedestal value
            int  lutOffset()               const;
 	   int  fadcOffset()              const;
 	   int  pedestal()                const;
+	   int  fadcBaseline()            const;
+	   int  fadcThreshold()           const;
 
    /// Pack data
    virtual bool pack();
@@ -150,16 +154,12 @@ class PpmSubBlock : public L1CaloSubBlock {
    //  Packing/unpacking for specific formats
    /// Pack neutral data
    bool packNeutral();
-   /// Pack super-compressed data
-   bool packSuperCompressed();
    /// Pack uncompressed data
    bool packUncompressedData();
    /// Pack uncompressed error data
    bool packUncompressedErrors();
    /// Unpack neutral data
    bool unpackNeutral();
-   /// Unpack super-compressed data
-   bool unpackSuperCompressed();
    /// Unpack uncompressed data
    bool unpackUncompressedData();
    /// Unpack uncompressed error data
@@ -173,6 +173,8 @@ class PpmSubBlock : public L1CaloSubBlock {
    int m_lutOffset;
    int m_fadcOffset;
    int m_pedestal;
+   int m_fadcBaseline;
+   int m_fadcThreshold;
 
    /// Vector for compression statistics
    std::vector<uint32_t> m_compStats;
@@ -315,6 +317,16 @@ inline void PpmSubBlock::setPedestal(const int pedval)
   m_pedestal = pedval;
 }
 
+inline void PpmSubBlock::setFadcBaseline(const int baseline)
+{
+  m_fadcBaseline = baseline;
+}
+
+inline void PpmSubBlock::setFadcThreshold(const int threshold)
+{
+  m_fadcThreshold = threshold;
+}
+
 inline int PpmSubBlock::lutOffset() const
 {
   return (m_lutOffset < 0) ? slicesLut()/2 : m_lutOffset;
@@ -328,6 +340,16 @@ inline int PpmSubBlock::fadcOffset() const
 inline int PpmSubBlock::pedestal() const
 {
   return m_pedestal;
+}
+
+inline int PpmSubBlock::fadcBaseline() const
+{
+  return m_fadcBaseline;
+}
+
+inline int PpmSubBlock::fadcThreshold() const
+{
+  return m_fadcThreshold;
 }
 
 inline const std::vector<uint32_t>& PpmSubBlock::compStats() const

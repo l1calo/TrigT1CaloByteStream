@@ -193,7 +193,7 @@ StatusCode CpmRoiByteStreamTool::convert(
   // Clear the event assembler
 
   m_fea.clear();
-  const uint16_t minorVersion = 0x1001;
+  const uint16_t minorVersion = 0x1002;
   m_fea.setRodMinorVersion(minorVersion);
   m_rodStatusMap.clear();
 

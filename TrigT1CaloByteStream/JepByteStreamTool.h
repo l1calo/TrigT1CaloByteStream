@@ -134,8 +134,6 @@ class JepByteStreamTool : public AlgTool {
    /// Get number of slices and triggered slice offset for next slink
    bool slinkSlices(int crate, int module, int modulesPerSlink,
                     int& timeslices, int& trigJem);
-   /// Get number of CMM slices and triggered slice offset for current crate
-   bool slinkSlicesCmm(int crate, int& timeslices, int& trigCmm);
 
    /// Hardware crate number offset
    int m_crateOffsetHw;
@@ -153,14 +151,10 @@ class JepByteStreamTool : public AlgTool {
    int m_modules;
    /// Number of slinks per crate when writing out bytestream
    int m_slinks;
-   /// Default number of JEM slices in simulation
-   int m_dfltSlicesJem;
-   /// Default number of CMM slices in simulation
-   int m_dfltSlicesCmm;
-   /// Force number of JEM slices in bytestream
-   int m_forceSlicesJem;
-   /// Force number of CMM slices in bytestream
-   int m_forceSlicesCmm;
+   /// Default number of slices in simulation
+   int m_dfltSlices;
+   /// Force number of slices in bytestream
+   int m_forceSlices;
    /// Jet elements to accept (1=Core, 2=Overlap)
    int m_coreOverlap;
    /// ROB source IDs
