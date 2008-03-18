@@ -1,3 +1,8 @@
+2008-03-18  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+        * Tag TrigT1CaloByteStream-00-05-00
+        * Support version 3 of PPM compression.
+        * Remove support for writing older compression versions.
+
 2008-03-13  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
         * Tag TrigT1CaloByteStream-00-04-00
         * Minor format version number changed from 0x1001 to 0x1002

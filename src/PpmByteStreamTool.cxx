@@ -34,6 +34,7 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
                                      const std::string& name,
 				     const IInterface*  parent)
                   : AlgTool(type, name, parent),
+		    m_version(1), m_compVers(3),
 		    m_srcIdMap(0), m_ppmMaps(0), m_towerKey(0),
 		    m_errorBlock(0), m_rodStatus(0)
 {
@@ -41,22 +42,18 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
 
   declareProperty("PrintCompStats",     m_printCompStats  = 0,
                   "Print compressed format statistics");
-  declareProperty("PedestalValue",      m_pedestal        = 10,
-                  "Pedestal value - needed for compressed formats 0,1 only");
 
   // Properties for reading bytestream only
   declareProperty("ZeroSuppress",       m_zeroSuppress    = 0,
                   "Only make trigger towers with non-zero EM or Had energy");
   declareProperty("ROBSourceIDs",       m_sourceIDs,
                   "ROB fragment source identifiers");
+  declareProperty("PedestalValue",      m_pedestal        = 10,
+                  "Pedestal value - needed for compressed formats 0,1 only");
 
   // Properties for writing bytestream only
-  declareProperty("DataVersion",        m_version         = 1,
-                  "Format version number in sub-block header");
   declareProperty("DataFormat",         m_dataFormat      = 1,
                   "Format identifier (0-3) in sub-block header");
-  declareProperty("CompressionVersion", m_compVers        = 2,
-                  "Compressed format version number");
   declareProperty("FADCBaseline",       m_fadcBaseline    = 0,
                   "FADC baseline lower bound for compressed formats");
   declareProperty("FADCThreshold",      m_fadcThreshold   = 1,
@@ -544,7 +541,6 @@ StatusCode PpmByteStreamTool::convert(
 	  }
 	  subBlock.setLutOffset(trigLutNew);
 	  subBlock.setFadcOffset(trigFadcNew);
-	  subBlock.setPedestal(m_pedestal);
 	  subBlock.setFadcBaseline(m_fadcBaseline);
 	  subBlock.setFadcThreshold(m_fadcThreshold);
         }

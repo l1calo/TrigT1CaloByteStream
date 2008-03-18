@@ -1,7 +1,5 @@
 
-#include "TrigT1CaloByteStream/PpmCompressionV00.h"
-#include "TrigT1CaloByteStream/PpmCompressionV01.h"
-#include "TrigT1CaloByteStream/PpmCompressionV02.h"
+#include "TrigT1CaloByteStream/PpmCompression.h"
 #include "TrigT1CaloByteStream/PpmCrateMappings.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
 
@@ -252,19 +250,7 @@ bool PpmSubBlock::pack()
 	  break;
         case COMPRESSED:
         case SUPERCOMPRESSED:
-	  switch (seqno()) {
-	    case 0:
-	      rc = PpmCompressionV00::pack(*this);
-	      break;
-	    case 1:
-	      rc = PpmCompressionV01::pack(*this);
-	      break;
-	    case 2:
-	      rc = PpmCompressionV02::pack(*this);
-	      break;
-	    default:
-	      break;
-          }
+	  rc = PpmCompression::pack(*this);
 	  break;
         default:
 	  break;
@@ -297,19 +283,7 @@ bool PpmSubBlock::unpack()
 	  break;
         case COMPRESSED:
         case SUPERCOMPRESSED:
-	  switch (seqno()) {
-	    case 0:
-	      rc = PpmCompressionV00::unpack(*this);
-	      break;
-	    case 1:
-	      rc = PpmCompressionV01::unpack(*this);
-	      break;
-	    case 2:
-	      rc = PpmCompressionV02::unpack(*this);
-	      break;
-	    default:
-	      break;
-          }
+	  rc = PpmCompression::unpack(*this);
 	  break;
         default:
 	  break;

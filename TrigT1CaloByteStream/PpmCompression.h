@@ -1,25 +1,25 @@
-#ifndef TRIGT1CALOBYTESTREAM_PPMCOMPRESSIONV02_H
-#define TRIGT1CALOBYTESTREAM_PPMCOMPRESSIONV02_H
+#ifndef TRIGT1CALOBYTESTREAM_PPMCOMPRESSION_H
+#define TRIGT1CALOBYTESTREAM_PPMCOMPRESSION_H
 
 namespace LVL1BS {
 
-/** PPM Compressed Format Version 1.02 packing and unpacking utilities.
+/** PPM Compressed Format Version 1.03 packing and unpacking utilities.
  *
  *  Based on:
  *
  *  "ATLAS L1Calo Pre-processor compressed S-Link data formats",
- *   Version 1.3.1, D.P.C.Sankey.
+ *   Version 1.5, D.P.C.Sankey.
  *
  *  @author Peter Faulkner
  */
 
 class PpmSubBlock;
 
-class PpmCompressionV02 {
+class PpmCompression {
 
  public:
-   PpmCompressionV02();
-   ~PpmCompressionV02();
+   PpmCompression();
+   ~PpmCompression();
 
    /// Pack data
    static bool pack(PpmSubBlock& subBlock);
@@ -27,6 +27,9 @@ class PpmCompressionV02 {
    static bool unpack(PpmSubBlock& subBlock);
 
  private:
+   static const int s_formatsV0    = 6;
+   static const int s_lowerRange   = 12;
+   static const int s_upperRange   = 3;
    static const int s_formats      = 7;
    static const int s_fadcRange    = 15;
    static const int s_peakOnly     = 4;
@@ -37,6 +40,10 @@ class PpmCompressionV02 {
    static const int s_statusBits   = 5;
    static const int s_errorBits    = 6;
    static const int s_statusMask   = 0x1f;
+
+   static bool unpackV100(PpmSubBlock& subBlock);
+   static bool unpackV101(PpmSubBlock& subBlock);
+   static bool unpackV103(PpmSubBlock& subBlock);
 
 };
 

@@ -4,27 +4,30 @@
 #include <vector>
 
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
-#include "TrigT1CaloByteStream/PpmCompressionV02.h"
+#include "TrigT1CaloByteStream/PpmCompression.h"
 #include "TrigT1CaloByteStream/PpmSubBlock.h"
 
 namespace LVL1BS {
 
 // Static constants
 
-const int PpmCompressionV02::s_formats;
-const int PpmCompressionV02::s_fadcRange;
-const int PpmCompressionV02::s_peakOnly;
-const int PpmCompressionV02::s_lutDataBits;
-const int PpmCompressionV02::s_lutBcidBits;
-const int PpmCompressionV02::s_fadcDataBits;
-const int PpmCompressionV02::s_glinkPins;
-const int PpmCompressionV02::s_statusBits;
-const int PpmCompressionV02::s_errorBits;
-const int PpmCompressionV02::s_statusMask;
+const int PpmCompression::s_formatsV0;
+const int PpmCompression::s_lowerRange;
+const int PpmCompression::s_upperRange;
+const int PpmCompression::s_formats;
+const int PpmCompression::s_fadcRange;
+const int PpmCompression::s_peakOnly;
+const int PpmCompression::s_lutDataBits;
+const int PpmCompression::s_lutBcidBits;
+const int PpmCompression::s_fadcDataBits;
+const int PpmCompression::s_glinkPins;
+const int PpmCompression::s_statusBits;
+const int PpmCompression::s_errorBits;
+const int PpmCompression::s_statusMask;
 
 // Pack data
 
-bool PpmCompressionV02::pack(PpmSubBlock& subBlock)
+bool PpmCompression::pack(PpmSubBlock& subBlock)
 {
   const int dataFormat = subBlock.format();
   if (dataFormat != L1CaloSubBlock::COMPRESSED &&
@@ -32,14 +35,12 @@ bool PpmCompressionV02::pack(PpmSubBlock& subBlock)
   const int sliceL = subBlock.slicesLut();
   const int sliceF = subBlock.slicesFadc();
   if (sliceL != 1 || sliceF != 5) return false;
-  const int trigOffset    = subBlock.fadcOffset();
+  const int trigOffset    = subBlock.fadcOffset() - subBlock.lutOffset();
   const int fadcBaseline  = subBlock.fadcBaseline();
   const int fadcThreshold = subBlock.fadcThreshold();
   const int channels      = subBlock.channelsPerSubBlock();
-  const bool superCompressed = (dataFormat == L1CaloSubBlock::SUPERCOMPRESSED);
   subBlock.setStreamed();
   std::vector<uint32_t> compStats(s_formats);
-  std::vector<int>      pinsPresent(s_glinkPins);
   std::vector<int>      fadcDout(sliceF-1);
   std::vector<int>      fadcLens(sliceF-1);
   for (int chan = 0; chan < channels; ++chan) {
@@ -47,26 +48,20 @@ bool PpmCompressionV02::pack(PpmSubBlock& subBlock)
     std::vector<int> lutBcid;
     std::vector<int> fadcData;
     std::vector<int> fadcBcid;
-    if (superCompressed) {
-      const int pin = chan % s_glinkPins;
-      if (pin == 0) { // data preceded by channel bitmap
-        for (int p = 0; p < s_glinkPins; ++p) {
-	  subBlock.ppmData(p+chan, lutData, fadcData, lutBcid, fadcBcid);
-	  pinsPresent[p] = lutData[0] || lutBcid[0];
-	  if ( !pinsPresent[p] ) {
-	    for (int sl = 0; sl < sliceF; ++sl) {
-	      if (fadcData[sl] >= fadcThreshold || fadcBcid[sl]) {
-		pinsPresent[p] = 1;
-		break;
-	      }
-	    }
+    subBlock.ppmData(chan, lutData, fadcData, lutBcid, fadcBcid);
+    if (dataFormat == L1CaloSubBlock::SUPERCOMPRESSED) {
+      int dataPresent = lutData[0] || lutBcid[0];
+      if ( !dataPresent ) {
+        for (int sl = 0; sl < sliceF; ++sl) {
+	  if (fadcData[sl] >= fadcThreshold || fadcBcid[sl]) {
+	    dataPresent = 1;
+	    break;
           }
-          subBlock.packer(pinsPresent[p], 1);
         }
       }
-      if ( !pinsPresent[pin] ) continue;
+      subBlock.packer(dataPresent, 1);
+      if ( !dataPresent ) continue;
     }
-    subBlock.ppmData(chan, lutData, fadcData, lutBcid, fadcBcid);
     const int lutLen = subBlock.minBits(lutData[0]);
     int  minFadc   = 0;
     int  minOffset = 0;
@@ -216,31 +211,269 @@ bool PpmCompressionV02::pack(PpmSubBlock& subBlock)
 
 // Unpack data
 
-bool PpmCompressionV02::unpack(PpmSubBlock& subBlock)
+bool PpmCompression::unpack(PpmSubBlock& subBlock)
+{
+  bool rc = false;
+  switch (subBlock.seqno()) {
+    case 0:
+      rc = unpackV100(subBlock);
+      break;
+    case 1:
+      rc = unpackV101(subBlock);
+      break;
+    case 2:
+    case 3:
+      rc = unpackV103(subBlock);
+      break;
+    default:
+      break;
+  }
+  return rc;
+}
+
+// Unpack data - version 1.00
+
+bool PpmCompression::unpackV100(PpmSubBlock& subBlock)
+{
+  if (subBlock.format() != L1CaloSubBlock::COMPRESSED) return false;
+  const int sliceL = subBlock.slicesLut();
+  const int sliceF = subBlock.slicesFadc();
+  if (sliceL != 1 || sliceF != 5) return false;
+  const int trigOffset = subBlock.fadcOffset();
+  const int pedestal   = subBlock.pedestal();
+  const int channels   = subBlock.channelsPerSubBlock();
+  subBlock.setStreamed();
+  subBlock.unpackerInit();
+  std::vector<uint32_t> compStats(s_formatsV0);
+  for (int chan = 0; chan < channels; ++chan) {
+    std::vector<int> lutData;
+    std::vector<int> lutBcid;
+    std::vector<int> fadcData;
+    std::vector<int> fadcBcid;
+    int format = 0;
+    const int header = subBlock.unpacker(4);
+    if (header < 10) {
+      // formats 0,1 - LUT zero, FADC around pedestal
+      const int minOffset = header % 5;
+                format    = header / 5;
+      // LUT = 0
+      lutData.push_back(0);
+      lutBcid.push_back(0);
+      // FADC
+      const uint32_t minFadc = subBlock.unpacker(4) + pedestal - s_lowerRange;
+      for (int sl = 0; sl < sliceF; ++sl) {
+        if (sl == minOffset) fadcData.push_back(minFadc);
+	else fadcData.push_back(subBlock.unpacker(format + 2) + minFadc);
+	fadcBcid.push_back(0);
+      }
+    } else {
+      // formats 2-5
+      const int minOffset = header - 10;
+                format = subBlock.unpacker(2) + 2;
+      const int anyLut = subBlock.unpacker(1);
+      int lut  = 0;
+      int bcid = 0;
+      if (format == 2) {
+        // LUT
+	if (anyLut) {
+	  lut  = subBlock.unpacker(3);
+	  bcid = s_peakOnly;  // just peak-finding BCID set
+        }
+	lutData.push_back(lut);
+	lutBcid.push_back(bcid);
+	// FADC as formats 0,1
+        const int minFadc = subBlock.unpacker(4) + pedestal - s_lowerRange;
+        for (int sl = 0; sl < sliceF; ++sl) {
+          if (sl == minOffset) fadcData.push_back(minFadc);
+	  else fadcData.push_back(subBlock.unpacker(format + 2) + minFadc);
+	  fadcBcid.push_back(0);
+        }
+      } else {
+        // formats 3,4,5 - full LUT word, variable FADC
+	const int anyBcid = subBlock.unpacker(1);
+	// LUT
+	if (anyLut) {
+	  lut  = subBlock.unpacker(s_lutDataBits);
+	  bcid = subBlock.unpacker(s_lutBcidBits);
+	}
+        lutData.push_back(lut);
+	lutBcid.push_back(bcid);
+	// FADC
+	for (int sl = 0; sl < sliceF; ++sl) {
+	  int fbcid = 0;
+	  if (sl == trigOffset) fbcid = bcid & 0x1; // take from LUT word
+	  else if (anyBcid) fbcid = subBlock.unpacker(1);
+	  fadcBcid.push_back(fbcid);
+        }
+	int minFadc = 0;
+	if (subBlock.unpacker(1)) minFadc = subBlock.unpacker(format * 2);
+	else minFadc = subBlock.unpacker(4) + pedestal - s_lowerRange;
+	for (int sl = 0; sl < sliceF; ++sl) {
+	  int fadc = minFadc;
+	  if (sl != minOffset) {
+	    if (subBlock.unpacker(1)) fadc += subBlock.unpacker(format * 2);
+	    else                      fadc += subBlock.unpacker(4);
+          }
+	  fadcData.push_back(fadc);
+        }
+      }
+    }
+    subBlock.fillPpmData(chan, lutData, fadcData, lutBcid, fadcBcid);
+    ++compStats[format];
+  }
+  subBlock.setCompStats(compStats);
+  return subBlock.unpackerSuccess();
+}
+
+// Unpack data - version 1.01
+
+bool PpmCompression::unpackV101(PpmSubBlock& subBlock)
+{
+  if (subBlock.format() != L1CaloSubBlock::COMPRESSED) return false;
+  const int sliceL = subBlock.slicesLut();
+  const int sliceF = subBlock.slicesFadc();
+  if (sliceL != 1 || sliceF != 5) return false;
+  const int trigOffset = subBlock.fadcOffset();
+  const int pedestal   = subBlock.pedestal();
+  const int channels   = subBlock.channelsPerSubBlock();
+  subBlock.setStreamed();
+  subBlock.unpackerInit();
+  std::vector<uint32_t> compStats(s_formats);
+  for (int chan = 0; chan < channels; ++chan) {
+    std::vector<int> lutData;
+    std::vector<int> lutBcid;
+    std::vector<int> fadcData;
+    std::vector<int> fadcBcid;
+    int format = 0;
+    const int header = subBlock.unpacker(4);
+    if (header < 10) {
+      // formats 0,1 - LUT zero, FADC around pedestal
+      const int minOffset = header % 5;
+                format    = header / 5;
+      // LUT = 0
+      lutData.push_back(0);
+      lutBcid.push_back(0);
+      // FADC
+      const int minFadc = subBlock.unpacker(4) + pedestal - s_lowerRange;
+      fadcData.push_back(minFadc);
+      fadcBcid.push_back(0);
+      for (int sl = 1; sl < sliceF; ++sl) {
+	fadcData.push_back(subBlock.unpacker(format + 2) + minFadc);
+        fadcBcid.push_back(0);
+      }
+      if (minOffset) std::swap(fadcData[0], fadcData[minOffset]);
+    } else if (header < 15) {
+      // formats 2-5
+      const int minOffset = header - 10;
+                format = subBlock.unpacker(2) + 2;
+      const int anyLut = subBlock.unpacker(1);
+      int lut  = 0;
+      int bcid = 0;
+      if (format == 2) {
+        // LUT
+	if (anyLut) {
+	  lut  = subBlock.unpacker(3);
+	  bcid = s_peakOnly;  // just peak-finding BCID set
+        }
+	lutData.push_back(lut);
+	lutBcid.push_back(bcid);
+	// FADC as formats 0,1
+        const int minFadc = subBlock.unpacker(4) + pedestal - s_lowerRange;
+        fadcData.push_back(minFadc);
+        fadcBcid.push_back(0);
+        for (int sl = 1; sl < sliceF; ++sl) {
+	  fadcData.push_back(subBlock.unpacker(format + 2) + minFadc);
+          fadcBcid.push_back(0);
+        }
+        if (minOffset) std::swap(fadcData[0], fadcData[minOffset]);
+      } else {
+        // formats 3,4,5 - full LUT word, variable FADC
+	const int anyBcid = subBlock.unpacker(1);
+	// LUT
+	if (anyLut) {
+	  lut  = subBlock.unpacker(s_lutDataBits);
+	  bcid = subBlock.unpacker(s_lutBcidBits);
+	}
+        lutData.push_back(lut);
+	lutBcid.push_back(bcid);
+	// FADC
+	for (int sl = 0; sl < sliceF; ++sl) {
+	  int fbcid = 0;
+	  if (sl == trigOffset) fbcid = bcid & 0x1; // take from LUT word
+	  else if (anyBcid) fbcid = subBlock.unpacker(1);
+	  fadcBcid.push_back(fbcid);
+        }
+	int minFadc = 0;
+	if (subBlock.unpacker(1)) minFadc = subBlock.unpacker(format * 2);
+	else minFadc = subBlock.unpacker(4) + pedestal - s_lowerRange;
+        fadcData.push_back(minFadc);
+	for (int sl = 1; sl < sliceF; ++sl) {
+	  int len = 4;
+	  if (subBlock.unpacker(1)) len = format * 2;
+	  fadcData.push_back(subBlock.unpacker(len) + minFadc);
+        }
+	if (minOffset) std::swap(fadcData[0], fadcData[minOffset]);
+      }
+    } else {
+      // format 6 - LUT zero, FADC all equal
+      format = 6;
+      // LUT
+      lutData.push_back(0);
+      lutBcid.push_back(0);
+      // FADC
+      int fadc = 0;
+      if (subBlock.unpacker(1)) fadc = subBlock.unpacker(s_fadcDataBits);
+      for (int sl = 0; sl < sliceF; ++sl) {
+        fadcData.push_back(fadc);
+        fadcBcid.push_back(0);
+      }
+    }
+    subBlock.fillPpmData(chan, lutData, fadcData, lutBcid, fadcBcid);
+    ++compStats[format];
+  }
+  // Errors
+  const int statusBit = subBlock.unpacker(1);
+  const int errorBit  = subBlock.unpacker(1);
+  if (statusBit || errorBit) {
+    std::vector<int> err(s_glinkPins);
+    for (int pin = 0; pin < s_glinkPins; ++pin) {
+      err[pin] = subBlock.unpacker(1);
+    }
+    for (int pin = 0; pin < s_glinkPins; ++pin) {
+      if (err[pin]) {
+        int status = 0;
+	int error  = 0;
+	if (statusBit) status = subBlock.unpacker(s_statusBits);
+	if (errorBit)  error  = subBlock.unpacker(s_errorBits);
+	subBlock.fillPpmPinError(pin, (error << s_statusBits) | status);
+      }
+    }
+  }
+  subBlock.setCompStats(compStats);
+  return subBlock.unpackerSuccess();
+}
+
+// Unpack data - versions 1.02, 1.03
+
+bool PpmCompression::unpackV103(PpmSubBlock& subBlock)
 {
   const int dataFormat = subBlock.format();
   if (dataFormat != L1CaloSubBlock::COMPRESSED &&
       dataFormat != L1CaloSubBlock::SUPERCOMPRESSED) return false;
+  if (subBlock.seqno() == 2 &&
+      dataFormat != L1CaloSubBlock::COMPRESSED) return false;
   const int sliceL = subBlock.slicesLut();
   const int sliceF = subBlock.slicesFadc();
   if (sliceL != 1 || sliceF != 5) return false;
-  const int trigOffset   = subBlock.fadcOffset();
+  const int trigOffset   = subBlock.fadcOffset() - subBlock.lutOffset();
   const int fadcBaseline = subBlock.fadcBaseline();
   const int channels     = subBlock.channelsPerSubBlock();
-  const bool superCompressed = (dataFormat == L1CaloSubBlock::SUPERCOMPRESSED);
   subBlock.setStreamed();
   subBlock.unpackerInit();
   std::vector<uint32_t> compStats(s_formats);
-  std::vector<int>      pinsPresent(s_glinkPins);
   for (int chan = 0; chan < channels; ++chan) {
-    if (superCompressed) {
-      const int pin = chan % s_glinkPins;
-      if (pin == 0) { // data preceded by channel bitmap
-        for (int p = 0; p < s_glinkPins; ++p) {
-          pinsPresent[p] = subBlock.unpacker(1);
-        }
-      }
-      if ( !pinsPresent[pin] ) continue;
+    if (dataFormat == L1CaloSubBlock::SUPERCOMPRESSED) {
+      if ( !subBlock.unpacker(1) ) continue;
     }
     std::vector<int> lutData;
     std::vector<int> lutBcid;
