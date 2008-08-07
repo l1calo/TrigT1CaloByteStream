@@ -1,3 +1,7 @@
+2008-03-18  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+        * Tag TrigT1CaloByteStream-00-06-00
+        * Tools for retrieving subset of TriggerTowers at L2
+
 2008-03-20  Alan Watson <Alan.Watson@cern.ch>
         * Tag TrigT1CaloByteStream-00-05-01
         * add share/jobOfragment_ReadLVL1CaloBS.py, for use in 

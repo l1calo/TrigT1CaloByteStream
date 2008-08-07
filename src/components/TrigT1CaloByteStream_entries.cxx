@@ -17,6 +17,7 @@
 #include "TrigT1CaloByteStream/JemTester.h"
 #include "TrigT1CaloByteStream/PpmTester.h"
 #include "TrigT1CaloByteStream/RodTester.h"
+#include "TrigT1CaloByteStream/PpmSubsetTester.h"
 
 #include "TrigT1CaloByteStream/CpByteStreamCnv.h"
 #include "TrigT1CaloByteStream/CpmRoiByteStreamCnv.h"
@@ -34,6 +35,11 @@
 #include "TrigT1CaloByteStream/JepRoiByteStreamTool.h"
 #include "TrigT1CaloByteStream/PpmByteStreamTool.h"
 #include "TrigT1CaloByteStream/RodHeaderByteStreamTool.h"
+
+#include "TrigT1CaloByteStream/PpmByteStreamSubsetTool.h"
+#include "TrigT1CaloByteStream/PpmCrateMappingTool.h"
+#include "TrigT1CaloByteStream/TriggerTowerSelectionTool.h"
+#include "TrigT1CaloByteStream/TrigT1CaloDataAccess.h"
 
 namespace LVL1BS {
 
@@ -82,6 +88,7 @@ DECLARE_NAMESPACE_ALGORITHM_FACTORY( LVL1BS, CpmTester )
 DECLARE_NAMESPACE_ALGORITHM_FACTORY( LVL1BS, JemTester )
 DECLARE_NAMESPACE_ALGORITHM_FACTORY( LVL1BS, PpmTester )
 DECLARE_NAMESPACE_ALGORITHM_FACTORY( LVL1BS, RodTester )
+DECLARE_NAMESPACE_ALGORITHM_FACTORY( LVL1BS, PpmSubsetTester )
 
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, CpByteStreamTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, CpmRoiByteStreamTool )
@@ -89,6 +96,11 @@ DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, JepByteStreamTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, JepRoiByteStreamTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, RodHeaderByteStreamTool )
+
+DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamSubsetTool )
+DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmCrateMappingTool )
+DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, TriggerTowerSelectionTool )
+DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, TrigT1CaloDataAccess )
 
 DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
 {
@@ -113,6 +125,7 @@ DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
   DECLARE_NAMESPACE_ALGORITHM( LVL1BS, JemTester )
   DECLARE_NAMESPACE_ALGORITHM( LVL1BS, PpmTester )
   DECLARE_NAMESPACE_ALGORITHM( LVL1BS, RodTester )
+  DECLARE_NAMESPACE_ALGORITHM( LVL1BS, PpmSubsetTester )
 
   DECLARE_NAMESPACE_TOOL( LVL1BS, CpByteStreamTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, CpmRoiByteStreamTool )
@@ -120,4 +133,9 @@ DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
   DECLARE_NAMESPACE_TOOL( LVL1BS, JepRoiByteStreamTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, PpmByteStreamTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, RodHeaderByteStreamTool )
+
+  DECLARE_NAMESPACE_TOOL( LVL1BS, PpmByteStreamSubsetTool )
+  DECLARE_NAMESPACE_TOOL( LVL1BS, PpmCrateMappingTool )
+  DECLARE_NAMESPACE_TOOL( LVL1BS, TriggerTowerSelectionTool )
+  DECLARE_NAMESPACE_TOOL( LVL1BS, TrigT1CaloDataAccess )
 }
