@@ -223,7 +223,8 @@ bool PpmCompression::unpack(PpmSubBlock& subBlock)
       break;
     case 2:
     case 3:
-      rc = unpackV103(subBlock);
+    case 4:
+      rc = unpackV104(subBlock);
       break;
     default:
       break;
@@ -443,9 +444,9 @@ bool PpmCompression::unpackV101(PpmSubBlock& subBlock)
       if (err[pin]) {
         int status = 0;
 	int error  = 0;
-	if (statusBit) status = subBlock.unpacker(s_statusBits);
-	if (errorBit)  error  = subBlock.unpacker(s_errorBits);
-	subBlock.fillPpmPinError(pin, (error << s_statusBits) | status);
+	if (statusBit) status = subBlock.unpacker(s_statusBits-1);
+	if (errorBit)  error  = subBlock.unpacker(s_errorBits+1);
+	subBlock.fillPpmPinError(pin, (error << (s_statusBits-1)) | status);
       }
     }
   }
@@ -453,14 +454,15 @@ bool PpmCompression::unpackV101(PpmSubBlock& subBlock)
   return subBlock.unpackerSuccess();
 }
 
-// Unpack data - versions 1.02, 1.03
+// Unpack data - versions 1.02, 1.03, 1.04
 
-bool PpmCompression::unpackV103(PpmSubBlock& subBlock)
+bool PpmCompression::unpackV104(PpmSubBlock& subBlock)
 {
   const int dataFormat = subBlock.format();
   if (dataFormat != L1CaloSubBlock::COMPRESSED &&
       dataFormat != L1CaloSubBlock::SUPERCOMPRESSED) return false;
-  if (subBlock.seqno() == 2 &&
+  const int compressionVersion = subBlock.seqno();
+  if (compressionVersion == 2 &&
       dataFormat != L1CaloSubBlock::COMPRESSED) return false;
   const int sliceL = subBlock.slicesLut();
   const int sliceF = subBlock.slicesFadc();
@@ -569,6 +571,9 @@ bool PpmCompression::unpackV103(PpmSubBlock& subBlock)
   // Errors
   const int statusBit = subBlock.unpacker(1);
   const int errorBit  = subBlock.unpacker(1);
+  const bool mcmAbsentIsError = compressionVersion < 4;
+  const int sBits = (mcmAbsentIsError) ? s_statusBits - 1 : s_statusBits;
+  const int eBits = (mcmAbsentIsError) ? s_errorBits  + 1 : s_errorBits;
   if (statusBit || errorBit) {
     std::vector<int> err(s_glinkPins);
     for (int pin = 0; pin < s_glinkPins; ++pin) {
@@ -578,11 +583,13 @@ bool PpmCompression::unpackV103(PpmSubBlock& subBlock)
       if (err[pin]) {
         int status = 0;
 	int error  = 0;
-	if (statusBit) status = subBlock.unpacker(s_statusBits);
-	if (errorBit)  error  = subBlock.unpacker(s_errorBits);
-	subBlock.fillPpmPinError(pin, (error << s_statusBits) | status);
+	if (statusBit) status = subBlock.unpacker(sBits);
+	if (errorBit)  error  = subBlock.unpacker(eBits);
+	subBlock.fillPpmPinError(pin, (error << sBits) | status);
       }
     }
+    // There is a bug in versions < 4 but if I've understood it correctly
+    // it is not possible to detect it reliably in data.
   }
   subBlock.setCompStats(compStats);
   return subBlock.unpackerSuccess();

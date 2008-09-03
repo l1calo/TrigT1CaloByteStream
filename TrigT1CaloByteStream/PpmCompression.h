@@ -3,12 +3,12 @@
 
 namespace LVL1BS {
 
-/** PPM Compressed Format Version 1.03 packing and unpacking utilities.
+/** PPM Compressed Format Version 1.04 packing and unpacking utilities.
  *
  *  Based on:
  *
  *  "ATLAS L1Calo Pre-processor compressed S-Link data formats",
- *   Version 1.5, D.P.C.Sankey.
+ *   Version 1.7, D.P.C.Sankey.
  *
  *  @author Peter Faulkner
  */
@@ -43,7 +43,7 @@ class PpmCompression {
 
    static bool unpackV100(PpmSubBlock& subBlock);
    static bool unpackV101(PpmSubBlock& subBlock);
-   static bool unpackV103(PpmSubBlock& subBlock);
+   static bool unpackV104(PpmSubBlock& subBlock);
 
 };
 

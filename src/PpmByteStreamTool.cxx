@@ -34,7 +34,7 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
                                      const std::string& name,
 				     const IInterface*  parent)
                   : AlgTool(type, name, parent),
-		    m_version(1), m_compVers(3),
+		    m_version(1), m_compVers(4),
 		    m_srcIdMap(0), m_ppmMaps(0), m_towerKey(0),
 		    m_errorBlock(0), m_rodStatus(0)
 {
@@ -357,6 +357,11 @@ StatusCode PpmByteStreamTool::convert(
 	    errorBits.set(LVL1::DataError::SubStatusWord,
 	                             lastBlock->subStatus());
           }
+	  // Wrong bit set for compressed formats 1.01 to 1.03
+	  if (subBlock->format() > 1 && subBlock->seqno() < 4) {
+	    errorBits.set(LVL1::DataError::ModuleError,
+	         (errorBits.error() >> (LVL1::DataError::ModuleError+1)) & 0x1);
+	  }
 	  const int error = errorBits.error();
 
 	  // Only save non-zero data
@@ -368,10 +373,20 @@ StatusCode PpmByteStreamTool::convert(
 		     std::accumulate(bcidFadc.begin(), bcidFadc.end(), 0);
 
           if (any || error) {
+	    if (debug) {
+	      log << MSG::VERBOSE
+	          << "channel/LUT/FADC/bcidLUT/bcidFADC/error: "
+		  << channel << "/";
+	      printVec(lut,      log, MSG::VERBOSE);
+	      printVec(fadc,     log, MSG::VERBOSE);
+	      printVec(bcidLut,  log, MSG::VERBOSE);
+	      printVec(bcidFadc, log, MSG::VERBOSE);
+	      log << MSG::VERBOSE << MSG::hex << error << MSG::dec << "/";
+            }
 	    ChannelCoordinate coord;
 	    if (!m_ppmMaps->mapping(crate, module, channel, coord)) {
 	      if (debug && any) {
-	        log << MSG::DEBUG << "Unexpected non-zero data words"
+	        log << MSG::VERBOSE << " Unexpected non-zero data words"
 	            << endreq;
 	      }
               continue;
@@ -379,6 +394,11 @@ StatusCode PpmByteStreamTool::convert(
 	    const ChannelCoordinate::CaloLayer layer = coord.layer();
 	    const double phi = coord.phi();
 	    const double eta = etaHack(coord);
+	    if (debug) {
+	      log << MSG::VERBOSE << " eta/etaHack/phi/layer: " << coord.eta()
+	          << "/" << eta << "/" << phi << "/" << coord.layerName(layer)
+		  << "/" << endreq;
+            }
 	    LVL1::TriggerTower* tt = findTriggerTower(eta, phi);
             if ( ! tt) {
 	      // make new tower and add to map
@@ -835,5 +855,19 @@ const std::vector<uint32_t>& PpmByteStreamTool::sourceIDs()
   }
   return m_sourceIDs;
 }
+
+// Print a vector
+
+void PpmByteStreamTool::printVec(const std::vector<int>& vec, MsgStream& log,
+                                                const MSG::Level level) const
+{
+  std::vector<int>::const_iterator pos;
+  for (pos = vec.begin(); pos != vec.end(); ++pos) {
+    if (pos != vec.begin()) log << level << ",";
+    log << level << *pos;
+  }
+  log << level << "/";
+}
+
 
 } // end namespace
