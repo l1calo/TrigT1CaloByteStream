@@ -93,6 +93,10 @@ class PpmByteStreamTool : public AlgTool {
    bool slinkSlices(int crate, int module, int modulesPerSlink,
         int& slicesLut, int& slicesFadc, int& trigLut, int& trigFadc);
 
+   /// Print a vector
+   void printVec(const std::vector<int>& vec, MsgStream& log,
+                                              const MSG::Level level) const;
+
    /// Sub_block header version
    int m_version;
    /// Data compression format
