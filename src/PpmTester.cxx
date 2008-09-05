@@ -32,6 +32,9 @@ StatusCode PpmTester::initialize()
 {
   MsgStream log( msgSvc(), name() );
 
+  log << MSG::INFO << "Initializing " << name() << " - package version "
+                   << version() << endreq;
+
   StatusCode sc = m_storeGate.retrieve();
   if (sc.isFailure()) {
     log << MSG::ERROR << "Couldn't connect to " << m_storeGate.typeAndName()

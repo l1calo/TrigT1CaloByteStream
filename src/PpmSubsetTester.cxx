@@ -35,6 +35,9 @@ StatusCode PpmSubsetTester::initialize()
 {
   MsgStream log( msgSvc(), name() );
 
+  log << MSG::INFO << "Initializing " << name() << " - package version "
+                   << version() << endreq;
+
   StatusCode sc = m_storeGate.retrieve();
   if (sc.isFailure()) {
     log << MSG::ERROR << "Couldn't connect to " << m_storeGate.typeAndName()
@@ -48,8 +51,6 @@ StatusCode PpmSubsetTester::initialize()
     return sc;
   }
   m_towerKey = new LVL1::TriggerTowerKey();
-
-  log << MSG::INFO << "Initialization completed" << endreq;
 
   return StatusCode::SUCCESS;
 }

@@ -70,8 +70,16 @@ JepRoiByteStreamTool::~JepRoiByteStreamTool()
 
 // Initialize
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 StatusCode JepRoiByteStreamTool::initialize()
 {
+  MsgStream log( msgSvc(), name() );
+  log << MSG::INFO << "Initializing " << name() << " - package version "
+                   << PACKAGE_VERSION << endreq;
+
   m_subDetector = eformat::TDAQ_CALO_JET_PROC_ROI;
   m_srcIdMap    = new L1CaloSrcIdMap();
   m_crates      = JemCrateMappings::crates();

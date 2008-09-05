@@ -41,10 +41,17 @@ PpmByteStreamSubsetTool::~PpmByteStreamSubsetTool()
 
 // Initialize
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 StatusCode PpmByteStreamSubsetTool::initialize()
 {
   m_log.setLevel(outputLevel());
   m_debug = outputLevel() <= MSG::DEBUG;
+
+  m_log << MSG::INFO << "Initializing " << name() << " - package version "
+                     << PACKAGE_VERSION << endreq;
 
   StatusCode sc = AlgTool::initialize();
   if (sc.isFailure()) {
@@ -62,8 +69,6 @@ StatusCode PpmByteStreamSubsetTool::initialize()
 
   m_srcIdMap = new L1CaloSrcIdMap();
   m_towerKey = new LVL1::TriggerTowerKey();
-
-  m_log << MSG::INFO << "Initialization completed" << endreq;
 
   return StatusCode::SUCCESS;
 }

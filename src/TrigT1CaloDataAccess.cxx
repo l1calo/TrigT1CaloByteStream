@@ -29,10 +29,17 @@ TrigT1CaloDataAccess::~TrigT1CaloDataAccess()
 
 // Initialize
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 StatusCode TrigT1CaloDataAccess::initialize()
 {
   m_log.setLevel(outputLevel());
   m_debug = outputLevel() <= MSG::DEBUG;
+
+  m_log << MSG::INFO << "Initializing " << name() << " - package version "
+                     << PACKAGE_VERSION << endreq;
 
   StatusCode sc = AlgTool::initialize();
   if (sc.isFailure()) {
@@ -67,8 +74,6 @@ StatusCode TrigT1CaloDataAccess::initialize()
   }
 
   m_ttCol = new DataVector<LVL1::TriggerTower>;
-
-  m_log << MSG::INFO << "Initialization completed" << endreq;
 
   return StatusCode::SUCCESS;
 }

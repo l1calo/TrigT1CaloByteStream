@@ -55,8 +55,16 @@ RodHeaderByteStreamTool::~RodHeaderByteStreamTool()
 
 // Initialize
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 StatusCode RodHeaderByteStreamTool::initialize()
 {
+  MsgStream log( msgSvc(), name() );
+  log << MSG::INFO << "Initializing " << name() << " - package version "
+                   << PACKAGE_VERSION << endreq;
+
   m_srcIdMap = new L1CaloSrcIdMap();
   return AlgTool::initialize();
 }

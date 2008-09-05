@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <stdint.h>
+#include <typeinfo>
 
 #include "ByteStreamCnvSvcBase/ByteStreamAddress.h"
 #include "ByteStreamCnvSvcBase/ByteStreamCnvSvcBase.h"
@@ -49,15 +50,21 @@ const CLID& JepRoiReadByteStreamCnv<Container>::classID()
 
 //  Init method gets all necessary services etc.
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 template <typename Container>
 StatusCode JepRoiReadByteStreamCnv<Container>::initialize()
 {
+  MsgStream log( msgSvc(), "JepRoiReadByteStreamCnv" );
+  log << MSG::DEBUG << "Initializing JepRoiReadByteStreamCnv<"
+                    << typeid(Container).name() << "> - package version "
+                    << PACKAGE_VERSION << endreq;
+
   StatusCode sc = Converter::initialize();
   if ( sc.isFailure() )
     return sc;
-
-  MsgStream log( msgSvc(), "JepRoiReadByteStreamCnv" );
-  log << MSG::DEBUG << " JepRoiReadByteStreamCnv in initialize() " << endreq;
 
   // Get ByteStreamCnvSvc
   sc = service( "ByteStreamCnvSvc", m_ByteStreamEventAccess );

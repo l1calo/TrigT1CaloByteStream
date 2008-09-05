@@ -79,8 +79,16 @@ JepByteStreamTool::~JepByteStreamTool()
 
 // Initialize
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 StatusCode JepByteStreamTool::initialize()
 {
+  MsgStream log( msgSvc(), name() );
+  log << MSG::INFO << "Initializing " << name() << " - package version "
+                   << PACKAGE_VERSION << endreq;
+
   m_subDetector = eformat::TDAQ_CALO_JET_PROC_DAQ;
   m_srcIdMap    = new L1CaloSrcIdMap();
   m_jemMaps     = new JemCrateMappings();
@@ -599,8 +607,8 @@ StatusCode JepByteStreamTool::convertBs(
     }
     for (int i = 0; i < headerWords; ++i) ++payload;
     // triggered slice offsets
-    const int trigJem = userHeader.jem();
-    const int trigCmm = userHeader.jepCmm();
+    int trigJem = userHeader.jem();
+    int trigCmm = userHeader.jepCmm();
     if (debug) {
       log << MSG::DEBUG << "Minor format version number: " << MSG::hex
                         << minorVersion << MSG::dec << endreq;
@@ -608,6 +616,15 @@ StatusCode JepByteStreamTool::convertBs(
                         << endreq;
       log << MSG::DEBUG << "CMM triggered slice offset: " << trigCmm
                         << endreq;
+    }
+    if (trigJem != trigCmm) {
+      const int newTrig = (trigJem > trigCmm) ? trigJem : trigCmm;
+      trigJem = newTrig;
+      trigCmm = newTrig;
+      if (debug) {
+        log << MSG::DEBUG << "Changed both offsets to " << newTrig
+	                  << endreq;
+      }
     }
 
     // Loop over sub-blocks

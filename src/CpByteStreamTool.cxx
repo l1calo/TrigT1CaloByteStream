@@ -76,8 +76,16 @@ CpByteStreamTool::~CpByteStreamTool()
 
 // Initialize
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 StatusCode CpByteStreamTool::initialize()
 {
+  MsgStream log( msgSvc(), name() );
+  log << MSG::INFO << "Initializing " << name() << " - package version "
+                   << PACKAGE_VERSION << endreq;
+
   m_subDetector = eformat::TDAQ_CALO_CLUSTER_PROC_DAQ;
   m_srcIdMap    = new L1CaloSrcIdMap();
   m_cpmMaps     = new CpmCrateMappings();
@@ -492,8 +500,8 @@ StatusCode CpByteStreamTool::convertBs(
     }
     for (int i = 0; i < headerWords; ++i) ++payload;
     // triggered slice offsets
-    const int trigCpm = userHeader.cpm();
-    const int trigCmm = userHeader.cpCmm();
+    int trigCpm = userHeader.cpm();
+    int trigCmm = userHeader.cpCmm();
     if (debug) {
       log << MSG::DEBUG << "Minor format version number: " << MSG::hex
                         << minorVersion << MSG::dec << endreq;
@@ -501,6 +509,15 @@ StatusCode CpByteStreamTool::convertBs(
                         << endreq;
       log << MSG::DEBUG << "CMM triggered slice offset: "  << trigCmm
                         << endreq;
+    }
+    if (trigCpm != trigCmm) {
+      const int newTrig = (trigCpm > trigCmm) ? trigCpm : trigCmm;
+      trigCpm = newTrig;
+      trigCmm = newTrig;
+      if (debug) {
+        log << MSG::DEBUG << "Changed both offsets to " << newTrig
+	                  << endreq;
+      }
     }
 
     // Loop over sub-blocks

@@ -54,6 +54,8 @@ CpmTester::~CpmTester()
 StatusCode CpmTester::initialize()
 {
   MsgStream log( msgSvc(), name() );
+  log << MSG::INFO << "Initializing " << name() << " - package version "
+                   << version() << endreq;
 
   StatusCode sc = m_storeGate.retrieve();
   if (sc.isFailure()) {

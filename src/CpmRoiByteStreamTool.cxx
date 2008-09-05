@@ -62,8 +62,16 @@ CpmRoiByteStreamTool::~CpmRoiByteStreamTool()
 
 // Initialize
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 StatusCode CpmRoiByteStreamTool::initialize()
 {
+  MsgStream log( msgSvc(), name() );
+  log << MSG::INFO << "Initializing " << name() << " - package version "
+                   << PACKAGE_VERSION << endreq;
+
   m_subDetector = eformat::TDAQ_CALO_CLUSTER_PROC_ROI;
   m_srcIdMap    = new L1CaloSrcIdMap();
   m_crates      = CpmCrateMappings::crates();

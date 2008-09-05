@@ -49,14 +49,19 @@ const CLID& CpByteStreamCnv::classID()
 
 //  Init method gets all necessary services etc.
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 StatusCode CpByteStreamCnv::initialize()
 {
+  MsgStream log( msgSvc(), "CpByteStreamCnv" );
+  log << MSG::DEBUG << "Initializing CpByteStreamCnv - package version "
+                    << PACKAGE_VERSION << endreq;
+
   StatusCode sc = Converter::initialize();
   if ( sc.isFailure() )
     return sc;
-
-  MsgStream log( msgSvc(), "CpByteStreamCnv" );
-  log << MSG::DEBUG << " CpByteStreamCnv in initialize() " << endreq;
 
   //Get ByteStreamCnvSvc
   sc = service( "ByteStreamCnvSvc", m_ByteStreamEventAccess );

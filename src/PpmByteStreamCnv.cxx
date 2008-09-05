@@ -50,14 +50,19 @@ const CLID& PpmByteStreamCnv::classID()
 
 //  Init method gets all necessary services etc.
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 StatusCode PpmByteStreamCnv::initialize()
 {
+  MsgStream log( msgSvc(), "PpmByteStreamCnv" );
+  log << MSG::DEBUG << "Initializing PpmByteStreamCnv - package version "
+                    << PACKAGE_VERSION << endreq;
+
   StatusCode sc = Converter::initialize();
   if ( sc.isFailure() )
     return sc;
-
-  MsgStream log( msgSvc(), "PpmByteStreamCnv" );
-  log << MSG::DEBUG << " PpmByteStreamCnv in initialize() " << endreq;
 
   //Get ByteStreamCnvSvc
   sc = service( "ByteStreamCnvSvc", m_ByteStreamEventAccess );

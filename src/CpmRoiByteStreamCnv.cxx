@@ -50,14 +50,19 @@ const CLID& CpmRoiByteStreamCnv::classID()
 
 //  Init method gets all necessary services etc.
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 StatusCode CpmRoiByteStreamCnv::initialize()
 {
+  MsgStream log( msgSvc(), "CpmRoiByteStreamCnv" );
+  log << MSG::DEBUG << "Initializing CpmRoiByteStreamCnv - package version "
+                    << PACKAGE_VERSION << endreq;
+
   StatusCode sc = Converter::initialize();
   if ( sc.isFailure() )
     return sc;
-
-  MsgStream log( msgSvc(), "CpmRoiByteStreamCnv" );
-  log << MSG::DEBUG << " CpmRoiByteStreamCnv in initialize() " << endreq;
 
   //Get ByteStreamCnvSvc
   sc = service( "ByteStreamCnvSvc", m_ByteStreamEventAccess );

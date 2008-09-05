@@ -49,14 +49,19 @@ const CLID& JepByteStreamCnv::classID()
 
 //  Init method gets all necessary services etc.
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 StatusCode JepByteStreamCnv::initialize()
 {
+  MsgStream log( msgSvc(), "JepByteStreamCnv" );
+  log << MSG::DEBUG << "Initializing JepByteStreamCnv - package version "
+                    << PACKAGE_VERSION << endreq;
+
   StatusCode sc = Converter::initialize();
   if ( sc.isFailure() )
     return sc;
-
-  MsgStream log( msgSvc(), "JepByteStreamCnv" );
-  log << MSG::DEBUG << " JepByteStreamCnv in initialize() " << endreq;
 
   //Get ByteStreamCnvSvc
   sc = service( "ByteStreamCnvSvc", m_ByteStreamEventAccess );

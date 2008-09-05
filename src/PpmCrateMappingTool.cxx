@@ -28,9 +28,16 @@ PpmCrateMappingTool::~PpmCrateMappingTool()
 
 // Initialise the mappings
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
+#endif
+
 StatusCode PpmCrateMappingTool::initialize()
 {
   m_log.setLevel(outputLevel());
+
+  m_log << MSG::INFO << "Initializing " << name() << " - package version "
+                     << PACKAGE_VERSION << endreq;
 
   StatusCode sc = AlgTool::initialize();
   if (sc.isFailure()) {
@@ -324,8 +331,6 @@ StatusCode PpmCrateMappingTool::initialize()
   // Map 11 : crate 4 module 8, crate 5 module 8
   addMods(4,8,1,1, 3.2,0.0,1.7,2*M_PI,*pos);
   addMods(5,8,1,1,-4.9,0.0,1.7,2*M_PI,*pos);
-
-  m_log << MSG::INFO << "Initialization completed" << endreq;
 
   return StatusCode::SUCCESS;
 }
