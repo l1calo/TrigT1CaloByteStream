@@ -86,12 +86,14 @@ class PpmSubBlock : public L1CaloSubBlock {
 	   void setPedestal(int pedval);
 	   void setFadcBaseline(int baseline);
 	   void setFadcThreshold(int threshold);
+	   void setRunNumber(int run);
    //  Return triggered slice offsets, pedestal value
            int  lutOffset()               const;
 	   int  fadcOffset()              const;
 	   int  pedestal()                const;
 	   int  fadcBaseline()            const;
 	   int  fadcThreshold()           const;
+	   int  runNumber()               const;
 
    /// Pack data
    virtual bool pack();
@@ -175,6 +177,7 @@ class PpmSubBlock : public L1CaloSubBlock {
    int m_pedestal;
    int m_fadcBaseline;
    int m_fadcThreshold;
+   int m_runNumber;
 
    /// Vector for compression statistics
    std::vector<uint32_t> m_compStats;
@@ -327,6 +330,11 @@ inline void PpmSubBlock::setFadcThreshold(const int threshold)
   m_fadcThreshold = threshold;
 }
 
+inline void PpmSubBlock::setRunNumber(const int run)
+{
+  m_runNumber = run;
+}
+
 inline int PpmSubBlock::lutOffset() const
 {
   return (m_lutOffset < 0) ? slicesLut()/2 : m_lutOffset;
@@ -350,6 +358,11 @@ inline int PpmSubBlock::fadcBaseline() const
 inline int PpmSubBlock::fadcThreshold() const
 {
   return m_fadcThreshold;
+}
+
+inline int PpmSubBlock::runNumber() const
+{
+  return m_runNumber;
 }
 
 inline const std::vector<uint32_t>& PpmSubBlock::compStats() const

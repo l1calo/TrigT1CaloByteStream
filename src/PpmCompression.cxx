@@ -224,6 +224,7 @@ bool PpmCompression::unpack(PpmSubBlock& subBlock)
     case 2:
     case 3:
     case 4:
+    case 5: // runs 88701-24 only
       rc = unpackV104(subBlock);
       break;
     default:
@@ -454,7 +455,7 @@ bool PpmCompression::unpackV101(PpmSubBlock& subBlock)
   return subBlock.unpackerSuccess();
 }
 
-// Unpack data - versions 1.02, 1.03, 1.04
+// Unpack data - versions 1.02, 1.03, 1.04, 1.05 (by mistake for a few runs)
 
 bool PpmCompression::unpackV104(PpmSubBlock& subBlock)
 {
@@ -464,6 +465,10 @@ bool PpmCompression::unpackV104(PpmSubBlock& subBlock)
   const int compressionVersion = subBlock.seqno();
   if (compressionVersion == 2 &&
       dataFormat != L1CaloSubBlock::COMPRESSED) return false;
+  if (compressionVersion == 5) {
+    const int run = subBlock.runNumber();
+    if (run < 88701 || run > 88724) return false;
+  }
   const int sliceL = subBlock.slicesLut();
   const int sliceF = subBlock.slicesFadc();
   if (sliceL != 1 || sliceF != 5) return false;

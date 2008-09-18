@@ -196,6 +196,7 @@ StatusCode PpmByteStreamTool::convert(
       log << MSG::DEBUG << "FADC baseline lower bound:   " << m_fadcBaseline
                         << endreq;
     }
+    const int runNumber = (*rob)->rod_run_no() & 0xffffff;
 
     // Find the number of channels per sub-block
 
@@ -323,6 +324,10 @@ StatusCode PpmByteStreamTool::convert(
 	subBlock->setFadcOffset(trigFadc);
 	subBlock->setPedestal(m_pedestal);
 	subBlock->setFadcBaseline(m_fadcBaseline);
+	subBlock->setRunNumber(runNumber);
+	log << MSG::DEBUG << "Unpacking sub-block version/format/seqno: "
+	    << subBlock->version() << "/" << subBlock->format() << "/"
+	    << subBlock->seqno() << endreq;
         if (subBlock->dataWords() && !subBlock->unpack()) {
 	  log << MSG::DEBUG << "Unpacking PPM sub-block failed" << endreq;
 	  //return StatusCode::FAILURE;

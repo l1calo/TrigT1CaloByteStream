@@ -39,7 +39,7 @@ const int      PpmSubBlock::s_channelDisabledBit;
 PpmSubBlock::PpmSubBlock() : m_globalError(0), m_globalDone(false),
                              m_lutOffset(-1), m_fadcOffset(-1),
 			     m_pedestal(10), m_fadcBaseline(0),
-			     m_fadcThreshold(0)
+			     m_fadcThreshold(0), m_runNumber(0)
 {
 }
 
