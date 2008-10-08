@@ -107,6 +107,7 @@ StatusCode RodHeaderByteStreamTool::convert(
     const uint32_t bcId     = (*rob)->rod_bc_id();
     const uint32_t trigType = (*rob)->rod_lvl1_trigger_type();
     const uint32_t detType  = (*rob)->rod_detev_type();
+    const uint32_t nData    = (*rob)->rod_ndata();
 
     // Unpack status words
 
@@ -120,12 +121,13 @@ StatusCode RodHeaderByteStreamTool::convert(
     // Save
 
     rhCollection->push_back(new LVL1::RODHeader(version, sourceId, run, lvl1Id,
-                                      bcId, trigType, detType, statusWords));
+                                bcId, trigType, detType, statusWords, nData));
     if (debug) {
       log << MSG::DEBUG << MSG::hex
-          << "ROD Header version/sourceId/run/lvl1Id/bcId/trigType/detType: "
+          << "ROD Header version/sourceId/run/lvl1Id/bcId/trigType/detType/nData: "
 	  << version << "/" << sourceId << "/" << run << "/" << lvl1Id << "/"
-	  << bcId << "/" << trigType << "/" << detType << endreq;
+	  << bcId << "/" << trigType << "/" << detType << "/" << nData
+	  << endreq;
       log << MSG::DEBUG << "ROD Status Words:";
       std::vector<uint32_t>::const_iterator pos  = statusWords.begin();
       std::vector<uint32_t>::const_iterator pose = statusWords.end();

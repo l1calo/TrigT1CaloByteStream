@@ -99,6 +99,7 @@ StatusCode RodTester::execute()
         log << MSG::INFO << "detEventType/orbitCount/stepNumber/stepType: "
 	    << header->detEventType() << "/" << header->orbitCount() << "/"
 	    << header->stepNumber() << "/" << header->stepType() << endreq;
+	log << MSG::INFO << "payloadSize: " << header->payloadSize() << endreq;
 	const std::vector<uint32_t>& words(header->statusWords());
         log << MSG::INFO << "statusWords(" << words.size() << "): ";
 	std::vector<uint32_t>::const_iterator wordIter = words.begin();
