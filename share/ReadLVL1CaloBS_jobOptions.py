@@ -1,4 +1,5 @@
 # Bytestream to TrigT1Calo objects conversions
+include.block("TrigT1CaloByteStream/ReadLVL1CaloBS_jobOptions.py")
 from AthenaCommon.AppMgr import ServiceMgr
 from ByteStreamCnvSvc.ByteStreamCnvSvcConf import ByteStreamCnvSvc
 ServiceMgr += ByteStreamCnvSvc()

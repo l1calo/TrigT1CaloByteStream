@@ -1,3 +1,9 @@
+2008-12-04  Simon George  <S.George@rhul.ac.uk>
+
+	* tag TrigT1CaloByteStream-00-06-06
+	* share/ReadLVL1CaloBS_jobOptions.py: include.block to solve 
+	bug #44947
+
 2008-10-08  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
         * Tag TrigT1CaloByteStream-00-06-05
         * Unpack ROD payload size for monitoring
