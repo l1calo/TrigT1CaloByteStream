@@ -3,9 +3,9 @@
 
 #include "GaudiKernel/IInterface.h"
 
-#include "TrigT1Calo/DataError.h"
-#include "TrigT1Calo/TriggerTower.h"
-#include "TrigT1Calo/TriggerTowerKey.h"
+#include "TrigT1CaloEvent/TriggerTower.h"
+#include "TrigT1CaloUtils/DataError.h"
+#include "TrigT1CaloUtils/TriggerTowerKey.h"
 
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
 #include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"

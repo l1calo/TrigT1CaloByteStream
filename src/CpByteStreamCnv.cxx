@@ -24,7 +24,7 @@
 
 #include "SGTools/StorableConversions.h"
 
-#include "TrigT1Calo/CPBSCollection.h"
+#include "TrigT1CaloEvent/CPBSCollection.h"
 
 #include "TrigT1CaloByteStream/CpByteStreamCnv.h"
 #include "TrigT1CaloByteStream/CpByteStreamTool.h"

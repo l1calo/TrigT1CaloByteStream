@@ -4,11 +4,11 @@
 
 #include "GaudiKernel/IInterface.h"
 
-#include "TrigT1Calo/CMMJetHits.h"
-#include "TrigT1Calo/CMMEtSums.h"
-#include "TrigT1Calo/CMMRoI.h"
-#include "TrigT1Calo/JEMRoI.h"
-#include "TrigT1Calo/JEPRoIBSCollection.h"
+#include "TrigT1CaloEvent/CMMJetHits.h"
+#include "TrigT1CaloEvent/CMMEtSums.h"
+#include "TrigT1CaloEvent/CMMRoI.h"
+#include "TrigT1CaloEvent/JEMRoI.h"
+#include "TrigT1CaloEvent/JEPRoIBSCollection.h"
 
 #include "TrigT1CaloByteStream/CmmEnergySubBlock.h"
 #include "TrigT1CaloByteStream/CmmJetSubBlock.h"

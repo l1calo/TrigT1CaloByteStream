@@ -25,7 +25,7 @@
 
 #include "SGTools/StorableConversions.h"
 
-#include "TrigT1Calo/TriggerTower.h"
+#include "TrigT1CaloEvent/TriggerTower.h"
 
 #include "TrigT1CaloByteStream/PpmByteStreamCnv.h"
 #include "TrigT1CaloByteStream/PpmByteStreamTool.h"

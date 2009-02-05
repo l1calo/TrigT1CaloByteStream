@@ -4,12 +4,12 @@
 
 #include "GaudiKernel/IInterface.h"
 
-#include "TrigT1Calo/CMMCPHits.h"
-#include "TrigT1Calo/CPMHits.h"
-#include "TrigT1Calo/CPMTower.h"
-#include "TrigT1Calo/CPBSCollection.h"
-#include "TrigT1Calo/DataError.h"
-#include "TrigT1Calo/TriggerTowerKey.h"
+#include "TrigT1CaloEvent/CMMCPHits.h"
+#include "TrigT1CaloEvent/CPMHits.h"
+#include "TrigT1CaloEvent/CPMTower.h"
+#include "TrigT1CaloEvent/CPBSCollection.h"
+#include "TrigT1CaloUtils/DataError.h"
+#include "TrigT1CaloUtils/TriggerTowerKey.h"
 
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
 #include "TrigT1CaloByteStream/CmmCpSubBlock.h"

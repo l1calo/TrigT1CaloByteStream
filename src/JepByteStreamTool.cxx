@@ -4,14 +4,14 @@
 
 #include "GaudiKernel/IInterface.h"
 
-#include "TrigT1Calo/CMMJetHits.h"
-#include "TrigT1Calo/CMMEtSums.h"
-#include "TrigT1Calo/DataError.h"
-#include "TrigT1Calo/JEMHits.h"
-#include "TrigT1Calo/JEMEtSums.h"
-#include "TrigT1Calo/JEPBSCollection.h"
-#include "TrigT1Calo/JetElement.h"
-#include "TrigT1Calo/JetElementKey.h"
+#include "TrigT1CaloEvent/CMMJetHits.h"
+#include "TrigT1CaloEvent/CMMEtSums.h"
+#include "TrigT1CaloUtils/DataError.h"
+#include "TrigT1CaloEvent/JEMHits.h"
+#include "TrigT1CaloEvent/JEMEtSums.h"
+#include "TrigT1CaloEvent/JEPBSCollection.h"
+#include "TrigT1CaloEvent/JetElement.h"
+#include "TrigT1CaloUtils/JetElementKey.h"
 
 #include "TrigT1CaloByteStream/ChannelCoordinate.h"
 #include "TrigT1CaloByteStream/CmmEnergySubBlock.h"

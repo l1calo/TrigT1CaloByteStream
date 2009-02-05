@@ -2,8 +2,8 @@
 #include <cmath>
 #include <utility>
 
-#include "TrigT1Calo/TriggerTower.h"
-#include "TrigT1Calo/TriggerTowerKey.h"
+#include "TrigT1CaloEvent/TriggerTower.h"
+#include "TrigT1CaloUtils/TriggerTowerKey.h"
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
 #include "TrigT1CaloByteStream/ModifySlices.h"

@@ -1,7 +1,7 @@
 
 #include <stdint.h>
 
-#include "TrigT1Calo/TriggerTower.h"
+#include "TrigT1CaloEvent/TriggerTower.h"
 
 #include "TrigT1CaloByteStream/TrigT1CaloDataAccess.h"
 

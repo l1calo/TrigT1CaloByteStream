@@ -3,7 +3,7 @@
 
 #include "eformat/SourceIdentifier.h"
 
-#include "TrigT1Calo/TriggerTowerKey.h"
+#include "TrigT1CaloUtils/TriggerTowerKey.h"
 
 #include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
 #include "TrigT1CaloByteStream/TriggerTowerSelectionTool.h"

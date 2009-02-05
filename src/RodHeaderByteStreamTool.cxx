@@ -3,7 +3,7 @@
 
 #include "GaudiKernel/IInterface.h"
 
-#include "TrigT1Calo/RODHeader.h"
+#include "TrigT1CaloEvent/RODHeader.h"
 
 #include "TrigT1CaloByteStream/RodHeaderByteStreamTool.h"
 

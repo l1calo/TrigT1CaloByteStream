@@ -1,14 +1,14 @@
 
 #include <utility>
 
-#include "TrigT1Calo/CMMEtSums.h"
-#include "TrigT1Calo/CMMJetHits.h"
-#include "TrigT1Calo/CMMRoI.h"
-#include "TrigT1Calo/JEMEtSums.h"
-#include "TrigT1Calo/JEMHits.h"
-#include "TrigT1Calo/JEMRoI.h"
-#include "TrigT1Calo/JetElement.h"
-#include "TrigT1Calo/JetElementKey.h"
+#include "TrigT1CaloEvent/CMMEtSums.h"
+#include "TrigT1CaloEvent/CMMJetHits.h"
+#include "TrigT1CaloEvent/CMMRoI.h"
+#include "TrigT1CaloEvent/JEMEtSums.h"
+#include "TrigT1CaloEvent/JEMHits.h"
+#include "TrigT1CaloEvent/JEMRoI.h"
+#include "TrigT1CaloEvent/JetElement.h"
+#include "TrigT1CaloUtils/JetElementKey.h"
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
 #include "TrigT1CaloByteStream/JemTester.h"

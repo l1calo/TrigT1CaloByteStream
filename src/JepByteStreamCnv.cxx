@@ -24,7 +24,7 @@
 
 #include "SGTools/StorableConversions.h"
 
-#include "TrigT1Calo/JEPBSCollection.h"
+#include "TrigT1CaloEvent/JEPBSCollection.h"
 
 #include "TrigT1CaloByteStream/JepByteStreamCnv.h"
 #include "TrigT1CaloByteStream/JepByteStreamTool.h"

@@ -4,7 +4,7 @@
 
 #include "GaudiKernel/IInterface.h"
 
-#include "TrigT1Calo/CPMRoI.h"
+#include "TrigT1CaloEvent/CPMRoI.h"
 
 #include "TrigT1CaloByteStream/CpmCrateMappings.h"
 #include "TrigT1CaloByteStream/CpmRoiByteStreamTool.h"

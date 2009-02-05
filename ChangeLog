@@ -1,3 +1,9 @@
+2009-02-05  Alan Watson  <Alan.Watson@cern.ch>
+       * Compatability with splitting of TrigT1Calo into TrigT1CaloEvent
+         and TrigT1CaloUtils
+       * Requires those 2 packages
+       * tag TrigT1CaloByteStream-00-06-07
+
 2008-12-04  Simon George  <S.George@rhul.ac.uk>
 
 	* tag TrigT1CaloByteStream-00-06-06

@@ -25,7 +25,7 @@
 
 #include "SGTools/StorableConversions.h"
 
-#include "TrigT1Calo/CPMRoI.h"
+#include "TrigT1CaloEvent/CPMRoI.h"
 
 #include "TrigT1CaloByteStream/CpmRoiByteStreamCnv.h"
 #include "TrigT1CaloByteStream/CpmRoiByteStreamTool.h"

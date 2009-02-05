@@ -1,11 +1,11 @@
 
 #include <utility>
 
-#include "TrigT1Calo/CMMCPHits.h"
-#include "TrigT1Calo/CPMHits.h"
-#include "TrigT1Calo/CPMTower.h"
-#include "TrigT1Calo/CPMRoI.h"
-#include "TrigT1Calo/TriggerTowerKey.h"
+#include "TrigT1CaloEvent/CMMCPHits.h"
+#include "TrigT1CaloEvent/CPMHits.h"
+#include "TrigT1CaloEvent/CPMTower.h"
+#include "TrigT1CaloEvent/CPMRoI.h"
+#include "TrigT1CaloUtils/TriggerTowerKey.h"
 #include "TrigT1Interfaces/TrigT1CaloDefs.h"
 
 #include "TrigT1CaloByteStream/CpmTester.h"

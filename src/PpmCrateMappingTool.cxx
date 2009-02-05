@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include "TrigT1Calo/TriggerTowerKey.h"
+#include "TrigT1CaloUtils/TriggerTowerKey.h"
 
 #include "TrigT1CaloByteStream/PpmCrateMappingTool.h"
 

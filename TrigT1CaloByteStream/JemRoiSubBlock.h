@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "TrigT1Calo/JEMRoI.h"
+#include "TrigT1CaloEvent/JEMRoI.h"
 #include "TrigT1CaloByteStream/L1CaloSubBlock.h"
 
 namespace LVL1BS {
