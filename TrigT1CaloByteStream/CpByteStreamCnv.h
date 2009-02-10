@@ -42,7 +42,7 @@ public:
 
   //  Storage type and class ID
   virtual long repSvcType() const { return ByteStream_StorageType;}
-  static const long storageType(){ return ByteStream_StorageType; }
+  static  long storageType(){ return ByteStream_StorageType; }
   static const CLID& classID();
 
 private:

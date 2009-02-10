@@ -100,8 +100,8 @@ bool PpmCompression::pack(PpmSubBlock& subBlock)
 	  }
 	  ++idx;
         }
-	if      (sl != trigOffset)                 anyFadcBcid |= fadcBcid[sl];
-	else if (fadcBcid[sl] != lutBcid[0] & 0x1) anyFadcBcid |= 1;
+	if      (sl != trigOffset)                   anyFadcBcid |= fadcBcid[sl];
+	else if (fadcBcid[sl] != (lutBcid[0] & 0x1)) anyFadcBcid |= 1;
       }
       if (lutData[0] == 0 && lutBcid[0] == 0 &&
                           !anyFadcBcid && minFadcInRange && maxFadcLen < 4) {
