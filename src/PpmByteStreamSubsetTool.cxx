@@ -2,17 +2,20 @@
 #include <numeric>
 
 #include "GaudiKernel/IInterface.h"
+#include "GaudiKernel/MsgStream.h"
+#include "GaudiKernel/StatusCode.h"
 
 #include "TrigT1CaloEvent/TriggerTower.h"
 #include "TrigT1CaloUtils/DataError.h"
 #include "TrigT1CaloUtils/TriggerTowerKey.h"
 
-#include "TrigT1CaloByteStream/ChannelCoordinate.h"
-#include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
-#include "TrigT1CaloByteStream/L1CaloSubBlock.h"
-#include "TrigT1CaloByteStream/L1CaloUserHeader.h"
-#include "TrigT1CaloByteStream/PpmByteStreamSubsetTool.h"
-#include "TrigT1CaloByteStream/PpmSubBlock.h"
+#include "IL1CaloMappingTool.h"
+#include "L1CaloSrcIdMap.h"
+#include "L1CaloSubBlock.h"
+#include "L1CaloUserHeader.h"
+#include "PpmSubBlock.h"
+
+#include "PpmByteStreamSubsetTool.h"
 
 namespace LVL1BS {
 
@@ -20,14 +23,15 @@ namespace LVL1BS {
 
 PpmByteStreamSubsetTool::PpmByteStreamSubsetTool(const std::string& type,
                const std::string& name, const IInterface*  parent)
-             : AlgTool(type, name, parent),
-	       m_ppmMaps("LVL1BS::PpmCrateMappingTool/PpmCrateMappingTool"),
-	       m_log(msgSvc(), name),
+             : AthAlgTool(type, name, parent),
+	       m_ppmMaps("LVL1BS::PpmMappingTool/PpmMappingTool"),
 	       m_channels(64), m_crates(8), m_modules(16),
 	       m_subDetector(eformat::TDAQ_CALO_PREPROC),
 	       m_srcIdMap(0), m_towerKey(0), m_errorBlock(0)
 {
   declareInterface<IPpmByteStreamSubsetTool>(this);
+
+  declareProperty("PpmMappingTool", m_ppmMaps);
 
   declareProperty("ZeroSuppress", m_zeroSuppress = true,
                   "Only make trigger towers with non-zero EM or Had energy");
@@ -47,25 +51,16 @@ PpmByteStreamSubsetTool::~PpmByteStreamSubsetTool()
 
 StatusCode PpmByteStreamSubsetTool::initialize()
 {
-  m_log.setLevel(outputLevel());
-  m_debug = outputLevel() <= MSG::DEBUG;
-
-  m_log << MSG::INFO << "Initializing " << name() << " - package version "
-                     << PACKAGE_VERSION << endreq;
-
-  StatusCode sc = AlgTool::initialize();
-  if (sc.isFailure()) {
-    m_log << MSG::ERROR << "Problem initializing AlgTool " <<  endreq;
-    return sc;
-  }
+  msg(MSG::INFO) << "Initializing " << name() << " - package version "
+                 << PACKAGE_VERSION << endreq;
 
   // Retrieve mapping tool
 
-  sc = m_ppmMaps.retrieve();
+  StatusCode sc = m_ppmMaps.retrieve();
   if ( sc.isFailure() ) {
-    m_log << MSG::ERROR << "Couldn't retrieve PpmCrateMappingTool" << endreq;
+    msg(MSG::ERROR) << "Failed to retrieve tool " << m_ppmMaps << endreq;
     return sc;
-  }
+  } else msg(MSG::INFO) << "Retrieved tool " << m_ppmMaps << endreq;
 
   m_srcIdMap = new L1CaloSrcIdMap();
   m_towerKey = new LVL1::TriggerTowerKey();
@@ -80,7 +75,7 @@ StatusCode PpmByteStreamSubsetTool::finalize()
   delete m_errorBlock;
   delete m_towerKey;
   delete m_srcIdMap;
-  return AlgTool::finalize();
+  return StatusCode::SUCCESS;
 }
 
 // Conversion bytestream to trigger towers
@@ -90,6 +85,9 @@ StatusCode PpmByteStreamSubsetTool::convert(
                             DataVector<LVL1::TriggerTower>* const ttCollection,
 			    const std::vector<unsigned int> chanIds)
 {
+  const bool debug   = msgLvl(MSG::DEBUG);
+  const bool verbose = msgLvl(MSG::VERBOSE);
+  if (debug) msg(MSG::DEBUG);
 
   // Index wanted channels by crate/module
 
@@ -99,25 +97,21 @@ StatusCode PpmByteStreamSubsetTool::convert(
   std::vector<unsigned int>::const_iterator posB = pos;
   unsigned int lastKey = (pos != posE) ? (*pos)/64 : 9999;
   for (; pos != posE; ++pos) {
-    unsigned int key = (*pos)/64;
+    const unsigned int key = (*pos)/64;
     if (key != lastKey) {
-      if (m_debug) {
-        m_log << MSG::DEBUG << "Adding key to index: " << lastKey << endreq;
-      }
+      if (debug) msg() << "Adding key to index: " << lastKey << endreq;
       chanMap.insert(std::make_pair(lastKey, std::make_pair(posB, pos)));
       lastKey = key;
       posB = pos;
     }
   }
   if (lastKey != 9999) {
-    if (m_debug) {
-      m_log << MSG::DEBUG << "Adding key to index: " << lastKey << endreq;
-    }
+    if (debug) msg() << "Adding key to index: " << lastKey << endreq;
     chanMap.insert(std::make_pair(lastKey, std::make_pair(posB, posE)));
   }
-  if (m_debug) {
-    m_log << MSG::DEBUG << "Number of channels wanted: " << chanIds.size()
-                        << "  Channel map size: " << chanMap.size() << endreq;
+  if (debug) {
+    msg() << "Number of channels wanted: " << chanIds.size()
+          << "  Channel map size: " << chanMap.size() << endreq;
   }
 
   // Clear trigger tower map
@@ -132,9 +126,7 @@ StatusCode PpmByteStreamSubsetTool::convert(
   ROBIterator robEnd = robFrags.end();
   for (; rob != robEnd; ++rob) {
 
-    if (m_debug) {
-      m_log << MSG::DEBUG << "Treating ROB fragment " << ++robCount << endreq;
-    }
+    if (debug) msg() << "Treating ROB fragment " << ++robCount << endreq;
 
     // Unpack ROD data (slinks)
 
@@ -145,24 +137,23 @@ StatusCode PpmByteStreamSubsetTool::convert(
     payloadEnd = payloadBeg + (*rob)->rod_ndata();
     payload = payloadBeg;
     if (payload == payloadEnd) {
-      if (m_debug) m_log << MSG::DEBUG << "ROB fragment empty" << endreq;
+      if (debug) msg() << "ROB fragment empty" << endreq;
       continue;
     }
 
     // Check identifier
     const uint32_t sourceID = (*rob)->rod_source_id();
-    if (m_debug) {
+    if (debug) {
       if (m_srcIdMap->subDet(sourceID) != m_subDetector ||
           m_srcIdMap->daqOrRoi(sourceID) != 0) {
-        m_log << MSG::DEBUG << "Wrong source identifier in data: "
+        msg() << "Wrong source identifier in data: "
 	      << MSG::hex << sourceID << MSG::dec << endreq;
       }
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
-    if (m_debug) {
-      m_log << MSG::DEBUG << "Treating crate " << rodCrate 
-                          << " slink " << m_srcIdMap->slink(sourceID)
-	  		  << endreq;
+    if (debug) {
+      msg() << "Treating crate " << rodCrate 
+            << " slink " << m_srcIdMap->slink(sourceID) << endreq;
     }
 
     // First word is User Header
@@ -170,8 +161,8 @@ StatusCode PpmByteStreamSubsetTool::convert(
     const int minorVersion = (*rob)->rod_version() & 0xffff;
     userHeader.setVersion(minorVersion);
     const int headerWords = userHeader.words();
-    if (headerWords != 1 && m_debug) {
-      m_log << MSG::DEBUG << "Unexpected number of user header words: "
+    if (headerWords != 1 && debug) {
+      msg() << "Unexpected number of user header words: "
             << headerWords << endreq;
     }
     for (int i = 0; i < headerWords; ++i) ++payload;
@@ -180,46 +171,42 @@ StatusCode PpmByteStreamSubsetTool::convert(
     const int trigFadc = userHeader.ppmFadc();
     // FADC baseline lower bound
     const int fadcBaseline = userHeader.lowerBound();
-    if (m_debug) {
-      m_log << MSG::DEBUG << "Minor format version number: " << MSG::hex 
-                          << minorVersion << MSG::dec << endreq;
-      m_log << MSG::DEBUG << "LUT triggered slice offset:  " << trigLut
-                          << endreq;
-      m_log << MSG::DEBUG << "FADC triggered slice offset: " << trigFadc
-                          << endreq;
-      m_log << MSG::DEBUG << "FADC baseline lower bound:   " << fadcBaseline
-                          << endreq;
+    if (debug) {
+      msg() << "Minor format version number: "
+            << MSG::hex << minorVersion << MSG::dec            << endreq
+            << "LUT triggered slice offset:  " << trigLut      << endreq
+            << "FADC triggered slice offset: " << trigFadc     << endreq
+            << "FADC baseline lower bound:   " << fadcBaseline << endreq;
     }
+    const int runNumber = (*rob)->rod_run_no() & 0xffffff;
 
     // Find the number of channels per sub-block
 
     int chanPerSubBlock = 0;
     if (payload != payloadEnd) {
       if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER) {
-        m_log << MSG::ERROR << "Missing Sub-block header" << endreq;
+        msg(MSG::ERROR) << "Missing Sub-block header" << endreq;
         return StatusCode::FAILURE;
       }
       PpmSubBlock testBlock;
       payload = testBlock.read(payload, payloadEnd);
       chanPerSubBlock = testBlock.channelsPerSubBlock();
       if (chanPerSubBlock == 0) {
-        m_log << MSG::ERROR << "Unsupported version/data format: "
-                            << testBlock.version() << "/"
-                            << testBlock.format()  << endreq;
+        msg(MSG::ERROR) << "Unsupported version/data format: "
+                        << testBlock.version() << "/"
+                        << testBlock.format()  << endreq;
         return StatusCode::FAILURE;
       }
       if (m_channels%chanPerSubBlock != 0) {
-        m_log << MSG::ERROR << "Invalid channels per sub-block: "
-                            << chanPerSubBlock << endreq;
+        msg(MSG::ERROR) << "Invalid channels per sub-block: "
+                        << chanPerSubBlock << endreq;
         return StatusCode::FAILURE;
       }
-      if (m_debug) {
-        m_log << MSG::DEBUG << "Channels per sub-block: "
-                            << chanPerSubBlock << endreq;
+      if (debug) {
+        msg() << "Channels per sub-block: " << chanPerSubBlock << endreq;
       }
     } else {
-      if (m_debug) m_log << MSG::DEBUG
-                         << "ROB fragment contains user header only" << endreq;
+      if (debug) msg() << "ROB fragment contains user header only" << endreq;
       continue;
     }
     const int numSubBlocks = m_channels/chanPerSubBlock;
@@ -238,18 +225,23 @@ StatusCode PpmByteStreamSubsetTool::convert(
       for (int block = 0; block < numSubBlocks; ++block) {
         if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER
 	                           || PpmSubBlock::errorBlock(*payload)) {
-          m_log << MSG::ERROR << "Unexpected data sequence" << endreq;
+          msg(MSG::ERROR) << "Unexpected data sequence" << endreq;
 	  return StatusCode::FAILURE;
         }
         if (chanPerSubBlock != m_channels && 
 	    L1CaloSubBlock::seqno(*payload) != block * chanPerSubBlock) {
-	  if (m_debug) {
-            m_log << MSG::DEBUG << "Unexpected channel sequence number: "
+	  if (debug) {
+            msg() << "Unexpected channel sequence number: "
 	          << L1CaloSubBlock::seqno(*payload) << " expected " 
 	          << block * chanPerSubBlock << endreq;
 	  }
 	  if ( !m_ppmBlocks.empty()) break;
-	  else return StatusCode::FAILURE;
+	  else {
+	    if (!debug) {
+	      msg(MSG::ERROR) << "Unexpected channel sequence number" << endreq;
+	    }
+	    return StatusCode::FAILURE;
+	  }
         }
         PpmSubBlock* const subBlock = new PpmSubBlock();
         m_ppmBlocks.push_back(subBlock);
@@ -257,27 +249,26 @@ StatusCode PpmByteStreamSubsetTool::convert(
         if (block == 0) {
           crate  = subBlock->crate();
 	  module = subBlock->module();
-	  if (m_debug) {
-	    m_log << MSG::DEBUG << "Module " << module << endreq;
+	  if (debug) {
+	    msg() << "Module " << module << endreq;
 	    if (crate != rodCrate) {
-	      m_log << MSG::DEBUG
-	            << "Inconsistent crate number in ROD source ID" << endreq;
+	      msg() << "Inconsistent crate number in ROD source ID" << endreq;
 	    }
           }
         } else {
           if (subBlock->crate() != crate) {
-	    m_log << MSG::ERROR << "Inconsistent crate number in sub-blocks"
-	          << endreq;
+	    msg(MSG::ERROR) << "Inconsistent crate number in sub-blocks"
+	                    << endreq;
 	    return StatusCode::FAILURE;
           }
           if (subBlock->module() != module) {
-	    m_log << MSG::ERROR << "Inconsistent module number in sub-blocks"
-	          << endreq;
+	    msg(MSG::ERROR) << "Inconsistent module number in sub-blocks"
+	                    << endreq;
 	    return StatusCode::FAILURE;
           }
         }
         if (payload == payloadEnd && block != numSubBlocks - 1) {
-          if (m_debug) m_log << MSG::DEBUG << "Premature end of data" << endreq;
+          if (debug) msg() << "Premature end of data" << endreq;
 	  break;
         }
       }
@@ -289,22 +280,21 @@ StatusCode PpmByteStreamSubsetTool::convert(
       if (payload != payloadEnd) {
         if (L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::HEADER
 	                            && PpmSubBlock::errorBlock(*payload)) {
-	  if (m_debug) m_log << MSG::DEBUG << "Error block found" << endreq;
+	  if (debug) msg() << "Error block found" << endreq;
 	  m_errorBlock = new PpmSubBlock();
 	  payload = m_errorBlock->read(payload, payloadEnd);
           if (m_errorBlock->crate() != crate) {
-	    m_log << MSG::ERROR << "Inconsistent crate number in error block"
-	          << endreq;
+	    msg(MSG::ERROR) << "Inconsistent crate number in error block"
+	                    << endreq;
 	    return StatusCode::FAILURE;
           }
           if (m_errorBlock->module() != module) {
-	    m_log << MSG::ERROR << "Inconsistent module number in error block"
-	          << endreq;
+	    msg(MSG::ERROR) << "Inconsistent module number in error block"
+	                    << endreq;
 	    return StatusCode::FAILURE;
           }
 	  if (m_errorBlock->dataWords() && !m_errorBlock->unpack()) {
-	    if (m_debug) m_log << MSG::DEBUG
-	                       << "Unpacking error block failed" << endreq;
+	    if (debug) msg() << "Unpacking error block failed" << endreq;
 	  }
         }
       }
@@ -316,9 +306,7 @@ StatusCode PpmByteStreamSubsetTool::convert(
       unsigned int key = crate*16 + module;
       ChannelMap::iterator mapIter = chanMap.find(key);
       if (mapIter == chanMap.end()) {
-        if (m_debug) {
-	  m_log << MSG::DEBUG << "Key not found: " << key << endreq;
-	}
+        if (debug) msg() << "Key not found: " << key << endreq;
 	continue;
       }
       IteratorPair ipair = mapIter->second;
@@ -329,8 +317,8 @@ StatusCode PpmByteStreamSubsetTool::convert(
         const int channel = (*pos) % 64;
 	const int block = channel/chanPerSubBlock;
 	if (block >= actualSubBlocks) {
-	  if (m_debug) {
-	    m_log << MSG::DEBUG << "channel/block/actualSubBlocks: "
+	  if (debug) {
+	    msg() << "channel/block/actualSubBlocks: "
 	          << channel << "/" << block << "/" << actualSubBlocks
 		  << endreq;
 	  }
@@ -342,9 +330,9 @@ StatusCode PpmByteStreamSubsetTool::convert(
 	  subBlock->setLutOffset(trigLut);
 	  subBlock->setFadcOffset(trigFadc);
 	  subBlock->setFadcBaseline(fadcBaseline);
+	  subBlock->setRunNumber(runNumber);
           if (subBlock->dataWords() && !subBlock->unpack()) {
-	    if (m_debug) m_log << MSG::DEBUG
-	                       << "Unpacking PPM sub-block failed" << endreq;
+	    if (debug) msg() << "Unpacking PPM sub-block failed" << endreq;
           }
 	}
   	std::vector<int> lut;
@@ -355,16 +343,16 @@ StatusCode PpmByteStreamSubsetTool::convert(
 	int trigLutKeep  = trigLut;
 	int trigFadcKeep = trigFadc;
 	if (lut.size() < size_t(trigLut + 1)) {
-	  if (m_debug) {
-	    m_log << MSG::DEBUG << "Triggered LUT slice from header "
+	  if (debug) {
+	    msg() << "Triggered LUT slice from header "
 	          << "inconsistent with number of slices: "
 	          << trigLut << ", " << lut.size() << ", reset to 0" << endreq;
 	  }
 	  trigLutKeep = 0;
         }
 	if (fadc.size() < size_t(trigFadc + 1)) {
-	  if (m_debug) {
-	    m_log << MSG::DEBUG << "Triggered FADC slice from header "
+	  if (debug) {
+	    msg() << "Triggered FADC slice from header "
 	          << "inconsistent with number of slices: "
 	          << trigFadc << ", " << fadc.size() << ", reset to 0"
 		  << endreq;
@@ -385,6 +373,11 @@ StatusCode PpmByteStreamSubsetTool::convert(
 	  errorBits.set(LVL1::DataError::SubStatusWord,
 	                           lastBlock->subStatus());
         }
+	// Wrong bit set for compressed formats 1.01 to 1.03
+	if (subBlock->format() > 1 && subBlock->seqno() < 4) {
+	  errorBits.set(LVL1::DataError::ModuleError,
+	       (errorBits.error() >> (LVL1::DataError::ModuleError+1)) & 0x1);
+	}
 	const int error = errorBits.error();
 
 	// Only save non-zero data
@@ -396,31 +389,28 @@ StatusCode PpmByteStreamSubsetTool::convert(
 		     std::accumulate(bcidFadc.begin(), bcidFadc.end(), 0);
 
         if (any || error) {
-	  if (m_debug) {
-	    m_log << MSG::VERBOSE
-	          << "channel/LUT/FADC/bcidLUT/bcidFADC/error: "
-	          << channel << "/";
-	    printVec(lut,      MSG::VERBOSE);
-	    printVec(fadc,     MSG::VERBOSE);
-	    printVec(bcidLut,  MSG::VERBOSE);
-	    printVec(bcidFadc, MSG::VERBOSE);
-	    m_log << MSG::VERBOSE << MSG::hex << error << MSG::dec << "/";
+	  if (verbose) {
+	    msg(MSG::VERBOSE) << "channel/LUT/FADC/bcidLUT/bcidFADC/error: "
+	                      << channel << "/";
+	    printVec(lut);
+	    printVec(fadc);
+	    printVec(bcidLut);
+	    printVec(bcidFadc);
+	    msg() << MSG::hex << error << MSG::dec << "/";
           }
-	  ChannelCoordinate coord;
-	  if (!m_ppmMaps->mapping(crate, module, channel, coord)) {
-	    if (m_debug && any) {
-	      m_log << MSG::VERBOSE << " Unexpected non-zero data words"
-	            << endreq;
+	  double eta = 0.;
+	  double phi = 0.;
+	  int layer = 0;
+	  if (!m_ppmMaps->mapping(crate, module, channel, eta, phi, layer)) {
+	    if (verbose && any) {
+	      msg() << " Unexpected non-zero data words" << endreq;
 	    }
             continue;
           }
-	  const ChannelCoordinate::CaloLayer layer = coord.layer();
-	  const double phi = coord.phi();
-	  const double eta = etaSim(coord);
-	  if (m_debug) {
-	    m_log << MSG::VERBOSE << " eta/etaSim/phi/layer: " << coord.eta()
-	          << "/" << eta << "/" << phi << "/" << coord.layerName(layer)
-	          << "/" << endreq;
+	  if (verbose) {
+	    msg() << " eta/phi/layer: " << eta << "/" << phi << "/"
+	          << layer << "/" << endreq;
+	    msg(MSG::DEBUG);
           }
 	  LVL1::TriggerTower* tt = findTriggerTower(eta, phi);
           if ( ! tt) {
@@ -430,10 +420,10 @@ StatusCode PpmByteStreamSubsetTool::convert(
             m_ttMap.insert(std::make_pair(key, tt));
 	    ttTemp.push_back(tt);
           }
-          if (layer == ChannelCoordinate::EM) {  // EM
+          if (layer == 0) {  // EM
 	    tt->addEM(fadc, lut, bcidFadc, bcidLut, error,
 	                                         trigLutKeep, trigFadcKeep);
-          } else {                               // Had
+          } else {           // Had
 	    tt->addHad(fadc, lut, bcidFadc, bcidLut, error,
 	                                         trigLutKeep, trigFadcKeep);
           }
@@ -459,20 +449,6 @@ StatusCode PpmByteStreamSubsetTool::convert(
   return StatusCode::SUCCESS;
 }
 
-// Correction for Had FCAL eta which is adjusted to EM value in TriggerTower
-
-double PpmByteStreamSubsetTool::etaSim(const ChannelCoordinate& coord) const
-{
-  double eta = coord.eta();
-  const ChannelCoordinate::CaloLayer layer = coord.layer();
-  if (layer == ChannelCoordinate::FCAL2 || layer == ChannelCoordinate::FCAL3) {
-    const double etaCorrection = coord.etaGranularity()/4.;
-    if (layer == ChannelCoordinate::FCAL2) eta -= etaCorrection;
-    else eta += etaCorrection;
-  }
-  return eta;
-}
-
 // Find a trigger tower given eta, phi
 
 LVL1::TriggerTower* PpmByteStreamSubsetTool::findTriggerTower(const double eta,
@@ -488,15 +464,14 @@ LVL1::TriggerTower* PpmByteStreamSubsetTool::findTriggerTower(const double eta,
 
 // Print a vector
 
-void PpmByteStreamSubsetTool::printVec(const std::vector<int>& vec,
-                                       const MSG::Level level) const
+void PpmByteStreamSubsetTool::printVec(const std::vector<int>& vec) const
 {
   std::vector<int>::const_iterator pos;
   for (pos = vec.begin(); pos != vec.end(); ++pos) {
-    if (pos != vec.begin()) m_log << level << ",";
-    m_log << level << *pos;
+    if (pos != vec.begin()) msg() << ",";
+    msg() << *pos;
   }
-  m_log << level << "/";
+  msg() << "/";
 }
 
 

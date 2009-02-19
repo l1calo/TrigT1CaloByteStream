@@ -2,14 +2,19 @@
 #include <numeric>
 #include <utility>
 
+#include "ByteStreamCnvSvcBase/FullEventAssembler.h"
+
 #include "GaudiKernel/IInterface.h"
+#include "GaudiKernel/MsgStream.h"
+#include "GaudiKernel/StatusCode.h"
 
 #include "TrigT1CaloEvent/CPMRoI.h"
 
-#include "TrigT1CaloByteStream/CpmCrateMappings.h"
-#include "TrigT1CaloByteStream/CpmRoiByteStreamTool.h"
-//#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
-#include "TrigT1CaloByteStream/L1CaloUserHeader.h"
+#include "CpmRoiSubBlock.h"
+#include "L1CaloSrcIdMap.h"
+#include "L1CaloUserHeader.h"
+
+#include "CpmRoiByteStreamTool.h"
 
 namespace LVL1BS {
 
@@ -28,8 +33,10 @@ const InterfaceID& CpmRoiByteStreamTool::interfaceID()
 CpmRoiByteStreamTool::CpmRoiByteStreamTool(const std::string& type,
                                            const std::string& name,
                                            const IInterface*  parent)
-                      : AlgTool(type, name, parent),
-                        m_srcIdMap(0), m_rodStatus(0)
+                      : AthAlgTool(type, name, parent),
+		        m_crates(4), m_modules(14),
+                        m_srcIdMap(0), m_subBlock(0), m_rodStatus(0),
+			m_fea(0)
 {
   declareInterface<CpmRoiByteStreamTool>(this);
 
@@ -68,25 +75,26 @@ CpmRoiByteStreamTool::~CpmRoiByteStreamTool()
 
 StatusCode CpmRoiByteStreamTool::initialize()
 {
-  MsgStream log( msgSvc(), name() );
-  log << MSG::INFO << "Initializing " << name() << " - package version "
-                   << PACKAGE_VERSION << endreq;
+  msg(MSG::INFO) << "Initializing " << name() << " - package version "
+                 << PACKAGE_VERSION << endreq;
 
   m_subDetector = eformat::TDAQ_CALO_CLUSTER_PROC_ROI;
   m_srcIdMap    = new L1CaloSrcIdMap();
-  m_crates      = CpmCrateMappings::crates();
-  m_modules     = CpmCrateMappings::modules();
   m_rodStatus   = new std::vector<uint32_t>(2);
-  return AlgTool::initialize();
+  m_subBlock    = new CpmRoiSubBlock();
+  m_fea         = new FullEventAssembler<L1CaloSrcIdMap>();
+  return StatusCode::SUCCESS;
 }
 
 // Finalize
 
 StatusCode CpmRoiByteStreamTool::finalize()
 {
+  delete m_fea;
+  delete m_subBlock;
   delete m_rodStatus;
   delete m_srcIdMap;
-  return AlgTool::finalize();
+  return StatusCode::SUCCESS;
 }
 
 // Convert ROB fragments to CPM RoIs
@@ -95,8 +103,8 @@ StatusCode CpmRoiByteStreamTool::convert(
                             const IROBDataProviderSvc::VROBFRAG& robFrags,
                             DataVector<LVL1::CPMRoI>* const roiCollection)
 {
-  MsgStream log( msgSvc(), name() );
-  const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
+  const bool debug = msgLvl(MSG::DEBUG);
+  if (debug) msg(MSG::DEBUG);
 
   // Loop over ROB fragments
 
@@ -107,7 +115,7 @@ StatusCode CpmRoiByteStreamTool::convert(
 
     if (debug) {
       ++robCount;
-      log << MSG::DEBUG << "Treating ROB fragment " << robCount << endreq;
+      msg() << "Treating ROB fragment " << robCount << endreq;
     }
 
     // Unpack ROD data (slinks)
@@ -124,15 +132,14 @@ StatusCode CpmRoiByteStreamTool::convert(
     if (debug) {
       if (m_srcIdMap->subDet(sourceID)   != m_subDetector ||
           m_srcIdMap->daqOrRoi(sourceID) != 1) {
-        log << MSG::DEBUG << "Wrong source identifier in data: "
-            << MSG::hex << sourceID << MSG::dec << endreq;
+        msg() << "Wrong source identifier in data: "
+              << MSG::hex << sourceID << MSG::dec << endreq;
       }
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
     if (debug) {
-      log << MSG::DEBUG << "Treating crate " << rodCrate 
-                        << " slink " << m_srcIdMap->slink(sourceID)
-                        << endreq;
+      msg() << "Treating crate " << rodCrate 
+            << " slink " << m_srcIdMap->slink(sourceID) << endreq;
     }
 
     // First word may be User Header
@@ -140,8 +147,8 @@ StatusCode CpmRoiByteStreamTool::convert(
       const L1CaloUserHeader userHeader(*payload);
       const int headerWords = userHeader.words();
       if (headerWords != 1 && debug) {
-        log << MSG::DEBUG << "Unexpected number of user header words: "
-            << headerWords << endreq;
+        msg() << "Unexpected number of user header words: "
+              << headerWords << endreq;
       }
       for (int i = 0; i < headerWords; ++i) ++payload;
     }
@@ -151,22 +158,21 @@ StatusCode CpmRoiByteStreamTool::convert(
     while (payload != payloadEnd) {
       
       if (L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::HEADER) {
-        m_subBlock.clear();
-        payload = m_subBlock.read(payload, payloadEnd);
+        m_subBlock->clear();
+        payload = m_subBlock->read(payload, payloadEnd);
         if (debug) {
-          log << MSG::DEBUG << "CPM RoI sub-block: Crate " << m_subBlock.crate()
-                            << "  Module " << m_subBlock.module() << endreq;
+          msg() << "CPM RoI sub-block: Crate " << m_subBlock->crate()
+                << "  Module " << m_subBlock->module() << endreq;
         }
         // Unpack sub-block
-        if (m_subBlock.dataWords() && !m_subBlock.unpack()) {
-          log << MSG::DEBUG << "CPM RoI sub-block unpacking failed" << endreq;
-          //return StatusCode::FAILURE;
+        if (m_subBlock->dataWords() && !m_subBlock->unpack()) {
+          if (debug) msg() << "CPM RoI sub-block unpacking failed" << endreq;
         }
 	const int numChips = 8;
 	const int numLocs  = 2;
 	for (int chip = 0; chip < numChips; ++chip) {
 	  for (int loc = 0; loc < numLocs; ++loc) {
-	    const LVL1::CPMRoI roi = m_subBlock.roi(chip, loc);
+	    const LVL1::CPMRoI roi = m_subBlock->roi(chip, loc);
             if (roi.hits() || roi.error()) {
               roiCollection->push_back(new LVL1::CPMRoI(roi));
             }
@@ -177,9 +183,9 @@ StatusCode CpmRoiByteStreamTool::convert(
 	LVL1::CPMRoI roi;
 	if (roi.setRoiWord(*payload)) {
 	  roiCollection->push_back(new LVL1::CPMRoI(*payload));
-	} else {
-	  log << MSG::DEBUG << "Invalid RoI word "
-	      << MSG::hex << *payload << MSG::dec << endreq;
+	} else if (debug) {
+	  msg() << "Invalid RoI word "
+	        << MSG::hex << *payload << MSG::dec << endreq;
         }
 	++payload;
       }
@@ -195,14 +201,14 @@ StatusCode CpmRoiByteStreamTool::convert(
            const DataVector<LVL1::CPMRoI>* const roiCollection,
 	   RawEventWrite* const re)
 {
-  MsgStream log( msgSvc(), name() );
-  const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
+  const bool debug = msgLvl(MSG::DEBUG);
+  if (debug) msg(MSG::DEBUG);
 
   // Clear the event assembler
 
-  m_fea.clear();
+  m_fea->clear();
   const uint16_t minorVersion = 0x1002;
-  m_fea.setRodMinorVersion(minorVersion);
+  m_fea->setRodMinorVersion(minorVersion);
   m_rodStatusMap.clear();
 
   // Pointer to ROD data vector
@@ -233,29 +239,27 @@ StatusCode CpmRoiByteStreamTool::convert(
 	const int slink = (m_slinks == 2) ? 2*(mod/modulesPerSlink)
 	                                  : mod/modulesPerSlink;
         if (debug) {
-          log << MSG::DEBUG << "Treating crate " << hwCrate
-                            << " slink " << slink << endreq;
-	  log << MSG::DEBUG << "Data Version/Format: " << m_version
-	                    << " " << m_dataFormat << endreq;
+          msg() << "Treating crate " << hwCrate
+                << " slink " << slink << endreq
+	        << "Data Version/Format: " << m_version
+	        << " " << m_dataFormat << endreq;
         }
 	const uint32_t rodIdCpm = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
 	                                                        m_subDetector);
-	theROD = m_fea.getRodData(rodIdCpm);
+	theROD = m_fea->getRodData(rodIdCpm);
 	if (neutralFormat) {
           const L1CaloUserHeader userHeader;
 	  theROD->push_back(userHeader.header());
         }
 	m_rodStatusMap.insert(make_pair(rodIdCpm, m_rodStatus));
       }
-      if (debug) {
-        log << MSG::DEBUG << "Module " << module << endreq;
-      }
+      if (debug) msg() << "Module " << module << endreq;
 
       // Create a sub-block (Neutral format only)
 
       if (neutralFormat) {
-        m_subBlock.clear();
-	m_subBlock.setRoiHeader(m_version, hwCrate, module);
+        m_subBlock->clear();
+	m_subBlock->setRoiHeader(m_version, hwCrate, module);
       }
 
       // Find CPM RoIs for this module
@@ -267,7 +271,7 @@ StatusCode CpmRoiByteStreamTool::convert(
 	if (roi->cpm()   < module) continue;
 	if (roi->cpm()   > module) break;
 	if (roi->hits() || roi->error()) {
-	  if (neutralFormat) m_subBlock.fillRoi(*roi);
+	  if (neutralFormat) m_subBlock->fillRoi(*roi);
           else theROD->push_back(roi->roiWord());
         }
       }
@@ -275,22 +279,22 @@ StatusCode CpmRoiByteStreamTool::convert(
       // Pack and write the sub-block
 
       if (neutralFormat) {
-        if ( !m_subBlock.pack()) {
-          log << MSG::ERROR << "CPMRoI sub-block packing failed" << endreq;
+        if ( !m_subBlock->pack()) {
+          msg(MSG::ERROR) << "CPMRoI sub-block packing failed" << endreq;
  	  return StatusCode::FAILURE;
         }
 	if (debug) {
-	  log << MSG::DEBUG << "CPMRoI sub-block data words: "
-	                    << m_subBlock.dataWords() << endreq;
+	  msg() << "CPMRoI sub-block data words: "
+	        << m_subBlock->dataWords() << endreq;
         }
-        m_subBlock.write(theROD);
+        m_subBlock->write(theROD);
       }
     }
   }
 
   // Fill the raw event
 
-  m_fea.fill(re, log);
+  m_fea->fill(re, msg());
 
   // Set ROD status words
 

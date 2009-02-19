@@ -3,9 +3,9 @@
 #include <algorithm>
 #include <vector>
 
-#include "TrigT1CaloByteStream/L1CaloSubBlock.h"
-#include "TrigT1CaloByteStream/PpmCompression.h"
-#include "TrigT1CaloByteStream/PpmSubBlock.h"
+#include "L1CaloSubBlock.h"
+#include "PpmCompression.h"
+#include "PpmSubBlock.h"
 
 namespace LVL1BS {
 
@@ -100,7 +100,7 @@ bool PpmCompression::pack(PpmSubBlock& subBlock)
 	  }
 	  ++idx;
         }
-	if      (sl != trigOffset)                   anyFadcBcid |= fadcBcid[sl];
+	if (sl != trigOffset) anyFadcBcid |= fadcBcid[sl];
 	else if (fadcBcid[sl] != (lutBcid[0] & 0x1)) anyFadcBcid |= 1;
       }
       if (lutData[0] == 0 && lutBcid[0] == 0 &&

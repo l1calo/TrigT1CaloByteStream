@@ -1,5 +1,5 @@
 
-#include "TrigT1CaloByteStream/ModifySlices.h"
+#include "ModifySlices.h"
 
 namespace LVL1BS {
 

@@ -1,5 +1,5 @@
 
-#include "TrigT1CaloByteStream/L1CaloSubBlock.h"
+#include "L1CaloSubBlock.h"
 
 namespace LVL1BS {
 
@@ -73,7 +73,6 @@ void L1CaloSubBlock::clear()
   m_bitword = 0;
   m_currentBit = 0;
   m_unpackerFlag = false;
-  m_dataWords = 0;
   m_currentPinBit.assign(s_maxPins, 0);
   m_oddParity.assign(s_maxPins, 1);
   m_dataWords = 0;
@@ -182,18 +181,6 @@ void L1CaloSubBlock::setGlinkParity(const int bit)
     if (m_trailer) m_trailer |= (1 << s_glinkParityBit);
     else setStatus(0, false, false, false, false, false, false, true);
   }
-}
-
-// Implemented by derived classes
-
-bool L1CaloSubBlock::pack()
-{
-  return false;
-}
-
-bool L1CaloSubBlock::unpack()
-{
-  return false;
 }
 
 // Packing utilities

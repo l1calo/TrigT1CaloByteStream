@@ -1,5 +1,7 @@
 
-#include "TrigT1CaloByteStream/CpmRoiSubBlock.h"
+#include "TrigT1CaloEvent/CPMRoI.h"
+
+#include "CpmRoiSubBlock.h"
 
 namespace LVL1BS {
 

@@ -1,6 +1,6 @@
 
-#include "TrigT1CaloByteStream/JemCrateMappings.h"
-#include "TrigT1CaloByteStream/JemSubBlock.h"
+#include "JemJetElement.h"
+#include "JemSubBlock.h"
 
 namespace LVL1BS {
 
@@ -44,9 +44,8 @@ const int      JemSubBlock::s_hitPaddingBits;
 const int      JemSubBlock::s_glinkBitsPerSlice;
 
 
-JemSubBlock::JemSubBlock()
+JemSubBlock::JemSubBlock() : m_channels(44)
 {
-  m_channels = JemCrateMappings::channels();
 }
 
 JemSubBlock::~JemSubBlock()
@@ -90,7 +89,8 @@ void JemSubBlock::fillJetElement(const int slice, const JemJetElement& jetEle)
 void JemSubBlock::setJetHits(const int slice, const unsigned int hits)
 {
   if (hits) {
-    const int sourceId = (JemCrateMappings::forward(module()))
+    const int jem = module();
+    const int sourceId = (jem == 0 || jem == 7 || jem == 8 || jem == 15)
                          ? s_mainFwdThreshId : s_mainThreshId;
     uint32_t word = 0;
     word |= (hits           & s_threshMask)   << s_threshBit;

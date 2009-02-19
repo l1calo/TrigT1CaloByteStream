@@ -3,6 +3,10 @@
 #include <utility>
 
 #include "GaudiKernel/IInterface.h"
+#include "GaudiKernel/MsgStream.h"
+#include "GaudiKernel/StatusCode.h"
+
+#include "ByteStreamCnvSvcBase/FullEventAssembler.h"
 
 #include "TrigT1CaloEvent/CMMJetHits.h"
 #include "TrigT1CaloEvent/CMMEtSums.h"
@@ -10,14 +14,15 @@
 #include "TrigT1CaloEvent/JEMRoI.h"
 #include "TrigT1CaloEvent/JEPRoIBSCollection.h"
 
-#include "TrigT1CaloByteStream/CmmEnergySubBlock.h"
-#include "TrigT1CaloByteStream/CmmJetSubBlock.h"
-#include "TrigT1CaloByteStream/CmmSubBlock.h"
-#include "TrigT1CaloByteStream/JemCrateMappings.h"
-#include "TrigT1CaloByteStream/JepRoiByteStreamTool.h"
-//#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
-#include "TrigT1CaloByteStream/L1CaloSubBlock.h"
-#include "TrigT1CaloByteStream/L1CaloUserHeader.h"
+#include "CmmEnergySubBlock.h"
+#include "CmmJetSubBlock.h"
+#include "CmmSubBlock.h"
+#include "JemRoiSubBlock.h"
+#include "L1CaloSrcIdMap.h"
+#include "L1CaloSubBlock.h"
+#include "L1CaloUserHeader.h"
+
+#include "JepRoiByteStreamTool.h"
 
 namespace LVL1BS {
 
@@ -36,8 +41,10 @@ const InterfaceID& JepRoiByteStreamTool::interfaceID()
 JepRoiByteStreamTool::JepRoiByteStreamTool(const std::string& type,
                                            const std::string& name,
 				           const IInterface*  parent)
-                     : AlgTool(type, name, parent),
-		       m_srcIdMap(0), m_rodStatus(0)
+                     : AthAlgTool(type, name, parent),
+		       m_crates(2), m_modules(16),
+		       m_srcIdMap(0), m_subBlock(0), m_rodStatus(0),
+		       m_fea(0)
 {
   declareInterface<JepRoiByteStreamTool>(this);
 
@@ -76,25 +83,26 @@ JepRoiByteStreamTool::~JepRoiByteStreamTool()
 
 StatusCode JepRoiByteStreamTool::initialize()
 {
-  MsgStream log( msgSvc(), name() );
-  log << MSG::INFO << "Initializing " << name() << " - package version "
-                   << PACKAGE_VERSION << endreq;
+  msg(MSG::INFO) << "Initializing " << name() << " - package version "
+                 << PACKAGE_VERSION << endreq;
 
   m_subDetector = eformat::TDAQ_CALO_JET_PROC_ROI;
   m_srcIdMap    = new L1CaloSrcIdMap();
-  m_crates      = JemCrateMappings::crates();
-  m_modules     = JemCrateMappings::modules();
+  m_subBlock    = new JemRoiSubBlock();
   m_rodStatus   = new std::vector<uint32_t>(2);
-  return AlgTool::initialize();
+  m_fea         = new FullEventAssembler<L1CaloSrcIdMap>();
+  return StatusCode::SUCCESS;
 }
 
 // Finalize
 
 StatusCode JepRoiByteStreamTool::finalize()
 {
+  delete m_fea;
   delete m_rodStatus;
+  delete m_subBlock;
   delete m_srcIdMap;
-  return AlgTool::finalize();
+  return StatusCode::SUCCESS;
 }
 
 // Conversion bytestream to JEM RoI
@@ -123,14 +131,14 @@ StatusCode JepRoiByteStreamTool::convert(
                                  const LVL1::JEPRoIBSCollection* const jep,
                                  RawEventWrite* const re)
 {
-  MsgStream log( msgSvc(), name() );
-  const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
+  const bool debug = msgLvl(MSG::DEBUG);
+  if (debug) msg(MSG::DEBUG);
 
   // Clear the event assembler
 
-  m_fea.clear();
+  m_fea->clear();
   const uint16_t minorVersion = 0x1002;
-  m_fea.setRodMinorVersion(minorVersion);
+  m_fea->setRodMinorVersion(minorVersion);
   m_rodStatusMap.clear();
 
   // Pointer to ROD data vector
@@ -162,29 +170,27 @@ StatusCode JepRoiByteStreamTool::convert(
 	const int daqOrRoi = 1;
 	const int slink = module/modulesPerSlink;
         if (debug) {
-          log << MSG::DEBUG << "Treating crate " << hwCrate
-                            << " slink " << slink << endreq;
-	  log << MSG::DEBUG << "Data Version/Format: " << m_version
-	                    << " " << m_dataFormat << endreq;
+          msg() << "Treating crate " << hwCrate
+	        << " slink " << slink << endreq
+	        << "Data Version/Format: " << m_version
+	        << " " << m_dataFormat << endreq;
         }
 	const uint32_t rodIdJem = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
 	                                                        m_subDetector);
-	theROD = m_fea.getRodData(rodIdJem);
+	theROD = m_fea->getRodData(rodIdJem);
         if (neutralFormat) {
           const L1CaloUserHeader userHeader;
 	  theROD->push_back(userHeader.header());
         }
 	m_rodStatusMap.insert(make_pair(rodIdJem, m_rodStatus));
       }
-      if (debug) {
-        log << MSG::DEBUG << "JEM Module " << module << endreq;
-      }
+      if (debug) msg() << "JEM Module " << module << endreq;
 
       // Create a sub-block (Neutral format only)
 
       if (neutralFormat) {
-        m_subBlock.clear();
-	m_subBlock.setRoiHeader(m_version, hwCrate, module);
+        m_subBlock->clear();
+	m_subBlock->setRoiHeader(m_version, hwCrate, module);
       }
 
       // Find JEM RoIs for this module
@@ -196,7 +202,7 @@ StatusCode JepRoiByteStreamTool::convert(
 	if (roi->jem()   < module) continue;
 	if (roi->jem()   > module) break;
 	if (roi->hits() || roi->error()) {
-	  if (neutralFormat) m_subBlock.fillRoi(*roi);
+	  if (neutralFormat) m_subBlock->fillRoi(*roi);
 	  else theROD->push_back(roi->roiWord());
         }
       }
@@ -204,15 +210,15 @@ StatusCode JepRoiByteStreamTool::convert(
       // Pack and write the sub-block
 
       if (neutralFormat) {
-        if ( !m_subBlock.pack()) {
-	  log << MSG::ERROR << "JEM RoI sub-block packing failed" << endreq;
+        if ( !m_subBlock->pack()) {
+	  msg(MSG::ERROR) << "JEM RoI sub-block packing failed" << endreq;
 	  return StatusCode::FAILURE;
         }
 	if (debug) {
-	  log << MSG::DEBUG << "JEM RoI sub-block data words: "
-	                    << m_subBlock.dataWords() << endreq;
+	  msg() << "JEM RoI sub-block data words: "
+	        << m_subBlock->dataWords() << endreq;
 	}
-	m_subBlock.write(theROD);
+	m_subBlock->write(theROD);
       }
     }
 
@@ -271,12 +277,12 @@ StatusCode JepRoiByteStreamTool::convert(
         }
       }
       if ( !enBlock.pack()) {
-        log << MSG::ERROR << "CMM-Energy sub-block packing failed" << endreq;
+        msg(MSG::ERROR) << "CMM-Energy sub-block packing failed" << endreq;
 	return StatusCode::FAILURE;
       }
       if (debug) {
-	log << MSG::DEBUG << "CMM-Energy sub-block data words: "
-	                  << enBlock.dataWords() << endreq;
+	msg() << "CMM-Energy sub-block data words: "
+	      << enBlock.dataWords() << endreq;
       }
       enBlock.write(theROD);
 
@@ -327,12 +333,12 @@ StatusCode JepRoiByteStreamTool::convert(
         }
       }
       if ( !jetBlock.pack()) {
-        log << MSG::ERROR << "CMM-Jet sub-block packing failed" << endreq;
+        msg(MSG::ERROR) << "CMM-Jet sub-block packing failed" << endreq;
 	return StatusCode::FAILURE;
       }
       if (debug) {
-	log << MSG::DEBUG << "CMM-Jet sub-block data words: "
-	                  << jetBlock.dataWords() << endreq;
+	msg() << "CMM-Jet sub-block data words: "
+	      << jetBlock.dataWords() << endreq;
       }
       jetBlock.write(theROD);
 
@@ -366,7 +372,7 @@ StatusCode JepRoiByteStreamTool::convert(
 
   // Fill the raw event
 
-  m_fea.fill(re, log);
+  m_fea->fill(re, msg());
 
   // Set ROD status words
 
@@ -409,8 +415,8 @@ StatusCode JepRoiByteStreamTool::convertBs(
                             const IROBDataProviderSvc::VROBFRAG& robFrags,
                             const CollectionType collection)
 {
-  MsgStream log( msgSvc(), name() );
-  const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
+  const bool debug = msgLvl(MSG::DEBUG);
+  if (debug) msg(MSG::DEBUG);
 
   // Loop over ROB fragments
 
@@ -421,7 +427,7 @@ StatusCode JepRoiByteStreamTool::convertBs(
 
     if (debug) {
       ++robCount;
-      log << MSG::DEBUG << "Treating ROB fragment " << robCount << endreq;
+      msg() << "Treating ROB fragment " << robCount << endreq;
     }
 
     // Unpack ROD data (slinks)
@@ -438,15 +444,14 @@ StatusCode JepRoiByteStreamTool::convertBs(
     if (debug) {
       if (m_srcIdMap->subDet(sourceID)   != m_subDetector ||
           m_srcIdMap->daqOrRoi(sourceID) != 1) {
-        log << MSG::DEBUG << "Wrong source identifier in data: "
-	    << MSG::hex << sourceID << MSG::dec << endreq;
+        msg() << "Wrong source identifier in data: "
+	      << MSG::hex << sourceID << MSG::dec << endreq;
       }
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
     if (debug) {
-      log << MSG::DEBUG << "Treating crate " << rodCrate 
-                        << " slink " << m_srcIdMap->slink(sourceID)
-			<< endreq;
+      msg() << "Treating crate " << rodCrate 
+            << " slink " << m_srcIdMap->slink(sourceID) << endreq;
     }
 
     // First word may be User Header
@@ -454,8 +459,8 @@ StatusCode JepRoiByteStreamTool::convertBs(
       const L1CaloUserHeader userHeader(*payload);
       const int headerWords = userHeader.words();
       if (headerWords != 1 && debug) {
-        log << MSG::DEBUG << "Unexpected number of user header words: "
-	    << headerWords << endreq;
+        msg() << "Unexpected number of user header words: "
+	      << headerWords << endreq;
       }
       for (int i = 0; i < headerWords; ++i) ++payload;
     }
@@ -473,9 +478,7 @@ StatusCode JepRoiByteStreamTool::convertBs(
             payload = subBlock.read(payload, payloadEnd);
 	    if (collection == CMM_ROI) {
 	      if (subBlock.dataWords() && !subBlock.unpack()) {
-	        log << MSG::DEBUG << "CMM-Jet sub-block unpacking failed"
-		    << endreq;
-		//return StatusCode::FAILURE;
+	        msg() << "CMM-Jet sub-block unpacking failed" << endreq;
               }
 	      const LVL1::CMMRoI roi(subBlock.jetEtMap(slice),
 	                             0,0,0,0,0,0,0,0,0,0,0);
@@ -486,9 +489,7 @@ StatusCode JepRoiByteStreamTool::convertBs(
 	    payload = subBlock.read(payload, payloadEnd);
 	    if (collection == CMM_ROI) {
 	      if (subBlock.dataWords() && !subBlock.unpack()) {
-	        log << MSG::DEBUG << "CMM-Energy sub-block unpacking failed"
-		    << endreq;
-		//return StatusCode::FAILURE;
+	        msg() << "CMM-Energy sub-block unpacking failed" << endreq;
               }
 	      const LVL1::CMMRoI roi(0, subBlock.sumEtHits(slice),
 	                   subBlock.missingEtHits(slice),
@@ -510,9 +511,7 @@ StatusCode JepRoiByteStreamTool::convertBs(
           payload = subBlock.read(payload, payloadEnd);
 	  if (collection == JEM_ROI) {
 	    if (subBlock.dataWords() && !subBlock.unpack()) {
-	      log << MSG::DEBUG << "JEM RoI sub-block unpacking failed"
-	          << endreq;
-              //return StatusCode::FAILURE;
+	      msg() << "JEM RoI sub-block unpacking failed" << endreq;
             }
 	    for (int frame = 0; frame < 8; ++frame) {
 	      for (int forward = 0; forward < 2; ++forward) {
@@ -536,9 +535,9 @@ StatusCode JepRoiByteStreamTool::convertBs(
 	  if (collection == CMM_ROI) {
 	    m_cmCollection->setRoiWord(*payload);
 	  }
-        } else {
-	  log << MSG::DEBUG << "Invalid RoI word "
-	      << MSG::hex << *payload << MSG::dec << endreq;
+        } else if (debug) {
+	  msg() << "Invalid RoI word "
+	        << MSG::hex << *payload << MSG::dec << endreq;
         }
 	++payload;
       }

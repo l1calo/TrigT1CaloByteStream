@@ -3,19 +3,22 @@
 #include <utility>
 
 #include "GaudiKernel/IInterface.h"
+#include "GaudiKernel/MsgStream.h"
+
+#include "ByteStreamCnvSvcBase/FullEventAssembler.h"
 
 #include "TrigT1CaloEvent/TriggerTower.h"
 #include "TrigT1CaloUtils/DataError.h"
 #include "TrigT1CaloUtils/TriggerTowerKey.h"
 
-#include "TrigT1CaloByteStream/ChannelCoordinate.h"
-//#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
-#include "TrigT1CaloByteStream/L1CaloSubBlock.h"
-#include "TrigT1CaloByteStream/L1CaloUserHeader.h"
-#include "TrigT1CaloByteStream/ModifySlices.h"
-#include "TrigT1CaloByteStream/PpmByteStreamTool.h"
-#include "TrigT1CaloByteStream/PpmCrateMappings.h"
-#include "TrigT1CaloByteStream/PpmSubBlock.h"
+#include "IL1CaloMappingTool.h"
+#include "L1CaloSrcIdMap.h"
+#include "L1CaloSubBlock.h"
+#include "L1CaloUserHeader.h"
+#include "ModifySlices.h"
+#include "PpmSubBlock.h"
+
+#include "PpmByteStreamTool.h"
 
 namespace LVL1BS {
 
@@ -33,12 +36,17 @@ const InterfaceID& PpmByteStreamTool::interfaceID()
 PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
                                      const std::string& name,
 				     const IInterface*  parent)
-                  : AlgTool(type, name, parent),
-		    m_version(1), m_compVers(4),
-		    m_srcIdMap(0), m_ppmMaps(0), m_towerKey(0),
-		    m_errorBlock(0), m_rodStatus(0)
+                  : AthAlgTool(type, name, parent),
+		    m_ppmMaps("LVL1BS::PpmMappingTool/PpmMappingTool"),
+		    m_version(1), m_compVers(4), m_channels(64), m_crates(8),
+		    m_modules(16), m_subDetector(eformat::TDAQ_CALO_PREPROC),
+		    m_srcIdMap(0), m_towerKey(0),
+		    m_errorBlock(0), m_rodStatus(0), m_fea(0)
 {
   declareInterface<PpmByteStreamTool>(this);
+
+  declareProperty("PpmMappingTool", m_ppmMaps,
+                  "Crate/Module/Channel to Eta/Phi/Layer mapping tool");
 
   declareProperty("PrintCompStats",     m_printCompStats  = 0,
                   "Print compressed format statistics");
@@ -85,35 +93,37 @@ PpmByteStreamTool::~PpmByteStreamTool()
 
 StatusCode PpmByteStreamTool::initialize()
 {
-  MsgStream log( msgSvc(), name() );
-  log << MSG::INFO << "Initializing " << name() << " - package version "
-                   << PACKAGE_VERSION << endreq;
+  msg(MSG::INFO) << "Initializing " << name() << " - package version "
+                 << PACKAGE_VERSION << endreq;
 
-  m_subDetector = eformat::TDAQ_CALO_PREPROC;
-  m_srcIdMap    = new L1CaloSrcIdMap();
-  m_ppmMaps     = new PpmCrateMappings();
-  m_crates      = m_ppmMaps->crates();
-  m_modules     = m_ppmMaps->modules();
-  m_channels    = m_ppmMaps->channels();
-  m_towerKey    = new LVL1::TriggerTowerKey();
-  m_rodStatus   = new std::vector<uint32_t>(2);
-  return AlgTool::initialize();
+  StatusCode sc = m_ppmMaps.retrieve();
+  if (sc.isFailure()) {
+    msg(MSG::ERROR) << "Failed to retrieve tool " << m_ppmMaps << endreq;
+    return sc;
+  } else msg(MSG::INFO) << "Retrieved tool " << m_ppmMaps << endreq;
+
+  m_srcIdMap  = new L1CaloSrcIdMap();
+  m_towerKey  = new LVL1::TriggerTowerKey();
+  m_rodStatus = new std::vector<uint32_t>(2);
+  m_fea       = new FullEventAssembler<L1CaloSrcIdMap>();
+
+  return StatusCode::SUCCESS;
 }
 
 // Finalize
 
 StatusCode PpmByteStreamTool::finalize()
 {
-  if (m_printCompStats) {
-    MsgStream log( msgSvc(), name() );
-    printCompStats(log, MSG::INFO);
+  if (m_printCompStats && msgLvl(MSG::INFO)) {
+    msg(MSG::INFO);
+    printCompStats();
   }
+  delete m_fea;
   delete m_rodStatus;
   delete m_errorBlock;
   delete m_towerKey;
-  delete m_ppmMaps;
   delete m_srcIdMap;
-  return AlgTool::finalize();
+  return StatusCode::SUCCESS;
 }
 
 // Conversion bytestream to trigger towers
@@ -122,8 +132,9 @@ StatusCode PpmByteStreamTool::convert(
                             const IROBDataProviderSvc::VROBFRAG& robFrags,
                             DataVector<LVL1::TriggerTower>* const ttCollection)
 {
-  MsgStream log( msgSvc(), name() );
-  const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
+  const bool debug   = msgLvl(MSG::DEBUG);
+  const bool verbose = msgLvl(MSG::VERBOSE);
+  if (debug) msg(MSG::DEBUG);
 
   // Clear trigger tower map
 
@@ -139,7 +150,7 @@ StatusCode PpmByteStreamTool::convert(
 
     if (debug) {
       ++robCount;
-      log << MSG::DEBUG << "Treating ROB fragment " << robCount << endreq;
+      msg() << "Treating ROB fragment " << robCount << endreq;
     }
 
     // Unpack ROD data (slinks)
@@ -151,7 +162,7 @@ StatusCode PpmByteStreamTool::convert(
     payloadEnd = payloadBeg + (*rob)->rod_ndata();
     payload = payloadBeg;
     if (payload == payloadEnd) {
-      if (debug) log << MSG::DEBUG << "ROB fragment empty" << endreq;
+      if (debug) msg() << "ROB fragment empty" << endreq;
       continue;
     }
 
@@ -160,15 +171,14 @@ StatusCode PpmByteStreamTool::convert(
     if (debug) {
       if (m_srcIdMap->subDet(sourceID) != m_subDetector ||
           m_srcIdMap->daqOrRoi(sourceID) != 0) {
-        log << MSG::DEBUG << "Wrong source identifier in data: "
-	    << MSG::hex << sourceID << MSG::dec << endreq;
+        msg() << "Wrong source identifier in data: "
+	      << MSG::hex << sourceID << MSG::dec << endreq;
       }
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
     if (debug) {
-      log << MSG::DEBUG << "Treating crate " << rodCrate 
-                        << " slink " << m_srcIdMap->slink(sourceID)
-			<< endreq;
+      msg() << "Treating crate " << rodCrate 
+            << " slink " << m_srcIdMap->slink(sourceID) << endreq;
     }
 
     // First word is User Header
@@ -177,8 +187,8 @@ StatusCode PpmByteStreamTool::convert(
     userHeader.setVersion(minorVersion);
     const int headerWords = userHeader.words();
     if (headerWords != 1 && debug) {
-      log << MSG::DEBUG << "Unexpected number of user header words: "
-          << headerWords << endreq;
+      msg() << "Unexpected number of user header words: "
+            << headerWords << endreq;
     }
     for (int i = 0; i < headerWords; ++i) ++payload;
     // triggered slice offsets
@@ -187,14 +197,11 @@ StatusCode PpmByteStreamTool::convert(
     // FADC baseline lower bound
     m_fadcBaseline = userHeader.lowerBound();
     if (debug) {
-      log << MSG::DEBUG << "Minor format version number: " << MSG::hex 
-                        << minorVersion << MSG::dec << endreq;
-      log << MSG::DEBUG << "LUT triggered slice offset:  " << trigLut
-                        << endreq;
-      log << MSG::DEBUG << "FADC triggered slice offset: " << trigFadc
-                        << endreq;
-      log << MSG::DEBUG << "FADC baseline lower bound:   " << m_fadcBaseline
-                        << endreq;
+      msg() << "Minor format version number: "
+            << MSG::hex << minorVersion << MSG::dec              << endreq
+            << "LUT triggered slice offset:  " << trigLut        << endreq
+            << "FADC triggered slice offset: " << trigFadc       << endreq
+            << "FADC baseline lower bound:   " << m_fadcBaseline << endreq;
     }
     const int runNumber = (*rob)->rod_run_no() & 0xffffff;
 
@@ -203,30 +210,27 @@ StatusCode PpmByteStreamTool::convert(
     int chanPerSubBlock = 0;
     if (payload != payloadEnd) {
       if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER) {
-        log << MSG::ERROR << "Missing Sub-block header" << endreq;
+        msg(MSG::ERROR) << "Missing Sub-block header" << endreq;
         return StatusCode::FAILURE;
       }
       PpmSubBlock testBlock;
       payload = testBlock.read(payload, payloadEnd);
       chanPerSubBlock = testBlock.channelsPerSubBlock();
       if (chanPerSubBlock == 0) {
-        log << MSG::ERROR << "Unsupported version/data format: "
-                          << testBlock.version() << "/"
-                          << testBlock.format()  << endreq;
+        msg(MSG::ERROR) << "Unsupported version/data format: "
+                        << testBlock.version() << "/"
+                        << testBlock.format()  << endreq;
         return StatusCode::FAILURE;
       }
       if (m_channels%chanPerSubBlock != 0) {
-        log << MSG::ERROR << "Invalid channels per sub-block: "
-                          << chanPerSubBlock << endreq;
+        msg(MSG::ERROR) << "Invalid channels per sub-block: "
+                        << chanPerSubBlock << endreq;
         return StatusCode::FAILURE;
       }
-      if (debug) {
-        log << MSG::DEBUG << "Channels per sub-block: "
-                          << chanPerSubBlock << endreq;
-      }
+      if (debug) msg() << "Channels per sub-block: "
+                       << chanPerSubBlock << endreq;
     } else {
-      if (debug) log << MSG::DEBUG << "ROB fragment contains user header only"
-                                   << endreq;
+      if (debug) msg() << "ROB fragment contains user header only" << endreq;
       continue;
     }
     const int numSubBlocks = m_channels/chanPerSubBlock;
@@ -245,16 +249,23 @@ StatusCode PpmByteStreamTool::convert(
       for (int block = 0; block < numSubBlocks; ++block) {
         if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER
 	                           || PpmSubBlock::errorBlock(*payload)) {
-          log << MSG::ERROR << "Unexpected data sequence" << endreq;
+          msg(MSG::ERROR) << "Unexpected data sequence" << endreq;
 	  return StatusCode::FAILURE;
         }
         if (chanPerSubBlock != m_channels && 
 	    L1CaloSubBlock::seqno(*payload) != block * chanPerSubBlock) {
-          log << MSG::DEBUG << "Unexpected channel sequence number: "
-	      << L1CaloSubBlock::seqno(*payload) << " expected " 
-	      << block * chanPerSubBlock << endreq;
+	  if (debug) {
+            msg() << "Unexpected channel sequence number: "
+	          << L1CaloSubBlock::seqno(*payload) << " expected " 
+	          << block * chanPerSubBlock << endreq;
+	  }
 	  if ( !m_ppmBlocks.empty()) break;
-	  else return StatusCode::FAILURE;
+	  else {
+	    if (!debug) {
+	      msg(MSG::ERROR) << "Unexpected channel sequence number" << endreq;
+	    }
+	    return StatusCode::FAILURE;
+	  }
         }
         PpmSubBlock* const subBlock = new PpmSubBlock();
         m_ppmBlocks.push_back(subBlock);
@@ -263,28 +274,26 @@ StatusCode PpmByteStreamTool::convert(
           crate = subBlock->crate();
 	  module = subBlock->module();
 	  if (debug) {
-	    log << MSG::DEBUG << "Module " << module << endreq;
+	    msg() << "Module " << module << endreq;
 	    if (crate != rodCrate) {
-	      log << MSG::DEBUG << "Inconsistent crate number in ROD source ID"
-                  << endreq;
+	      msg() << "Inconsistent crate number in ROD source ID" << endreq;
 	    }
           }
         } else {
           if (subBlock->crate() != crate) {
-	    log << MSG::ERROR << "Inconsistent crate number in sub-blocks"
-	        << endreq;
+	    msg(MSG::ERROR) << "Inconsistent crate number in sub-blocks"
+	                    << endreq;
 	    return StatusCode::FAILURE;
           }
           if (subBlock->module() != module) {
-	    log << MSG::ERROR << "Inconsistent module number in sub-blocks"
-	        << endreq;
+	    msg(MSG::ERROR) << "Inconsistent module number in sub-blocks"
+	                    << endreq;
 	    return StatusCode::FAILURE;
           }
         }
         if (payload == payloadEnd && block != numSubBlocks - 1) {
-          log << MSG::DEBUG << "Premature end of data" << endreq;
+          if (debug) msg() << "Premature end of data" << endreq;
 	  break;
-	  //return StatusCode::FAILURE;
         }
       }
 
@@ -295,22 +304,21 @@ StatusCode PpmByteStreamTool::convert(
       if (payload != payloadEnd) {
         if (L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::HEADER
 	                            && PpmSubBlock::errorBlock(*payload)) {
-	  if (debug) log << MSG::DEBUG << "Error block found" << endreq;
+	  if (debug) msg() << "Error block found" << endreq;
 	  m_errorBlock = new PpmSubBlock();
 	  payload = m_errorBlock->read(payload, payloadEnd);
           if (m_errorBlock->crate() != crate) {
-	    log << MSG::ERROR << "Inconsistent crate number in error block"
-	        << endreq;
+	    msg(MSG::ERROR) << "Inconsistent crate number in error block"
+	                    << endreq;
 	    return StatusCode::FAILURE;
           }
           if (m_errorBlock->module() != module) {
-	    log << MSG::ERROR << "Inconsistent module number in error block"
-	        << endreq;
+	    msg(MSG::ERROR) << "Inconsistent module number in error block"
+	                    << endreq;
 	    return StatusCode::FAILURE;
           }
 	  if (m_errorBlock->dataWords() && !m_errorBlock->unpack()) {
-	    log << MSG::DEBUG << "Unpacking error block failed" << endreq;
-	    //return StatusCode::FAILURE;
+	    if (debug) msg() << "Unpacking error block failed" << endreq;
 	  }
         }
       }
@@ -325,12 +333,13 @@ StatusCode PpmByteStreamTool::convert(
 	subBlock->setPedestal(m_pedestal);
 	subBlock->setFadcBaseline(m_fadcBaseline);
 	subBlock->setRunNumber(runNumber);
-	log << MSG::DEBUG << "Unpacking sub-block version/format/seqno: "
-	    << subBlock->version() << "/" << subBlock->format() << "/"
-	    << subBlock->seqno() << endreq;
+	if (debug) {
+	  msg() << "Unpacking sub-block version/format/seqno: "
+	        << subBlock->version() << "/" << subBlock->format() << "/"
+	        << subBlock->seqno() << endreq;
+	}
         if (subBlock->dataWords() && !subBlock->unpack()) {
-	  log << MSG::DEBUG << "Unpacking PPM sub-block failed" << endreq;
-	  //return StatusCode::FAILURE;
+	  if (debug) msg() << "Unpacking PPM sub-block failed" << endreq;
         }
 	if (m_printCompStats) addCompStats(subBlock->compStats());
         for (int chan = 0; chan < chanPerSubBlock; ++chan) {
@@ -343,18 +352,22 @@ StatusCode PpmByteStreamTool::convert(
 	  int trigLutKeep  = trigLut;
 	  int trigFadcKeep = trigFadc;
 	  if (lut.size() < size_t(trigLut + 1)) {
-	    log << MSG::DEBUG << "Triggered LUT slice from header "
-	        << "inconsistent with number of slices: "
-		<< trigLut << ", " << lut.size() << ", reset to 0" << endreq;
+	    if (debug) {
+	      msg() << "Triggered LUT slice from header "
+	            << "inconsistent with number of slices: "
+		    << trigLut << ", " << lut.size() << ", reset to 0"
+		    << endreq;
+	    }
 	    trigLutKeep = 0;
-	    //return StatusCode::FAILURE;
           }
 	  if (fadc.size() < size_t(trigFadc + 1)) {
-	    log << MSG::DEBUG << "Triggered FADC slice from header "
-	        << "inconsistent with number of slices: "
-		<< trigFadc << ", " << fadc.size() << ", reset to 0" << endreq;
+	    if (debug) {
+	      msg() << "Triggered FADC slice from header "
+	            << "inconsistent with number of slices: "
+		    << trigFadc << ", " << fadc.size() << ", reset to 0"
+		    << endreq;
+	    }
 	    trigFadcKeep = 0;
-	    //return StatusCode::FAILURE;
           }
 	  LVL1::DataError errorBits(0);
 	  if (m_errorBlock) {
@@ -386,31 +399,28 @@ StatusCode PpmByteStreamTool::convert(
 		     std::accumulate(bcidFadc.begin(), bcidFadc.end(), 0);
 
           if (any || error) {
-	    if (debug) {
-	      log << MSG::VERBOSE
-	          << "channel/LUT/FADC/bcidLUT/bcidFADC/error: "
-		  << channel << "/";
-	      printVec(lut,      log, MSG::VERBOSE);
-	      printVec(fadc,     log, MSG::VERBOSE);
-	      printVec(bcidLut,  log, MSG::VERBOSE);
-	      printVec(bcidFadc, log, MSG::VERBOSE);
-	      log << MSG::VERBOSE << MSG::hex << error << MSG::dec << "/";
+	    if (verbose) {
+	      msg(MSG::VERBOSE) << "channel/LUT/FADC/bcidLUT/bcidFADC/error: "
+		                << channel << "/";
+	      printVec(lut);
+	      printVec(fadc);
+	      printVec(bcidLut);
+	      printVec(bcidFadc);
+	      msg() << MSG::hex << error << MSG::dec << "/";
             }
-	    ChannelCoordinate coord;
-	    if (!m_ppmMaps->mapping(crate, module, channel, coord)) {
-	      if (debug && any) {
-	        log << MSG::VERBOSE << " Unexpected non-zero data words"
-	            << endreq;
+	    double eta = 0.;
+	    double phi = 0.;
+	    int layer = 0;
+	    if (!m_ppmMaps->mapping(crate, module, channel, eta, phi, layer)) {
+	      if (verbose && any) {
+	        msg() << " Unexpected non-zero data words" << endreq;
 	      }
               continue;
             }
-	    const ChannelCoordinate::CaloLayer layer = coord.layer();
-	    const double phi = coord.phi();
-	    const double eta = etaHack(coord);
-	    if (debug) {
-	      log << MSG::VERBOSE << " eta/etaHack/phi/layer: " << coord.eta()
-	          << "/" << eta << "/" << phi << "/" << coord.layerName(layer)
-		  << "/" << endreq;
+	    if (verbose) {
+	      msg() << " eta/phi/layer: " << eta << "/" << phi << "/" << layer
+		    << "/" << endreq;
+	      msg(MSG::DEBUG);
             }
 	    LVL1::TriggerTower* tt = findTriggerTower(eta, phi);
             if ( ! tt) {
@@ -420,10 +430,10 @@ StatusCode PpmByteStreamTool::convert(
               m_ttMap.insert(std::make_pair(key, tt));
 	      ttTemp.push_back(tt);
             }
-            if (layer == ChannelCoordinate::EM) {  // EM
+            if (layer == 0) {  // EM
 	      tt->addEM(fadc, lut, bcidFadc, bcidLut, error,
 	                                           trigLutKeep, trigFadcKeep);
-            } else {                               // Had
+            } else {           // Had
 	      tt->addHad(fadc, lut, bcidFadc, bcidLut, error,
 	                                           trigLutKeep, trigFadcKeep);
             }
@@ -456,14 +466,14 @@ StatusCode PpmByteStreamTool::convert(
                       const DataVector<LVL1::TriggerTower>* const ttCollection,
                             RawEventWrite* const re)
 {
-  MsgStream log( msgSvc(), name() );
-  const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
+  const bool debug = msgLvl(MSG::DEBUG);
+  if (debug) msg(MSG::DEBUG);
 
   // Clear the event assembler
 
-  m_fea.clear();
+  m_fea->clear();
   const uint16_t minorVersion = 0x1002;
-  m_fea.setRodMinorVersion(minorVersion);
+  m_fea->setRodMinorVersion(minorVersion);
   m_rodStatusMap.clear();
 
   // Pointer to ROD data vector
@@ -480,8 +490,8 @@ StatusCode PpmByteStreamTool::convert(
   const int chanPerSubBlock = PpmSubBlock::channelsPerSubBlock(m_version,
                                                                m_dataFormat);
   if (chanPerSubBlock == 0) {
-    log << MSG::ERROR << "Unsupported version/data format: "
-                      << m_version << "/" << m_dataFormat << endreq;
+    msg(MSG::ERROR) << "Unsupported version/data format: "
+                    << m_version << "/" << m_dataFormat << endreq;
     return StatusCode::FAILURE;
   }
   PpmSubBlock errorBlock;
@@ -504,16 +514,15 @@ StatusCode PpmByteStreamTool::convert(
 	const int daqOrRoi = 0;
 	const int slink = module/modulesPerSlink;
         if (debug) {
-          log << MSG::DEBUG << "Treating crate " << crate
-                            << " slink " << slink << endreq;
+          msg() << "Treating crate " << crate << " slink " << slink << endreq;
         }
 	// Get number of slices and triggered slice offsets
 	// for this slink
 	if ( ! slinkSlices(crate, module, modulesPerSlink,
 	                   slicesLut, slicesFadc, trigLut, trigFadc)) {
-	  log << MSG::ERROR << "Inconsistent number of slices or "
-	      << "triggered slice offsets in data for crate "
-	      << crate << " slink " << slink << endreq;
+	  msg(MSG::ERROR) << "Inconsistent number of slices or "
+	                  << "triggered slice offsets in data for crate "
+	                  << crate << " slink " << slink << endreq;
 	  return StatusCode::FAILURE;
         }
 	slicesLutNew  = (m_forceSlicesLut)  ? m_forceSlicesLut  : slicesLut;
@@ -521,22 +530,18 @@ StatusCode PpmByteStreamTool::convert(
 	trigLutNew    = ModifySlices::peak(trigLut,  slicesLut,  slicesLutNew);
 	trigFadcNew   = ModifySlices::peak(trigFadc, slicesFadc, slicesFadcNew);
         if (debug) {
-	  log << MSG::DEBUG << "Data Version/Format: " << m_version
-	                    << " " << m_dataFormat << endreq;
-          log << MSG::DEBUG << "LUT slices/offset: " << slicesLut
-                            << " " << trigLut;
+	  msg() << "Data Version/Format: " << m_version
+	        << " " << m_dataFormat << endreq
+                << "LUT slices/offset: " << slicesLut << " " << trigLut;
           if (slicesLut != slicesLutNew) {
-	    log << MSG::DEBUG << " modified to " << slicesLutNew
-	                      << " " << trigLutNew;
+	    msg() << " modified to " << slicesLutNew << " " << trigLutNew;
           }
-	  log << MSG::DEBUG << endreq;
-          log << MSG::DEBUG << "FADC slices/offset: " << slicesFadc
-                            << " " << trigFadc;
+	  msg() << endreq
+                << "FADC slices/offset: " << slicesFadc << " " << trigFadc;
           if (slicesFadc != slicesFadcNew) {
-	    log << MSG::DEBUG << " modified to " << slicesFadcNew
-	                      << " " << trigFadcNew;
+	    msg() << " modified to " << slicesFadcNew << " " << trigFadcNew;
           }
-	  log << MSG::DEBUG << endreq;
+	  msg() << endreq;
         }
         L1CaloUserHeader userHeader;
         userHeader.setPpmLut(trigLutNew);
@@ -544,13 +549,11 @@ StatusCode PpmByteStreamTool::convert(
 	userHeader.setLowerBound(m_fadcBaseline);
 	const uint32_t rodIdPpm = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
 	                                                       m_subDetector);
-	theROD = m_fea.getRodData(rodIdPpm);
+	theROD = m_fea->getRodData(rodIdPpm);
 	theROD->push_back(userHeader.header());
 	m_rodStatusMap.insert(make_pair(rodIdPpm, m_rodStatus));
       }
-      if (debug) {
-        log << MSG::DEBUG << "Module " << module << endreq;
-      }
+      if (debug) msg() << "Module " << module << endreq;
 
       // Find trigger towers corresponding to each eta/phi pair and fill
       // sub-blocks
@@ -578,9 +581,11 @@ StatusCode PpmByteStreamTool::convert(
 	  subBlock.setFadcThreshold(m_fadcThreshold);
         }
         const LVL1::TriggerTower* tt = 0;
-	ChannelCoordinate coord;
-	if (m_ppmMaps->mapping(crate, module, channel, coord)) {
-	  tt = findLayerTriggerTower(coord);
+	double eta = 0.;
+	double phi = 0.;
+	int layer = 0;
+	if (m_ppmMaps->mapping(crate, module, channel, eta, phi, layer)) {
+	  tt = findLayerTriggerTower(eta, phi, layer);
         }
 	if (tt ) {
 	  int err = 0;
@@ -588,14 +593,13 @@ StatusCode PpmByteStreamTool::convert(
 	  std::vector<int> fadc;
 	  std::vector<int> bcidLut;
 	  std::vector<int> bcidFadc;
-	  const ChannelCoordinate::CaloLayer layer = coord.layer();
-	  if (layer == ChannelCoordinate::EM) {  // em
+	  if (layer == 0) {  // em
 	    ModifySlices::data(tt->emLUT(),     lut,      slicesLutNew);
 	    ModifySlices::data(tt->emADC(),     fadc,     slicesFadcNew);
 	    ModifySlices::data(tt->emBCIDvec(), bcidLut,  slicesLutNew);
 	    ModifySlices::data(tt->emBCIDext(), bcidFadc, slicesFadcNew);
 	    err = tt->emError();
-          } else {                               // had
+          } else {           // had
 	    ModifySlices::data(tt->hadLUT(),     lut,      slicesLutNew);
 	    ModifySlices::data(tt->hadADC(),     fadc,     slicesFadcNew);
 	    ModifySlices::data(tt->hadBCIDvec(), bcidLut,  slicesLutNew);
@@ -615,8 +619,7 @@ StatusCode PpmByteStreamTool::convert(
         if (chan == chanPerSubBlock - 1) {
 	  // output the packed sub-block
 	  if ( !subBlock.pack()) {
-	    log << MSG::ERROR << "PPM sub-block packing failed"
-	                      << endreq;
+	    msg(MSG::ERROR) << "PPM sub-block packing failed" << endreq;
 	    return StatusCode::FAILURE;
 	  }
 	  if (m_printCompStats) addCompStats(subBlock.compStats());
@@ -625,8 +628,8 @@ StatusCode PpmByteStreamTool::convert(
 	    subBlock.setStatus(0, false, false, false, false,
 	                                 false, false, false);
 	    if (debug) {
-	      log << MSG::DEBUG << "PPM sub-block data words: "
-	                        << subBlock.dataWords() << endreq;
+	      msg() << "PPM sub-block data words: "
+	            << subBlock.dataWords() << endreq;
 	    }
 	    subBlock.write(theROD);
 	  } else {
@@ -655,23 +658,22 @@ StatusCode PpmByteStreamTool::convert(
 	    subBlock.setStatus(0, glinkTimeout, false, upstreamError,
 	                       daqOverflow, bcnMismatch, false, glinkParity);
 	    if (debug) {
-	      log << MSG::DEBUG << "PPM sub-block data words: "
-	                        << subBlock.dataWords() << endreq;
+	      msg() << "PPM sub-block data words: "
+	            << subBlock.dataWords() << endreq;
 	    }
             subBlock.write(theROD);
 	    // Only uncompressed format has a separate error block
 	    if (m_dataFormat == L1CaloSubBlock::UNCOMPRESSED) {
 	      if ( ! errorBlock.pack()) {
-	        log << MSG::ERROR << "PPM error block packing failed"
-	                          << endreq;
+	        msg(MSG::ERROR) << "PPM error block packing failed" << endreq;
 	        return StatusCode::FAILURE;
 	      }
 	      errorBlock.setStatus(0, glinkTimeout, false, upstreamError, 
 	                       daqOverflow, bcnMismatch, false, glinkParity);
 	      errorBlock.write(theROD);
 	      if (debug) {
-	        log << MSG::DEBUG << "PPM error block data words: "
-	                          << errorBlock.dataWords() << endreq;
+	        msg() << "PPM error block data words: "
+	              << errorBlock.dataWords() << endreq;
 	      }
 	    }
           }
@@ -682,7 +684,7 @@ StatusCode PpmByteStreamTool::convert(
 
   // Fill the raw event
 
-  m_fea.fill(re, log);
+  m_fea->fill(re, msg());
 
   // Set ROD status words
 
@@ -703,43 +705,25 @@ void PpmByteStreamTool::addCompStats(const std::vector<uint32_t>& stats)
 
 // Print compression stats
 
-void PpmByteStreamTool::printCompStats(MsgStream& log,
-                                       const MSG::Level level) const
+void PpmByteStreamTool::printCompStats() const
 {
-  log << level << "Compression stats format/count: ";
+  msg() << "Compression stats format/count: ";
   const int n = m_compStats.size();
   for (int i = 0; i < n; ++i) {
-    log << level << " " << i << "/" << m_compStats[i];
+    msg() << " " << i << "/" << m_compStats[i];
   }
-  log << level << endreq;
-}
-
-// Hack for Had FCAL eta which is adjusted to EM value in TriggerTower
-
-double PpmByteStreamTool::etaHack(const ChannelCoordinate& coord) const
-{
-  double eta = coord.eta();
-  const ChannelCoordinate::CaloLayer layer = coord.layer();
-  if (layer == ChannelCoordinate::FCAL2 || layer == ChannelCoordinate::FCAL3) {
-    const double etaCorrection = coord.etaGranularity()/4.;
-    if (layer == ChannelCoordinate::FCAL2) eta -= etaCorrection;
-    else eta += etaCorrection;
-  }
-  return eta;
+  msg() << endreq;
 }
 
 // Find a trigger tower using separate layer maps
 
 const LVL1::TriggerTower* PpmByteStreamTool::findLayerTriggerTower(
-                                             const ChannelCoordinate& coord)
+            const double eta, const double phi, const int layer)
 {
-  const double phi = coord.phi();
-  const double eta = etaHack(coord);
-  const ChannelCoordinate::CaloLayer layer = coord.layer();
   const LVL1::TriggerTower* tt = 0;
   const unsigned int key = m_towerKey->ttKey(phi, eta);
   TriggerTowerMapConst::const_iterator mapIter;
-  if (layer == ChannelCoordinate::EM) {
+  if (layer == 0) {
     mapIter = m_ttEmMap.find(key);
     if (mapIter != m_ttEmMap.end()) tt = mapIter->second;
   } else {
@@ -808,12 +792,15 @@ bool PpmByteStreamTool::slinkSlices(const int crate, const int module,
   int trigF  =  m_dfltSlicesFadc/2;
   for (int mod = module; mod < module + modulesPerSlink; ++mod) {
     for (int chan = 0; chan < m_channels; ++chan) {
-      ChannelCoordinate coord;
-      if (!m_ppmMaps->mapping(crate, mod, chan, coord)) continue;
-      const LVL1::TriggerTower* const tt = findLayerTriggerTower(coord);
+      double eta = 0.;
+      double phi = 0.;
+      int layer = 0;
+      if (!m_ppmMaps->mapping(crate, mod, chan,
+                                     eta, phi, layer)) continue;
+      const LVL1::TriggerTower* const tt = findLayerTriggerTower(
+                                                eta, phi, layer);
       if ( !tt ) continue;
-      const ChannelCoordinate::CaloLayer layer = coord.layer();
-      if (layer == ChannelCoordinate::EM) {
+      if (layer == 0) {
         if (sliceL < 0) { // initialise
 	  sliceL = (tt->emLUT()).size();
 	  sliceF = (tt->emADC()).size();
@@ -871,15 +858,14 @@ const std::vector<uint32_t>& PpmByteStreamTool::sourceIDs()
 
 // Print a vector
 
-void PpmByteStreamTool::printVec(const std::vector<int>& vec, MsgStream& log,
-                                                const MSG::Level level) const
+void PpmByteStreamTool::printVec(const std::vector<int>& vec) const
 {
   std::vector<int>::const_iterator pos;
   for (pos = vec.begin(); pos != vec.end(); ++pos) {
-    if (pos != vec.begin()) log << level << ",";
-    log << level << *pos;
+    if (pos != vec.begin()) msg() << ",";
+    msg() << *pos;
   }
-  log << level << "/";
+  msg() << "/";
 }
 
 

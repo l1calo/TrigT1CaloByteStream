@@ -1,5 +1,5 @@
 
-#include "TrigT1CaloByteStream/CmmCpSubBlock.h"
+#include "CmmCpSubBlock.h"
 
 namespace LVL1BS {
 

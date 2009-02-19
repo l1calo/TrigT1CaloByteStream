@@ -1,5 +1,5 @@
 
-#include "TrigT1CaloByteStream/ChannelCoordinate.h"
+#include "ChannelCoordinate.h"
 
 namespace LVL1BS {
 

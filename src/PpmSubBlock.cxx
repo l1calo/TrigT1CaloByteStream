@@ -1,7 +1,6 @@
 
-#include "TrigT1CaloByteStream/PpmCompression.h"
-#include "TrigT1CaloByteStream/PpmCrateMappings.h"
-#include "TrigT1CaloByteStream/PpmSubBlock.h"
+#include "PpmCompression.h"
+#include "PpmSubBlock.h"
 
 namespace LVL1BS {
 
@@ -20,6 +19,7 @@ const uint32_t PpmSubBlock::s_bcidLutMask;
 const uint32_t PpmSubBlock::s_fadcMask;
 const uint32_t PpmSubBlock::s_bcidFadcMask;
 
+const int      PpmSubBlock::s_channels;
 const int      PpmSubBlock::s_glinkPins;
 const int      PpmSubBlock::s_asicChannels;
 const int      PpmSubBlock::s_dataBits;
@@ -426,12 +426,12 @@ int PpmSubBlock::channelsPerSubBlock(const int version, const int format)
     case 1:
       switch (format) {
         case UNCOMPRESSED:
-	  chan = PpmCrateMappings::channels()/s_asicChannels;
+	  chan = s_channels/s_asicChannels;
 	  break;
         case NEUTRAL:
         case COMPRESSED:
         case SUPERCOMPRESSED:
-	  chan = PpmCrateMappings::channels();
+	  chan = s_channels;
 	  break;
         default:
 	  break;

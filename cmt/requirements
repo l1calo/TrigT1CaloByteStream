@@ -1,25 +1,33 @@
 package TrigT1CaloByteStream
 
 use AtlasPolicy          AtlasPolicy-*
+use DataModel            DataModel-*            Control
+use GaudiInterface       GaudiInterface-*       External
+
+author Peter Faulkner <P.J.W.Faulkner@bham.ac.uk> 
+
+# use this line to exclude test algorithms
+library TrigT1CaloByteStream *.cxx components/*.cxx
+# use this line to include test algorithms
+#library TrigT1CaloByteStream *.cxx ../test/*.cxx
+apply_pattern component_library
+
+apply_pattern declare_joboptions files="*.txt *.py"
+
+private
+use AthenaBaseComps      AthenaBaseComps-*      Control
 use ByteStreamCnvSvcBase ByteStreamCnvSvcBase-* Event 
 use ByteStreamData       ByteStreamData-*       Event
 use CLIDSvc              CLIDSvc-*              Control
 use DataCollection       DataCollection-*       External
-use DataModel            DataModel-*            Control
-use GaudiInterface       GaudiInterface-*       External
 use SGTools              SGTools-*              Control
 use StoreGate            StoreGate-*            Control
+
+use CaloIdentifier       CaloIdentifier-*       Calorimeter
+use CaloTriggerTool      CaloTriggerTool-*      Calorimeter
+use Identifier           Identifier-*           DetectorDescription
 use TrigT1CaloEvent      TrigT1CaloEvent-*      Trigger/TrigT1
 use TrigT1CaloUtils      TrigT1CaloUtils-*      Trigger/TrigT1
 use TrigT1Interfaces     TrigT1Interfaces-*     Trigger/TrigT1
 
-author Peter Faulkner <P.J.W.Faulkner@bham.ac.uk> 
-
-#
-# create the dual_use_lib for the Container converters 
-#
-apply_pattern dual_use_library files="*.cxx"
-apply_pattern declare_joboptions files="*.txt *.py"
-
-private
 macro_append DOXYGEN_FILE_PATTERNS    " *.icc"

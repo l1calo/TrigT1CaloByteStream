@@ -1,34 +1,27 @@
 # Bytestream to TrigT1Calo objects conversions
 include.block("TrigT1CaloByteStream/ReadLVL1CaloBS_jobOptions.py")
-from AthenaCommon.AppMgr import ServiceMgr
-from ByteStreamCnvSvc.ByteStreamCnvSvcConf import ByteStreamCnvSvc
-ServiceMgr += ByteStreamCnvSvc()
+
+# the following include is needed to load correctly the trigger towers on/off, TT/Cells maps
+include( "CaloConditions/CaloConditions_jobOptions.py" )
+# To setup correctly the LArCablingService when doLAr is off in the top option.
+if not rec.doLArg():
+    include( "LArConditionsCommon/LArIdMap_comm_jobOptions.py" )
+    include( "LArIdCnv/LArIdCnv_joboptions.py" )
+
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__PpmByteStreamTool
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__CpByteStreamTool
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__CpmRoiByteStreamTool
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__JepByteStreamTool
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__JepRoiByteStreamTool
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__RodHeaderByteStreamTool
-ByteStreamCnvSvc = Service( "ByteStreamCnvSvc" )
-ByteStreamCnvSvc += LVL1BS__PpmByteStreamTool("PpmByteStreamTool")
-ByteStreamCnvSvc += LVL1BS__CpByteStreamTool("CpByteStreamTool")
-ByteStreamCnvSvc += LVL1BS__CpmRoiByteStreamTool("CpmRoiByteStreamTool")
-ByteStreamCnvSvc += LVL1BS__JepByteStreamTool("JepByteStreamTool")
-ByteStreamCnvSvc += LVL1BS__JepRoiByteStreamTool("JepRoiByteStreamTool")
-ByteStreamCnvSvc += LVL1BS__RodHeaderByteStreamTool("RodHeaderByteStreamTool")
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::TriggerTower>" ]
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::CPMTower>" ]
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::CPMHits>" ]
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::CMMCPHits>" ]
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::CPMRoI>" ]
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::JetElement>" ]
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::JEMHits>" ]
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::JEMEtSums>" ]
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::CMMJetHits>" ]
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::CMMEtSums>" ]
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::JEMRoI>" ]
-ByteStreamCnvSvc.InitCnvs += [ "LVL1::CMMRoI" ]
-ByteStreamCnvSvc.InitCnvs += [ "DataVector<LVL1::RODHeader>" ]
+ToolSvc = Service("ToolSvc")
+ToolSvc += LVL1BS__PpmByteStreamTool("PpmByteStreamTool")
+ToolSvc += LVL1BS__CpByteStreamTool("CpByteStreamTool")
+ToolSvc += LVL1BS__CpmRoiByteStreamTool("CpmRoiByteStreamTool")
+ToolSvc += LVL1BS__JepByteStreamTool("JepByteStreamTool")
+ToolSvc += LVL1BS__JepRoiByteStreamTool("JepRoiByteStreamTool")
+ToolSvc += LVL1BS__RodHeaderByteStreamTool("RodHeaderByteStreamTool")
+
 ByteStreamAddressProviderSvc = Service( "ByteStreamAddressProviderSvc" )
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::TriggerTower>/TriggerTowers" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::CPMTower>/CPMTowers" ]

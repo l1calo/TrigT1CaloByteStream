@@ -1,5 +1,7 @@
 
-#include "TrigT1CaloByteStream/JemRoiSubBlock.h"
+#include "TrigT1CaloEvent/JEMRoI.h"
+
+#include "JemRoiSubBlock.h"
 
 namespace LVL1BS {
 

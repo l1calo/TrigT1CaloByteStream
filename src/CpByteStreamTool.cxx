@@ -3,6 +3,10 @@
 #include <utility>
 
 #include "GaudiKernel/IInterface.h"
+#include "GaudiKernel/MsgStream.h"
+#include "GaudiKernel/StatusCode.h"
+
+#include "ByteStreamCnvSvcBase/FullEventAssembler.h"
 
 #include "TrigT1CaloEvent/CMMCPHits.h"
 #include "TrigT1CaloEvent/CPMHits.h"
@@ -11,16 +15,16 @@
 #include "TrigT1CaloUtils/DataError.h"
 #include "TrigT1CaloUtils/TriggerTowerKey.h"
 
-#include "TrigT1CaloByteStream/ChannelCoordinate.h"
-#include "TrigT1CaloByteStream/CmmCpSubBlock.h"
-#include "TrigT1CaloByteStream/CmmSubBlock.h"
-#include "TrigT1CaloByteStream/CpmCrateMappings.h"
-#include "TrigT1CaloByteStream/CpmSubBlock.h"
-#include "TrigT1CaloByteStream/CpByteStreamTool.h"
-//#include "TrigT1CaloByteStream/L1CaloRodStatus.h"
-#include "TrigT1CaloByteStream/L1CaloSubBlock.h"
-#include "TrigT1CaloByteStream/L1CaloUserHeader.h"
-#include "TrigT1CaloByteStream/ModifySlices.h"
+#include "CmmCpSubBlock.h"
+#include "CmmSubBlock.h"
+#include "CpmSubBlock.h"
+#include "IL1CaloMappingTool.h"
+#include "L1CaloSrcIdMap.h"
+#include "L1CaloSubBlock.h"
+#include "L1CaloUserHeader.h"
+#include "ModifySlices.h"
+
+#include "CpByteStreamTool.h"
 
 namespace LVL1BS {
 
@@ -38,12 +42,16 @@ const InterfaceID& CpByteStreamTool::interfaceID()
 CpByteStreamTool::CpByteStreamTool(const std::string& type,
                                    const std::string& name,
 				   const IInterface*  parent)
-                  : AlgTool(type, name, parent),
-		    m_coreOverlap(1),
-		    m_srcIdMap(0), m_cpmMaps(0), m_towerKey(0),
-		    m_rodStatus(0)
+   : AthAlgTool(type, name, parent),
+     m_cpmMaps("LVL1BS::CpmMappingTool/CpmMappingTool"),
+     m_channels(80), m_crates(4), m_modules(14),
+     m_coreOverlap(0), m_subDetector(eformat::TDAQ_CALO_CLUSTER_PROC_DAQ),
+     m_srcIdMap(0), m_towerKey(0), m_rodStatus(0), m_fea(0)
 {
   declareInterface<CpByteStreamTool>(this);
+
+  declareProperty("CpmMappingTool", m_cpmMaps,
+                  "Crate/Module/Channel to Eta/Phi/Layer mapping tool");
 
   declareProperty("CrateOffsetHw",  m_crateOffsetHw  = 8,
                   "Offset of CP crate numbers in bytestream");
@@ -82,30 +90,31 @@ CpByteStreamTool::~CpByteStreamTool()
 
 StatusCode CpByteStreamTool::initialize()
 {
-  MsgStream log( msgSvc(), name() );
-  log << MSG::INFO << "Initializing " << name() << " - package version "
-                   << PACKAGE_VERSION << endreq;
+  msg(MSG::INFO) << "Initializing " << name() << " - package version "
+                 << PACKAGE_VERSION << endreq;
 
-  m_subDetector = eformat::TDAQ_CALO_CLUSTER_PROC_DAQ;
+  StatusCode sc = m_cpmMaps.retrieve();
+  if (sc.isFailure()) {
+    msg(MSG::ERROR) << "Failed to retrieve tool " << m_cpmMaps << endreq;
+    return sc;
+  } else msg(MSG::INFO) << "Retrieved tool " << m_cpmMaps << endreq;
+
   m_srcIdMap    = new L1CaloSrcIdMap();
-  m_cpmMaps     = new CpmCrateMappings();
-  m_crates      = m_cpmMaps->crates();
-  m_modules     = m_cpmMaps->modules();
-  m_channels    = m_cpmMaps->channels();
   m_towerKey    = new LVL1::TriggerTowerKey();
   m_rodStatus   = new std::vector<uint32_t>(2);
-  return AlgTool::initialize();
+  m_fea         = new FullEventAssembler<L1CaloSrcIdMap>();
+  return StatusCode::SUCCESS;
 }
 
 // Finalize
 
 StatusCode CpByteStreamTool::finalize()
 {
+  delete m_fea;
   delete m_rodStatus;
   delete m_towerKey;
-  delete m_cpmMaps;
   delete m_srcIdMap;
-  return AlgTool::finalize();
+  return StatusCode::SUCCESS;
 }
 
 // Conversion bytestream to CPM towers
@@ -146,14 +155,14 @@ StatusCode CpByteStreamTool::convert(
 StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
                                            RawEventWrite* const re)
 {
-  MsgStream log( msgSvc(), name() );
-  const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
+  const bool debug = msgLvl(MSG::DEBUG);
+  if (debug) msg(MSG::DEBUG);
 
   // Clear the event assembler
 
-  m_fea.clear();
+  m_fea->clear();
   const uint16_t minorVersion = 0x1002;
-  m_fea.setRodMinorVersion(minorVersion);
+  m_fea->setRodMinorVersion(minorVersion);
   m_rodStatusMap.clear();
 
   // Pointer to ROD data vector
@@ -188,42 +197,38 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 	const int slink = (m_slinks == 2) ? 2*(mod/modulesPerSlink)
 	                                  : mod/modulesPerSlink;
         if (debug) {
-          log << MSG::DEBUG << "Treating crate " << hwCrate
-                            << " slink " << slink << endreq;
+          msg() << "Treating crate " << hwCrate
+                << " slink " << slink << endreq;
         }
 	// Get number of CPM slices and triggered slice offset
 	// for this slink
 	if ( ! slinkSlices(crate, module, modulesPerSlink,
 	                                  timeslices, trigCpm)) {
-	  log << MSG::ERROR << "Inconsistent number of slices or "
-	      << "triggered slice offsets in data for crate "
-	      << hwCrate << " slink " << slink << endreq;
+	  msg(MSG::ERROR) << "Inconsistent number of slices or "
+	                  << "triggered slice offsets in data for crate "
+	                  << hwCrate << " slink " << slink << endreq;
 	  return StatusCode::FAILURE;
         }
 	timeslicesNew = (m_forceSlices) ? m_forceSlices : timeslices;
 	trigCpmNew    = ModifySlices::peak(trigCpm, timeslices, timeslicesNew);
         if (debug) {
-	  log << MSG::DEBUG << "Data Version/Format: " << m_version
-	                    << " " << m_dataFormat << endreq;
-          log << MSG::DEBUG << "Slices/offset: " << timeslices
-                            << " " << trigCpm;
+	  msg() << "Data Version/Format: " << m_version
+	        << " " << m_dataFormat << endreq
+                << "Slices/offset: " << timeslices << " " << trigCpm;
 	  if (timeslices != timeslicesNew) {
-	    log << MSG::DEBUG << " modified to " << timeslicesNew
-	                      << " " << trigCpmNew;
+	    msg() << " modified to " << timeslicesNew << " " << trigCpmNew;
           }
-	  log << MSG::DEBUG << endreq;
+	  msg() << endreq;
         }
         L1CaloUserHeader userHeader;
         userHeader.setCpm(trigCpmNew);
 	const uint32_t rodIdCpm = m_srcIdMap->getRodID(hwCrate, slink, daqOrRoi,
 	                                                        m_subDetector);
-	theROD = m_fea.getRodData(rodIdCpm);
+	theROD = m_fea->getRodData(rodIdCpm);
 	theROD->push_back(userHeader.header());
 	m_rodStatusMap.insert(make_pair(rodIdCpm, m_rodStatus));
       }
-      if (debug) {
-        log << MSG::DEBUG << "Module " << module << endreq;
-      }
+      if (debug) msg() << "Module " << module << endreq;
 
       // Create a sub-block for each slice (except Neutral format)
 
@@ -240,10 +245,10 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
       // sub-blocks
 
       for (int chan=0; chan < m_channels; ++chan) {
-	ChannelCoordinate coord;
-	if (m_cpmMaps->mapping(crate, module, chan, coord)) {
-	  const double eta = coord.eta();
-	  const double phi = coord.phi();
+	double eta = 0.;
+	double phi = 0.;
+	int layer = 0;
+	if (m_cpmMaps->mapping(crate, module, chan, eta, phi, layer)) {
           const LVL1::CPMTower* const tt = findCpmTower(eta, phi);
 	  if (tt ) {
 	    std::vector<int> emData;
@@ -293,12 +298,12 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
       for (pos = m_cpmBlocks.begin(); pos != m_cpmBlocks.end(); ++pos) {
         CpmSubBlock* const subBlock = *pos;
 	if ( !subBlock->pack()) {
-	  log << MSG::ERROR << "CPM sub-block packing failed" << endreq;
+	  msg(MSG::ERROR) << "CPM sub-block packing failed" << endreq;
 	  return StatusCode::FAILURE;
 	}
         if (debug) {
-          log << MSG::DEBUG << "CPM sub-block data words: "
-	                    << subBlock->dataWords() << endreq;
+          msg() << "CPM sub-block data words: "
+	        << subBlock->dataWords() << endreq;
         }
 	subBlock->write(theROD);
       }
@@ -381,12 +386,12 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
     for (; cos != m_cmmHit0Blocks.end(); ++cos) {
       CmmCpSubBlock* const subBlock = *cos;
       if ( !subBlock->pack()) {
-        log << MSG::ERROR << "CMM-Cp sub-block packing failed" << endreq;
+        msg(MSG::ERROR) << "CMM-Cp sub-block packing failed" << endreq;
 	return StatusCode::FAILURE;
       }
       if (debug) {
-        log << MSG::DEBUG << "CMM-Cp sub-block data words: "
-	                  << subBlock->dataWords() << endreq;
+        msg() << "CMM-Cp sub-block data words: "
+	      << subBlock->dataWords() << endreq;
       }
       subBlock->write(theROD);
     }
@@ -394,12 +399,12 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
     for (; cos != m_cmmHit1Blocks.end(); ++cos) {
       CmmCpSubBlock* const subBlock = *cos;
       if ( !subBlock->pack()) {
-        log << MSG::ERROR << "CMM-Cp sub-block packing failed" << endreq;
+        msg(MSG::ERROR) << "CMM-Cp sub-block packing failed" << endreq;
 	return StatusCode::FAILURE;
       }
       if (debug) {
-        log << MSG::DEBUG << "CMM-Cp sub-block data words: "
-	                  << subBlock->dataWords() << endreq;
+        msg() << "CMM-Cp sub-block data words: "
+	      << subBlock->dataWords() << endreq;
       }
       subBlock->write(theROD);
     }
@@ -407,7 +412,7 @@ StatusCode CpByteStreamTool::convert(const LVL1::CPBSCollection* const cp,
 
   // Fill the raw event
 
-  m_fea.fill(re, log);
+  m_fea->fill(re, msg());
 
   // Set ROD status words
 
@@ -425,7 +430,7 @@ const std::vector<uint32_t>& CpByteStreamTool::sourceIDs(
   const std::string flag("Overlap");
   const std::string::size_type pos = sgKey.find(flag);
   m_coreOverlap =
-   (pos == std::string::npos || pos != sgKey.length() - flag.length()) ? 1 : 2;
+   (pos == std::string::npos || pos != sgKey.length() - flag.length()) ? 0 : 1;
 
   if (m_sourceIDs.empty()) {
     const int maxCrates = m_crates + m_crateOffsetHw;
@@ -449,8 +454,8 @@ StatusCode CpByteStreamTool::convertBs(
                             const IROBDataProviderSvc::VROBFRAG& robFrags,
                             const CollectionType collection)
 {
-  MsgStream log( msgSvc(), name() );
-  const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
+  const bool debug = msgLvl(MSG::DEBUG);
+  if (debug) msg(MSG::DEBUG);
 
   // Loop over ROB fragments
 
@@ -461,7 +466,7 @@ StatusCode CpByteStreamTool::convertBs(
 
     if (debug) {
       ++robCount;
-      log << MSG::DEBUG << "Treating ROB fragment " << robCount << endreq;
+      msg() << "Treating ROB fragment " << robCount << endreq;
     }
 
     // Unpack ROD data (slinks)
@@ -478,15 +483,14 @@ StatusCode CpByteStreamTool::convertBs(
     if (debug) {
       if (m_srcIdMap->subDet(sourceID)   != m_subDetector ||
           m_srcIdMap->daqOrRoi(sourceID) != 0) {
-        log << MSG::DEBUG << "Wrong source identifier in data: "
-	    << MSG::hex << sourceID << MSG::dec << endreq;
+        msg() << "Wrong source identifier in data: "
+	      << MSG::hex << sourceID << MSG::dec << endreq;
       }
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
     if (debug) {
-      log << MSG::DEBUG << "Treating crate " << rodCrate 
-                        << " slink " << m_srcIdMap->slink(sourceID)
-			<< endreq;
+      msg() << "Treating crate " << rodCrate 
+            << " slink " << m_srcIdMap->slink(sourceID) << endreq;
     }
 
     // First word is User Header
@@ -495,29 +499,24 @@ StatusCode CpByteStreamTool::convertBs(
     userHeader.setVersion(minorVersion);
     const int headerWords = userHeader.words();
     if (headerWords != 1 && debug) {
-      log << MSG::DEBUG << "Unexpected number of user header words: "
-          << headerWords << endreq;
+      msg() << "Unexpected number of user header words: "
+            << headerWords << endreq;
     }
     for (int i = 0; i < headerWords; ++i) ++payload;
     // triggered slice offsets
     int trigCpm = userHeader.cpm();
     int trigCmm = userHeader.cpCmm();
     if (debug) {
-      log << MSG::DEBUG << "Minor format version number: " << MSG::hex
-                        << minorVersion << MSG::dec << endreq;
-      log << MSG::DEBUG << "CPM triggered slice offset: "  << trigCpm
-                        << endreq;
-      log << MSG::DEBUG << "CMM triggered slice offset: "  << trigCmm
-                        << endreq;
+      msg() << "Minor format version number: " << MSG::hex
+            << minorVersion << MSG::dec << endreq
+            << "CPM triggered slice offset: "  << trigCpm << endreq
+            << "CMM triggered slice offset: "  << trigCmm << endreq;
     }
     if (trigCpm != trigCmm) {
       const int newTrig = (trigCpm > trigCmm) ? trigCpm : trigCmm;
       trigCpm = newTrig;
       trigCmm = newTrig;
-      if (debug) {
-        log << MSG::DEBUG << "Changed both offsets to " << newTrig
-	                  << endreq;
-      }
+      if (debug) msg() << "Changed both offsets to " << newTrig << endreq;
     }
 
     // Loop over sub-blocks
@@ -525,7 +524,7 @@ StatusCode CpByteStreamTool::convertBs(
     while (payload != payloadEnd) {
       
       if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER) {
-        log << MSG::ERROR << "Unexpected data sequence" << endreq;
+        msg(MSG::ERROR) << "Unexpected data sequence" << endreq;
         return StatusCode::FAILURE;
       }
       if (CmmSubBlock::cmmBlock(*payload)) {
@@ -535,7 +534,7 @@ StatusCode CpByteStreamTool::convertBs(
 	if (collection == CMM_CP_HITS) {
 	  StatusCode sc = decodeCmmCp(subBlock, trigCmm);
 	  if (sc.isFailure() && debug) {
-	    log << MSG::DEBUG << "decodeCmmCp failed" << endreq;
+	    msg() << "decodeCmmCp failed" << endreq;
 	  }
         }
       } else {
@@ -545,7 +544,7 @@ StatusCode CpByteStreamTool::convertBs(
 	if (collection == CPM_TOWERS || collection == CPM_HITS) {
 	  StatusCode sc = decodeCpm(subBlock, trigCpm, collection);
 	  if (sc.isFailure() && debug) {
-	    log << MSG::DEBUG << "decodeCpm failed" << endreq;
+	    msg() << "decodeCpm failed" << endreq;
 	  }
         }
       }
@@ -559,8 +558,8 @@ StatusCode CpByteStreamTool::convertBs(
 
 StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
 {
-  MsgStream log( msgSvc(), name() );
-  const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
+  const bool debug = msgLvl(MSG::DEBUG);
+  if (debug) msg(MSG::DEBUG);
 
   const int hwCrate    = subBlock.crate();
   const int module     = subBlock.cmmPosition();
@@ -568,32 +567,32 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
   const int timeslices = subBlock.timeslices();
   const int sliceNum   = subBlock.slice();
   if (debug) {
-    log << MSG::DEBUG << "CMM-CP: Crate "  << hwCrate
-                      << "  Module "       << module
-		      << "  Summing "      << summing
-                      << "  Total slices " << timeslices
-                      << "  Slice "        << sliceNum    << endreq;
+    msg() << "CMM-CP: Crate "  << hwCrate
+          << "  Module "       << module
+	  << "  Summing "      << summing
+          << "  Total slices " << timeslices
+          << "  Slice "        << sliceNum    << endreq;
   }
   if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
-    log << MSG::ERROR << "Unexpected crate number: " << hwCrate << endreq;
+    msg(MSG::ERROR) << "Unexpected crate number: " << hwCrate << endreq;
     return StatusCode::FAILURE;
   }
   if (timeslices <= trigCmm) {
-    log << MSG::DEBUG << "Triggered CMM slice from header "
-        << "inconsistent with number of slices: "
-        << trigCmm << ", " << timeslices << ", reset to 0" << endreq;
+    if (debug) {
+      msg() << "Triggered CMM slice from header "
+            << "inconsistent with number of slices: "
+            << trigCmm << ", " << timeslices << ", reset to 0" << endreq;
+    }
     trigCmm = 0;
-    //return StatusCode::FAILURE;
   }
   if (timeslices <= sliceNum) {
-    log << MSG::ERROR << "Total slices inconsistent with slice number: "
-        << timeslices << ", " << sliceNum << endreq;
+    msg(MSG::ERROR) << "Total slices inconsistent with slice number: "
+                    << timeslices << ", " << sliceNum << endreq;
     return StatusCode::FAILURE;
   }
   // Unpack sub-block
   if (subBlock.dataWords() && !subBlock.unpack()) {
-    log << MSG::DEBUG << "CMM-CP sub-block unpacking failed" << endreq;
-    //return StatusCode::FAILURE;
+    if (debug) msg() << "CMM-CP sub-block unpacking failed" << endreq;
   }
 
   // Retrieve required data
@@ -684,39 +683,40 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
 StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
                                  int trigCpm, const CollectionType collection)
 {
-  MsgStream log( msgSvc(), name() );
-  const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
+  const bool debug   = msgLvl(MSG::DEBUG);
+  const bool verbose = msgLvl(MSG::VERBOSE);
+  if (debug) msg(MSG::DEBUG);
 
   const int hwCrate    = subBlock.crate();
   const int module     = subBlock.module();
   const int timeslices = subBlock.timeslices();
   const int sliceNum   = subBlock.slice();
   if (debug) {
-    log << MSG::DEBUG << "CPM: Crate "     << hwCrate
-                      << "  Module "       << module
-                      << "  Total slices " << timeslices
-                      << "  Slice "        << sliceNum    << endreq;
+    msg() << "CPM: Crate "     << hwCrate
+          << "  Module "       << module
+          << "  Total slices " << timeslices
+          << "  Slice "        << sliceNum    << endreq;
   }
   if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
-    log << MSG::ERROR << "Unexpected crate number: " << hwCrate << endreq;
+    msg(MSG::ERROR) << "Unexpected crate number: " << hwCrate << endreq;
     return StatusCode::FAILURE;
   }
   if (timeslices <= trigCpm) {
-    log << MSG::DEBUG << "Triggered CPM slice from header "
-        << "inconsistent with number of slices: "
-        << trigCpm << ", " << timeslices << ", reset to 0" << endreq;
+    if (debug) {
+      msg() << "Triggered CPM slice from header "
+            << "inconsistent with number of slices: "
+            << trigCpm << ", " << timeslices << ", reset to 0" << endreq;
+    }
     trigCpm = 0;
-    //return StatusCode::FAILURE;
   }
   if (timeslices <= sliceNum) {
-    log << MSG::ERROR << "Total slices inconsistent with slice number: "
-        << timeslices << ", " << sliceNum << endreq;
+    msg(MSG::ERROR) << "Total slices inconsistent with slice number: "
+                    << timeslices << ", " << sliceNum << endreq;
     return StatusCode::FAILURE;
   }
   // Unpack sub-block
   if (subBlock.dataWords() && !subBlock.unpack()) {
-    log << MSG::DEBUG << "CPM sub-block unpacking failed" << endreq;
-    //return StatusCode::FAILURE;
+    if (debug) msg() << "CPM sub-block unpacking failed" << endreq;
   }
 
   // Retrieve required data
@@ -748,46 +748,47 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
 	hadErrBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
 	int hadErr1 = hadErrBits.error();
         if (em || had || emErr1 || hadErr1) {
-	  ChannelCoordinate coord;
-	  int coreOrOverlap = m_cpmMaps->mapping(crate, module, chan, coord);
-	  if (coreOrOverlap == m_coreOverlap) {
-	    const double eta = coord.eta();
-	    const double phi = coord.phi();
-	    LVL1::CPMTower* tt = findCpmTower(eta, phi);
-	    if ( ! tt ) {   // create new CPM tower
-	      std::vector<int> emVec(timeslices);
-	      std::vector<int> hadVec(timeslices);
-	      std::vector<int> emErrVec(timeslices);
-	      std::vector<int> hadErrVec(timeslices);
-	      emVec[slice]     = em;
-	      hadVec[slice]    = had;
-	      emErrVec[slice]  = emErr1;
-	      hadErrVec[slice] = hadErr1;
-	      tt = new LVL1::CPMTower(phi, eta, emVec, emErrVec,
-	                                        hadVec, hadErrVec, trigCpm);
-	      const unsigned int key = m_towerKey->ttKey(phi, eta);
-	      m_ttMap.insert(std::make_pair(key, tt));
-	      m_ttCollection->push_back(tt);
-            } else {
-	      std::vector<int> emVec(tt->emEnergyVec());
-	      std::vector<int> hadVec(tt->hadEnergyVec());
-	      std::vector<int> emErrVec(tt->emErrorVec());
-	      std::vector<int> hadErrVec(tt->hadErrorVec());
-	      emVec[slice]     = em;
-	      hadVec[slice]    = had;
-	      emErrVec[slice]  = emErr1;
-	      hadErrVec[slice] = hadErr1;
-	      tt->fill(emVec, emErrVec, hadVec, hadErrVec, trigCpm);
+	  double eta = 0.;
+	  double phi = 0.;
+	  int layer = 0;
+	  if (m_cpmMaps->mapping(crate, module, chan, eta, phi, layer)) {
+	    if (layer == m_coreOverlap) {
+	      LVL1::CPMTower* tt = findCpmTower(eta, phi);
+	      if ( ! tt ) {   // create new CPM tower
+	        std::vector<int> emVec(timeslices);
+	        std::vector<int> hadVec(timeslices);
+	        std::vector<int> emErrVec(timeslices);
+	        std::vector<int> hadErrVec(timeslices);
+	        emVec[slice]     = em;
+	        hadVec[slice]    = had;
+	        emErrVec[slice]  = emErr1;
+	        hadErrVec[slice] = hadErr1;
+	        tt = new LVL1::CPMTower(phi, eta, emVec, emErrVec,
+	                                          hadVec, hadErrVec, trigCpm);
+	        const unsigned int key = m_towerKey->ttKey(phi, eta);
+	        m_ttMap.insert(std::make_pair(key, tt));
+	        m_ttCollection->push_back(tt);
+              } else {
+	        std::vector<int> emVec(tt->emEnergyVec());
+	        std::vector<int> hadVec(tt->hadEnergyVec());
+	        std::vector<int> emErrVec(tt->emErrorVec());
+	        std::vector<int> hadErrVec(tt->hadErrorVec());
+	        emVec[slice]     = em;
+	        hadVec[slice]    = had;
+	        emErrVec[slice]  = emErr1;
+	        hadErrVec[slice] = hadErr1;
+	        tt->fill(emVec, emErrVec, hadVec, hadErrVec, trigCpm);
+	      }
 	    }
-          } else if (debug && (em || had || emErr || hadErr)
-	                   && !coreOrOverlap) {
-	    log << MSG::VERBOSE
-	        << "Non-zero data but no channel mapping for channel "
-	        << chan << endreq;
+          } else if (verbose && (em || had || emErr || hadErr)) {
+	    msg(MSG::VERBOSE) << "Non-zero data but no channel mapping for channel "
+	                      << chan << endreq;
+	    msg(MSG::DEBUG);
           }
-        } else if (debug) {
-	  log << MSG::VERBOSE << "No CPM tower data for channel "
-	                      << chan << " slice " << slice << endreq;
+        } else if (verbose) {
+	  msg(MSG::VERBOSE) << "No CPM tower data for channel "
+	                    << chan << " slice " << slice << endreq;
+	  msg(MSG::DEBUG);
         }
       }
     } else if (collection == CPM_HITS) {
@@ -813,10 +814,11 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
 	  hitsVec1[slice] = hits1;
 	  ch->addHits(hitsVec0, hitsVec1);
         }
-      } else if (debug) {
-        log << MSG::VERBOSE << "No CPM hits data for crate/module/slice "
-                            << hwCrate << "/" << module << "/" << slice
-   			    << endreq;
+      } else if (verbose) {
+        msg(MSG::VERBOSE) << "No CPM hits data for crate/module/slice "
+                          << hwCrate << "/" << module << "/" << slice
+   			  << endreq;
+        msg(MSG::DEBUG);
       }
     }
   }
@@ -921,9 +923,11 @@ bool CpByteStreamTool::slinkSlices(const int crate, const int module,
   int trigC  = m_dfltSlices/2;
   for (int mod = module; mod < module + modulesPerSlink; ++mod) {
     for (int chan = 0; chan < m_channels; ++chan) {
-      ChannelCoordinate coord;
-      if ( !m_cpmMaps->mapping(crate, mod, chan, coord)) continue;
-      const LVL1::CPMTower* const tt = findCpmTower(coord.phi(), coord.eta());
+      double eta = 0.;
+      double phi = 0.;
+      int layer = 0;
+      if ( !m_cpmMaps->mapping(crate, mod, chan, eta, phi, layer)) continue;
+      const LVL1::CPMTower* const tt = findCpmTower(eta, phi);
       if ( !tt ) continue;
       const int numdat = 4;
       std::vector<int> sums(numdat);

@@ -2,23 +2,29 @@
 #include <set>
 
 #include "eformat/SourceIdentifier.h"
+#include "GaudiKernel/IInterface.h"
+#include "GaudiKernel/MsgStream.h"
+#include "GaudiKernel/StatusCode.h"
 
 #include "TrigT1CaloUtils/TriggerTowerKey.h"
 
-#include "TrigT1CaloByteStream/L1CaloSrcIdMap.h"
-#include "TrigT1CaloByteStream/TriggerTowerSelectionTool.h"
+#include "IL1CaloMappingTool.h"
+#include "L1CaloSrcIdMap.h"
+
+#include "TriggerTowerSelectionTool.h"
 
 namespace LVL1BS {
 
 TriggerTowerSelectionTool::TriggerTowerSelectionTool(const std::string& type,
                                          const std::string& name,
 					 const IInterface*  parent)
- : AlgTool(type, name, parent),
-   m_mappingTool("LVL1BS::PpmCrateMappingTool/PpmCrateMappingTool"),
-   m_srcIdMap(0),
-   m_log(msgSvc(), name)
+ : AthAlgTool(type, name, parent),
+   m_mappingTool("LVL1BS::PpmMappingTool/PpmMappingTool"),
+   m_srcIdMap(0)
 {
   declareInterface<ITriggerTowerSelectionTool>(this);
+
+  declareProperty("PpmMappingTool", m_mappingTool);
 
   // Initialise m_etaBins
   double base = -4.9;
@@ -57,25 +63,16 @@ TriggerTowerSelectionTool::~TriggerTowerSelectionTool()
 
 StatusCode TriggerTowerSelectionTool::initialize()
 {
-  m_log.setLevel(outputLevel());
-  m_debug = outputLevel() <= MSG::DEBUG;
-
-  m_log << MSG::INFO << "Initializing " << name() << " - package version "
-                     << PACKAGE_VERSION << endreq;
-
-  StatusCode sc = AlgTool::initialize();
-  if (sc.isFailure()) {
-    m_log << MSG::ERROR << "Problem initializing AlgTool " <<  endreq;
-    return sc;
-  }
+  msg(MSG::INFO) << "Initializing " << name() << " - package version "
+                 << PACKAGE_VERSION << endreq;
 
   // Retrieve mapping tool
 
-  sc = m_mappingTool.retrieve();
+  StatusCode sc = m_mappingTool.retrieve();
   if ( sc.isFailure() ) {
-    m_log << MSG::ERROR << "Couldn't retrieve PpmCrateMappingTool" << endreq;
+    msg(MSG::ERROR) << "Failed to retrieve tool " << m_mappingTool << endreq;
     return sc;
-  }
+  } else msg(MSG::INFO) << "Retrieved tool " << m_mappingTool << endreq;
 
   m_srcIdMap = new L1CaloSrcIdMap();
 
@@ -86,8 +83,7 @@ StatusCode TriggerTowerSelectionTool::finalize()
 {
   delete m_srcIdMap;
 
-  StatusCode sc = AlgTool::finalize();
-  return sc;
+  return StatusCode::SUCCESS;
 }
 
 // Return a list of TT channel IDs for given eta/phi range
@@ -106,35 +102,17 @@ void TriggerTowerSelectionTool::channelIDs(const double etaMin,
     if (eta < etaMin) continue;
     if (eta > etaMax) break;
     const double absEta = (eta < 0.) ? -eta : eta;
-    ChannelCoordinate::CaloLayer hadLayer = ChannelCoordinate::HAD;
-    double etaMod = eta;
-    double etaGran = 0.; // only needed for Had FCAL
-    if (absEta > 3.2) {
-      if ((eta > 3.2 && eta < 3.625) || (eta > 4.050 && eta < 4.475) ||
-           eta < -4.475 || (eta > -4.050 && eta < -3.625)) {
-        hadLayer = ChannelCoordinate::FCAL2;
-	etaMod += 0.2125;
-      } else {
-        hadLayer = ChannelCoordinate::FCAL3;
-	etaMod -= 0.2125;
-      }
-      etaGran = 0.85;
-    }
     const int phiBins = (absEta > 3.2) ? 16 : (absEta > 2.5) ? 32 : 64;
     const double phiGran = 2.*M_PI/phiBins;
     for (int bin = 0; bin < phiBins; ++bin) {
       const double phi = phiGran*(double(bin) + 0.5);
       if (phi < phiMin) continue;
       if (phi > phiMax) break;
-      ChannelCoordinate coord(ChannelCoordinate::EM, eta, phi, 0., 0.);
       int crate, module, channel;
-      m_mappingTool->mapping(coord, crate, module, channel);
+      m_mappingTool->mapping(eta, phi, 0, crate, module, channel);
       unsigned int id = (crate * 16 + module) * 64 + channel;
       chanSet.insert(id);
-      coord.setLayer(hadLayer);
-      coord.setEta(etaMod);
-      coord.setEtaGranularity(etaGran);
-      m_mappingTool->mapping(coord, crate, module, channel);
+      m_mappingTool->mapping(eta, phi, 1, crate, module, channel);
       id = (crate * 16 + module) * 64 + channel;
       chanSet.insert(id);
     }

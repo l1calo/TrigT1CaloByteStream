@@ -1,5 +1,5 @@
 
-#include "TrigT1CaloByteStream/L1CaloUserHeader.h"
+#include "L1CaloUserHeader.h"
 
 namespace LVL1BS {
 

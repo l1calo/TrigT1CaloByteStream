@@ -1,6 +1,6 @@
 #include <utility>
 
-#include "TrigT1CaloByteStream/CmmEnergySubBlock.h"
+#include "CmmEnergySubBlock.h"
 
 namespace LVL1BS {
 

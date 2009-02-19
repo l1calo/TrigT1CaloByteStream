@@ -1,6 +1,5 @@
 
-#include "TrigT1CaloByteStream/CpmCrateMappings.h"
-#include "TrigT1CaloByteStream/CpmSubBlock.h"
+#include "CpmSubBlock.h"
 
 namespace LVL1BS {
 
@@ -38,9 +37,8 @@ const int      CpmSubBlock::s_glinkPins;
 const int      CpmSubBlock::s_glinkBitsPerSlice;
 
 
-CpmSubBlock::CpmSubBlock()
+CpmSubBlock::CpmSubBlock() : m_channels(80)
 {
-  m_channels = CpmCrateMappings::channels();
 }
 
 CpmSubBlock::~CpmSubBlock()

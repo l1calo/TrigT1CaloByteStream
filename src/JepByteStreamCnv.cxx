@@ -1,11 +1,8 @@
 
-#include <string>
 #include <vector>
 
 #include "ByteStreamCnvSvcBase/ByteStreamAddress.h"
-#include "ByteStreamCnvSvcBase/ByteStreamCnvSvcBase.h"
 #include "ByteStreamCnvSvcBase/IByteStreamEventAccess.h"
-#include "ByteStreamCnvSvcBase/ROBDataProviderSvc.h"
 
 #include "ByteStreamData/RawEvent.h"
 #include "ByteStreamData/ROBData.h"
@@ -14,25 +11,28 @@
 
 #include "DataModel/DataVector.h"
 
+#include "GaudiKernel/CnvFactory.h"
 #include "GaudiKernel/DataObject.h"
 #include "GaudiKernel/IOpaqueAddress.h"
 #include "GaudiKernel/IRegistry.h"
-#include "GaudiKernel/IService.h"
 #include "GaudiKernel/ISvcLocator.h"
-#include "GaudiKernel/IToolSvc.h"
-#include "GaudiKernel/MsgStream.h"
+#include "GaudiKernel/StatusCode.h"
 
 #include "SGTools/StorableConversions.h"
 
 #include "TrigT1CaloEvent/JEPBSCollection.h"
 
-#include "TrigT1CaloByteStream/JepByteStreamCnv.h"
-#include "TrigT1CaloByteStream/JepByteStreamTool.h"
+#include "JepByteStreamCnv.h"
+#include "JepByteStreamTool.h"
 
 namespace LVL1BS {
 
 JepByteStreamCnv::JepByteStreamCnv( ISvcLocator* svcloc )
-    : Converter( ByteStream_StorageType, classID(), svcloc )
+    : Converter( ByteStream_StorageType, classID(), svcloc ),
+      m_name("JepByteStreamCnv"),
+      m_tool("LVL1BS::JepByteStreamTool/JepByteStreamTool"),
+      m_ByteStreamEventAccess("ByteStreamCnvSvc", m_name),
+      m_log(msgSvc(), m_name), m_debug(false)
 {
 }
 
@@ -55,38 +55,31 @@ const CLID& JepByteStreamCnv::classID()
 
 StatusCode JepByteStreamCnv::initialize()
 {
-  MsgStream log( msgSvc(), "JepByteStreamCnv" );
-  log << MSG::DEBUG << "Initializing JepByteStreamCnv - package version "
-                    << PACKAGE_VERSION << endreq;
+  m_debug = msgSvc()->outputLevel(m_name) <= MSG::DEBUG;
+  m_log << MSG::DEBUG << "Initializing " << m_name << " - package version "
+                      << PACKAGE_VERSION << endreq;
 
   StatusCode sc = Converter::initialize();
   if ( sc.isFailure() )
     return sc;
 
   //Get ByteStreamCnvSvc
-  sc = service( "ByteStreamCnvSvc", m_ByteStreamEventAccess );
+  sc = m_ByteStreamEventAccess.retrieve();
   if ( sc.isFailure() ) {
-    log << MSG::ERROR << " Can't get ByteStreamEventAccess interface "
-        << endreq;
+    m_log << MSG::ERROR << "Failed to retrieve service "
+          << m_ByteStreamEventAccess << endreq;
     return sc;
+  } else {
+    m_log << MSG::DEBUG << "Retrieved service "
+          << m_ByteStreamEventAccess << endreq;
   }
 
   // Retrieve Tool
-  IToolSvc* toolSvc;
-  sc = service( "ToolSvc", toolSvc );
+  sc = m_tool.retrieve();
   if ( sc.isFailure() ) {
-    log << MSG::ERROR << " Can't get ToolSvc " << endreq;
-    return sc;
-  }
-
-  // make it a private tool by giving the ByteStreamCnvSvc as parent
-  const std::string toolType = "LVL1BS::JepByteStreamTool/JepByteStreamTool";
-  sc = toolSvc->retrieveTool( toolType, m_tool, m_ByteStreamEventAccess);
-  if ( sc.isFailure() ) {
-    log << MSG::ERROR << " Can't get ByteStreamTool of type "
-        << toolType << endreq;
+    m_log << MSG::ERROR << "Failed to retrieve tool " << m_tool << endreq;
     return StatusCode::FAILURE;
-  }
+  } else m_log << MSG::DEBUG << "Retrieved tool " << m_tool << endreq;
 
   return StatusCode::SUCCESS;
 }
@@ -96,16 +89,13 @@ StatusCode JepByteStreamCnv::initialize()
 StatusCode JepByteStreamCnv::createRep( DataObject* pObj,
                                         IOpaqueAddress*& pAddr )
 {
-  MsgStream log( msgSvc(), "JepByteStreamCnv" );
-  const bool debug = msgSvc()->outputLevel("JepByteStreamCnv") <= MSG::DEBUG;
-
-  if (debug) log << MSG::DEBUG << "createRep() called" << endreq;
+  if (m_debug) m_log << MSG::DEBUG << "createRep() called" << endreq;
 
   RawEventWrite* re = m_ByteStreamEventAccess->getRawEvent();
 
   LVL1::JEPBSCollection* jep = 0;
   if( !SG::fromStorable( pObj, jep ) ) {
-    log << MSG::ERROR << " Cannot cast to JEPBSCollection" << endreq;
+    m_log << MSG::ERROR << " Cannot cast to JEPBSCollection" << endreq;
     return StatusCode::FAILURE;
   }
 

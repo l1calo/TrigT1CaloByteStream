@@ -1,5 +1,5 @@
 
-#include "TrigT1CaloByteStream/JemJetElement.h"
+#include "JemJetElement.h"
 
 namespace LVL1BS {
 

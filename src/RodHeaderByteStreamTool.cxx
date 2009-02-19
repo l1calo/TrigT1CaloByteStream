@@ -2,10 +2,14 @@
 #include <algorithm>
 
 #include "GaudiKernel/IInterface.h"
+#include "GaudiKernel/MsgStream.h"
+#include "GaudiKernel/StatusCode.h"
 
 #include "TrigT1CaloEvent/RODHeader.h"
 
-#include "TrigT1CaloByteStream/RodHeaderByteStreamTool.h"
+#include "L1CaloSrcIdMap.h"
+
+#include "RodHeaderByteStreamTool.h"
 
 namespace LVL1BS {
 
@@ -21,9 +25,9 @@ const InterfaceID& RodHeaderByteStreamTool::interfaceID()
 // Constructor
 
 RodHeaderByteStreamTool::RodHeaderByteStreamTool(const std::string& type,
-                                     const std::string& name,
-				     const IInterface*  parent)
-                  : AlgTool(type, name, parent),
+                                                 const std::string& name,
+	    			                 const IInterface*  parent)
+                  : AthAlgTool(type, name, parent),
 		    m_srcIdMap(0)
 {
   declareInterface<RodHeaderByteStreamTool>(this);
@@ -61,12 +65,11 @@ RodHeaderByteStreamTool::~RodHeaderByteStreamTool()
 
 StatusCode RodHeaderByteStreamTool::initialize()
 {
-  MsgStream log( msgSvc(), name() );
-  log << MSG::INFO << "Initializing " << name() << " - package version "
-                   << PACKAGE_VERSION << endreq;
+  msg(MSG::INFO) << "Initializing " << name() << " - package version "
+                 << PACKAGE_VERSION << endreq;
 
   m_srcIdMap = new L1CaloSrcIdMap();
-  return AlgTool::initialize();
+  return StatusCode::SUCCESS;
 }
 
 // Finalize
@@ -74,7 +77,7 @@ StatusCode RodHeaderByteStreamTool::initialize()
 StatusCode RodHeaderByteStreamTool::finalize()
 {
   delete m_srcIdMap;
-  return AlgTool::finalize();
+  return StatusCode::SUCCESS;
 }
 
 // Conversion bytestream to RODHeaders
@@ -83,8 +86,8 @@ StatusCode RodHeaderByteStreamTool::convert(
                             const IROBDataProviderSvc::VROBFRAG& robFrags,
                             DataVector<LVL1::RODHeader>* const rhCollection)
 {
-  MsgStream log( msgSvc(), name() );
-  const bool debug = msgSvc()->outputLevel(name()) <= MSG::DEBUG;
+  const bool debug = msgLvl(MSG::DEBUG);
+  if (debug) msg(MSG::DEBUG);
 
   // Loop over ROB fragments
 
@@ -95,7 +98,7 @@ StatusCode RodHeaderByteStreamTool::convert(
 
     if (debug) {
       ++robCount;
-      log << MSG::DEBUG << "Treating ROB fragment " << robCount << endreq;
+      msg() << "Treating ROB fragment " << robCount << endreq;
     }
 
     // Unpack ROD header info
@@ -123,16 +126,15 @@ StatusCode RodHeaderByteStreamTool::convert(
     rhCollection->push_back(new LVL1::RODHeader(version, sourceId, run, lvl1Id,
                                 bcId, trigType, detType, statusWords, nData));
     if (debug) {
-      log << MSG::DEBUG << MSG::hex
-          << "ROD Header version/sourceId/run/lvl1Id/bcId/trigType/detType/nData: "
-	  << version << "/" << sourceId << "/" << run << "/" << lvl1Id << "/"
-	  << bcId << "/" << trigType << "/" << detType << "/" << nData
-	  << endreq;
-      log << MSG::DEBUG << "ROD Status Words:";
+      msg() << MSG::hex
+            << "ROD Header version/sourceId/run/lvl1Id/bcId/trigType/detType/nData: "
+	    << version << "/" << sourceId << "/" << run << "/" << lvl1Id << "/"
+	    << bcId << "/" << trigType << "/" << detType << "/" << nData
+	    << endreq << "ROD Status Words:";
       std::vector<uint32_t>::const_iterator pos  = statusWords.begin();
       std::vector<uint32_t>::const_iterator pose = statusWords.end();
-      for (; pos != pose; ++pos) log << MSG::DEBUG << " " << *pos;
-      log << MSG::DEBUG << MSG::dec << endreq;
+      for (; pos != pose; ++pos) msg() << " " << *pos;
+      msg() << MSG::dec << endreq;
     }
   }
 

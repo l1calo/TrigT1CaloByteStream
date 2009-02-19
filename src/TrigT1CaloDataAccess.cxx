@@ -1,9 +1,17 @@
 
 #include <stdint.h>
 
+#include "GaudiKernel/IInterface.h"
+#include "GaudiKernel/MsgStream.h"
+#include "GaudiKernel/StatusCode.h"
+
+#include "ByteStreamCnvSvcBase/IROBDataProviderSvc.h"
 #include "TrigT1CaloEvent/TriggerTower.h"
 
-#include "TrigT1CaloByteStream/TrigT1CaloDataAccess.h"
+#include "IPpmByteStreamSubsetTool.h"
+#include "ITriggerTowerSelectionTool.h"
+
+#include "TrigT1CaloDataAccess.h"
 
 namespace LVL1BS {
 
@@ -11,13 +19,17 @@ namespace LVL1BS {
 
 TrigT1CaloDataAccess::TrigT1CaloDataAccess(const std::string& type,
                       const std::string& name, const IInterface*  parent)
-                    : AlgTool(type, name, parent),
+                    : AthAlgTool(type, name, parent),
  m_robDataProvider("ROBDataProviderSvc/ROBDataProviderSvc", name),
  m_selectionTool("LVL1BS::TriggerTowerSelectionTool/TriggerTowerSelectionTool"),
  m_ppmBSConverter("LVL1BS::PpmByteStreamSubsetTool/PpmByteStreamSubsetTool"),
- m_log(msgSvc(), name), m_ttCol(0)
+ m_ttCol(0)
 {
   declareInterface<ITrigT1CaloDataAccess>(this);
+
+  declareProperty("ROBDataProviderSvc",        m_robDataProvider);
+  declareProperty("TriggerTowerSelectionTool", m_selectionTool);
+  declareProperty("PpmByteStreamSubsetTool",   m_ppmBSConverter);
 
 }
 
@@ -35,43 +47,33 @@ TrigT1CaloDataAccess::~TrigT1CaloDataAccess()
 
 StatusCode TrigT1CaloDataAccess::initialize()
 {
-  m_log.setLevel(outputLevel());
-  m_debug = outputLevel() <= MSG::DEBUG;
-
-  m_log << MSG::INFO << "Initializing " << name() << " - package version "
-                     << PACKAGE_VERSION << endreq;
-
-  StatusCode sc = AlgTool::initialize();
-  if (sc.isFailure()) {
-    m_log << MSG::ERROR << "Problem initializing AlgTool " <<  endreq;
-    return sc;
-  }
+  msg(MSG::INFO) << "Initializing " << name() << " - package version "
+                 << PACKAGE_VERSION << endreq;
 
   // Retrieve data provider service
 
-  sc = m_robDataProvider.retrieve();
+  StatusCode sc = m_robDataProvider.retrieve();
   if ( sc.isFailure() ) {
-    m_log << MSG::ERROR << "Couldn't retrieve ROBDataProviderSvc" << endreq;
+    msg(MSG::ERROR) << "Failed to retrieve service " << m_robDataProvider
+                    << endreq;
     return sc;
-  }
+  } else msg(MSG::INFO) << "Retrieved service " << m_robDataProvider << endreq;
 
   // Retrieve selection tool
 
   sc = m_selectionTool.retrieve();
   if ( sc.isFailure() ) {
-    m_log << MSG::ERROR << "Couldn't retrieve TriggerTowerSelectionTool"
-          << endreq;
+    msg(MSG::ERROR) << "Failed to retrieve tool " << m_selectionTool << endreq;
     return sc;
-  }
+  } else msg(MSG::INFO) << "Retrieved tool " << m_selectionTool << endreq;
 
   // Retrieve PPM converter tool
 
   sc = m_ppmBSConverter.retrieve();
   if ( sc.isFailure() ) {
-    m_log << MSG::ERROR << "Couldn't retrieve PpmByteStreamSubsetTool"
-          << endreq;
+    msg(MSG::ERROR) << "Failed to retrieve tool " << m_ppmBSConverter << endreq;
     return sc;
-  }
+  } else msg(MSG::INFO) << "Retrieved tool " << m_ppmBSConverter << endreq;
 
   m_ttCol = new DataVector<LVL1::TriggerTower>;
 
@@ -83,7 +85,7 @@ StatusCode TrigT1CaloDataAccess::initialize()
 StatusCode TrigT1CaloDataAccess::finalize()
 {
   delete m_ttCol;
-  return AlgTool::finalize();
+  return StatusCode::SUCCESS;
 }
 
 // Return iterators to required trigger towers
@@ -111,7 +113,7 @@ StatusCode TrigT1CaloDataAccess::loadCollection(
   m_ttCol->clear();
   StatusCode sc = m_ppmBSConverter->convert(m_robFrags, m_ttCol, chanIds);
   if (sc.isFailure() ) {
-    m_log << MSG::ERROR << "PPM bytestream conversion failed" << endreq;
+    msg(MSG::ERROR) << "PPM bytestream conversion failed" << endreq;
     m_ttCol->clear();
   }
   beg = m_ttCol->begin();
