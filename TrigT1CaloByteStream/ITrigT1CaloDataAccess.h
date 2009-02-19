@@ -2,6 +2,7 @@
 #define TRIGT1CALOBYTESTREAM_ITRIGT1CALODATAACCESS_H
 
 #include "GaudiKernel/IAlgTool.h"
+#include "GaudiKernel/IInterface.h"
 
 #include "DataModel/DataVector.h"
 
