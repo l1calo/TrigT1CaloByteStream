@@ -116,8 +116,8 @@ bool PpmCoolOrBuiltinMappingTool::coolWorks()
     }
     m_coolCheckDone = true;
     if (m_coolCheckResult) {
-      msg() << MSG::INFO << "COOL mappings selected" << endreq;
-    } else msg() << MSG::INFO << "Built-in mappings selected" << endreq;
+      msg(MSG::INFO)      << "COOL mappings selected"     << endreq;
+    } else msg(MSG::INFO) << "Built-in mappings selected" << endreq;
   }
   return m_coolCheckResult;
 }
