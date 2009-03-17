@@ -2,6 +2,7 @@
 #define TRIGT1CALOBYTESTREAM_PPMMAPPINGTOOL_H
 
 #include <map>
+#include <string>
 #include <utility>
 #include <vector>
 

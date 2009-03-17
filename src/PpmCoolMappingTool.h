@@ -1,9 +1,7 @@
 #ifndef TRIGT1CALOBYTESTREAM_PPMCOOLMAPPINGTOOL_H
 #define TRIGT1CALOBYTESTREAM_PPMCOOLMAPPINGTOOL_H
 
-#include <map>
-#include <utility>
-#include <vector>
+#include <string>
 
 #include "AthenaBaseComps/AthAlgTool.h"
 #include "GaudiKernel/ToolHandle.h"

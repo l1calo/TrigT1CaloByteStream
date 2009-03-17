@@ -202,7 +202,7 @@ bool PpmCoolMappingTool::mapping(const double eta, const double phi,
   if (verbose) {
     msg(MSG::VERBOSE) << "eta/phi/layer " << eta << "/" << phi << "/" << layer
                       << "  maps to crate/module/channel "
-  		    << crate << "/" << module << "/" << channel << endreq;
+    		      << crate << "/" << module << "/" << channel << endreq;
   }
     
   return true;
