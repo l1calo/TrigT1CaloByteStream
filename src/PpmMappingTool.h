@@ -58,6 +58,10 @@ class PpmMappingTool : virtual public IL1CaloMappingTool,
    typedef std::pair< unsigned int, unsigned int >    ChannelIds;
    typedef std::map< unsigned int, ChannelIds >       EtaPhiMap;
 
+   /// Set up crate/module map
+   void setupMap();
+   /// Set up eta/phi map
+   void setupInverseMap();
    /// Add entries to a coordinate map
    void addCoords(int nrows, int ncols, double etaGran, double phiGran,
         double etaOffset, double phiOffset,
@@ -70,8 +74,8 @@ class PpmMappingTool : virtual public IL1CaloMappingTool,
    /// Correction for Had FCAL eta which is adjusted to EM value in TriggerTower
    double etaSim(const ChannelCoordinate& coord) const;
 
-   /// Crate/module map
-   CrateMap m_crateInfo;
+   /// Pointer to crate/module map
+   CrateMap* m_crateInfo;
    /// Vector of CoordinateMaps
    std::vector<CoordinateMap*> m_coordMaps;
    /// Current Coordinate map
