@@ -163,10 +163,12 @@ bool CmmJetSubBlock::unpack()
 	  rc = unpackUncompressed();
 	  break;
         default:
+	  setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
 	  break;
       }
       break;
     default:
+      setUnpackErrorCode(L1CaloSubBlock::UNPACK_VERSION);
       break;
   }
   return rc;
@@ -292,7 +294,9 @@ bool CmmJetSubBlock::unpackNeutral()
   setDaqOverflow(overflow);
   setGlinkParity(parity);
 
-  return unpackerSuccess();
+  const bool rc = unpackerSuccess();
+  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  return rc;
 }
 
 // Unpack uncompressed data
@@ -305,7 +309,10 @@ bool CmmJetSubBlock::unpackUncompressed()
   while (unpackerSuccess()) {
     const int source = sourceId(word);
     if (source < s_maxHits) m_hitsData[source] = word;
-    else return false;
+    else {
+      setUnpackErrorCode(L1CaloSubBlock::UNPACK_SOURCE_ID);
+      return false;
+    }
     word = unpacker(s_wordLength);
   }
   return true;

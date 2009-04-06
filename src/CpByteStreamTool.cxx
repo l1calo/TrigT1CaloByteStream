@@ -592,7 +592,10 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
   }
   // Unpack sub-block
   if (subBlock.dataWords() && !subBlock.unpack()) {
-    if (debug) msg() << "CMM-CP sub-block unpacking failed" << endreq;
+    if (debug) {
+      std::string errMsg(subBlock.unpackErrorMsg());
+      msg() << "CMM-CP sub-block unpacking failed: " << errMsg << endreq;
+    }
   }
 
   // Retrieve required data
@@ -716,7 +719,10 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
   }
   // Unpack sub-block
   if (subBlock.dataWords() && !subBlock.unpack()) {
-    if (debug) msg() << "CPM sub-block unpacking failed" << endreq;
+    if (debug) {
+      std::string errMsg(subBlock.unpackErrorMsg());
+      msg() << "CPM sub-block unpacking failed: " << errMsg << endreq;
+    }
   }
 
   // Retrieve required data

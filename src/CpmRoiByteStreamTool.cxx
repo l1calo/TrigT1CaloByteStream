@@ -166,7 +166,10 @@ StatusCode CpmRoiByteStreamTool::convert(
         }
         // Unpack sub-block
         if (m_subBlock->dataWords() && !m_subBlock->unpack()) {
-          if (debug) msg() << "CPM RoI sub-block unpacking failed" << endreq;
+          if (debug) {
+            std::string errMsg(m_subBlock->unpackErrorMsg());
+	    msg() << "CPM RoI sub-block unpacking failed: " << errMsg << endreq;
+	  }
         }
 	const int numChips = 8;
 	const int numLocs  = 2;

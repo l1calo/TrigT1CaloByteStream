@@ -228,6 +228,7 @@ bool PpmCompression::unpack(PpmSubBlock& subBlock)
       rc = unpackV104(subBlock);
       break;
     default:
+      subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_COMPRESSION_VERSION);
       break;
   }
   return rc;
@@ -237,10 +238,16 @@ bool PpmCompression::unpack(PpmSubBlock& subBlock)
 
 bool PpmCompression::unpackV100(PpmSubBlock& subBlock)
 {
-  if (subBlock.format() != L1CaloSubBlock::COMPRESSED) return false;
+  if (subBlock.format() != L1CaloSubBlock::COMPRESSED) {
+    subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
+    return false;
+  }
   const int sliceL = subBlock.slicesLut();
   const int sliceF = subBlock.slicesFadc();
-  if (sliceL != 1 || sliceF != 5) return false;
+  if (sliceL != 1 || sliceF != 5) {
+    subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_COMPRESSION_SLICES);
+    return false;
+  }
   const int trigOffset = subBlock.fadcOffset();
   const int pedestal   = subBlock.pedestal();
   const int channels   = subBlock.channelsPerSubBlock();
@@ -324,17 +331,25 @@ bool PpmCompression::unpackV100(PpmSubBlock& subBlock)
     ++compStats[format];
   }
   subBlock.setCompStats(compStats);
-  return subBlock.unpackerSuccess();
+  const bool rc = subBlock.unpackerSuccess();
+  if (!rc) subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  return rc;
 }
 
 // Unpack data - version 1.01
 
 bool PpmCompression::unpackV101(PpmSubBlock& subBlock)
 {
-  if (subBlock.format() != L1CaloSubBlock::COMPRESSED) return false;
+  if (subBlock.format() != L1CaloSubBlock::COMPRESSED) {
+    subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
+    return false;
+  }
   const int sliceL = subBlock.slicesLut();
   const int sliceF = subBlock.slicesFadc();
-  if (sliceL != 1 || sliceF != 5) return false;
+  if (sliceL != 1 || sliceF != 5) {
+    subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_COMPRESSION_SLICES);
+    return false;
+  }
   const int trigOffset = subBlock.fadcOffset();
   const int pedestal   = subBlock.pedestal();
   const int channels   = subBlock.channelsPerSubBlock();
@@ -452,7 +467,9 @@ bool PpmCompression::unpackV101(PpmSubBlock& subBlock)
     }
   }
   subBlock.setCompStats(compStats);
-  return subBlock.unpackerSuccess();
+  const bool rc = subBlock.unpackerSuccess();
+  if (!rc) subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  return rc;
 }
 
 // Unpack data - versions 1.02, 1.03, 1.04, 1.05 (by mistake for a few runs)
@@ -461,17 +478,28 @@ bool PpmCompression::unpackV104(PpmSubBlock& subBlock)
 {
   const int dataFormat = subBlock.format();
   if (dataFormat != L1CaloSubBlock::COMPRESSED &&
-      dataFormat != L1CaloSubBlock::SUPERCOMPRESSED) return false;
+      dataFormat != L1CaloSubBlock::SUPERCOMPRESSED) {
+    subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
+    return false;
+  }
   const int compressionVersion = subBlock.seqno();
-  if (compressionVersion == 2 &&
-      dataFormat != L1CaloSubBlock::COMPRESSED) return false;
+  if (compressionVersion == 2 && dataFormat != L1CaloSubBlock::COMPRESSED) {
+    subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
+    return false;
+  }
   if (compressionVersion == 5) {
     const int run = subBlock.runNumber();
-    if (run < 88701 || run > 88724) return false;
+    if (run < 88701 || run > 88724) {
+      subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_COMPRESSION_VERSION);
+      return false;
+    }
   }
   const int sliceL = subBlock.slicesLut();
   const int sliceF = subBlock.slicesFadc();
-  if (sliceL != 1 || sliceF != 5) return false;
+  if (sliceL != 1 || sliceF != 5) {
+    subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_COMPRESSION_SLICES);
+    return false;
+  }
   const int trigOffset   = subBlock.fadcOffset() - subBlock.lutOffset();
   const int fadcBaseline = subBlock.fadcBaseline();
   const int channels     = subBlock.channelsPerSubBlock();
@@ -597,7 +625,9 @@ bool PpmCompression::unpackV104(PpmSubBlock& subBlock)
     // it is not possible to detect it reliably in data.
   }
   subBlock.setCompStats(compStats);
-  return subBlock.unpackerSuccess();
+  const bool rc = subBlock.unpackerSuccess();
+  if (!rc) subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  return rc;
 }
 
 } // end namespace

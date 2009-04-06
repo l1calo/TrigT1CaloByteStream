@@ -286,10 +286,12 @@ bool PpmSubBlock::unpack()
 	  rc = PpmCompression::unpack(*this);
 	  break;
         default:
+	  setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
 	  break;
       }
       break;
     default:
+      setUnpackErrorCode(L1CaloSubBlock::UNPACK_VERSION);
       break;
   }
   return rc;
@@ -379,6 +381,7 @@ bool PpmSubBlock::unpackNeutral()
     }
   }
   const bool rc = unpackerSuccess();
+  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
   // Errors
   m_errormap.clear();
   for (int pin = 0; pin < s_glinkPins; ++pin) {
@@ -402,7 +405,9 @@ bool PpmSubBlock::unpackUncompressedData()
       m_datamap[sl + chan*slices] = unpacker(s_wordLen);
     }
   }
-  return unpackerSuccess();
+  const bool rc = unpackerSuccess();
+  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  return rc;
 }
 
 // Unpack uncompressed error data
@@ -414,7 +419,9 @@ bool PpmSubBlock::unpackUncompressedErrors()
   for (int pin = 0; pin < s_glinkPins; ++pin) {
     m_errormap.push_back(unpacker(s_wordLen));
   }
-  return unpackerSuccess();
+  const bool rc = unpackerSuccess();
+  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  return rc;
 }
 
 // Return the number of channels per sub-block

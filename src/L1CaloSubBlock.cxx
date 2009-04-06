@@ -49,6 +49,7 @@ const uint32_t L1CaloSubBlock::s_glinkDavSet;
 
 L1CaloSubBlock::L1CaloSubBlock() : m_header(0), m_trailer(0),
                                    m_bunchCrossing(0),
+				   m_unpackError(UNPACK_NONE),
                                    m_bitword(0), m_currentBit(0),
 				   m_maxBits(s_maxWordBits),
 				   m_maxMask(s_maxWordMask),
@@ -70,6 +71,7 @@ void L1CaloSubBlock::clear()
   m_header = 0;
   m_trailer = 0;
   m_bunchCrossing = 0;
+  m_unpackError = UNPACK_NONE;
   m_bitword = 0;
   m_currentBit = 0;
   m_unpackerFlag = false;
@@ -181,6 +183,43 @@ void L1CaloSubBlock::setGlinkParity(const int bit)
     if (m_trailer) m_trailer |= (1 << s_glinkParityBit);
     else setStatus(0, false, false, false, false, false, false, true);
   }
+}
+
+// Return the unpacking error message for printing
+
+std::string L1CaloSubBlock::unpackErrorMsg() const
+{
+  std::string msg;
+  switch (m_unpackError) {
+    case UNPACK_NONE:
+      msg = "No error";
+      break;
+    case UNPACK_VERSION:
+      msg = "Unsupported Data Version";
+      break;
+    case UNPACK_FORMAT:
+      msg = "Unsupported Data Format";
+      break;
+    case UNPACK_COMPRESSION_VERSION:
+      msg = "Unsupported Compression Version";
+      break;
+    case UNPACK_COMPRESSION_SLICES:
+      msg = "Unsupported Number of Slices for Compression Version";
+      break;
+    case UNPACK_DATA_TRUNCATED:
+      msg = "Premature End of Sub-block Data";
+      break;
+    case UNPACK_SOURCE_ID:
+      msg = "Invalid Source ID in Sub-block Data";
+      break;
+    case UNPACK_WORD_ID:
+      msg = "Invalid Word ID in Sub-block Data";
+      break;
+    default:
+      msg = "Unknown Error Code";
+      break;
+  }
+  return msg;
 }
 
 // Packing utilities

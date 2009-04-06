@@ -96,10 +96,12 @@ bool JemRoiSubBlock::unpack()
 	  rc = unpackNeutral();
 	  break;
         default:
+	  setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
 	  break;
       }
       break;
     default:
+      setUnpackErrorCode(L1CaloSubBlock::UNPACK_VERSION);
       break;
   }
   return rc;
@@ -173,7 +175,9 @@ bool JemRoiSubBlock::unpackNeutral()
       }
     }
   }
-  return unpackerSuccess();
+  const bool rc = unpackerSuccess();
+  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  return rc;
 }
 
 } // end namespace

@@ -714,7 +714,10 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
   }
   // Unpack sub-block
   if (subBlock.dataWords() && !subBlock.unpack()) {
-    if (debug) msg() << "CMM-Energy sub-block unpacking failed" << endreq;
+    if (debug) {
+      std::string errMsg(subBlock.unpackErrorMsg());
+      msg() << "CMM-Energy sub-block unpacking failed: " << errMsg << endreq;
+    }
   }
 
   // Retrieve required data
@@ -918,7 +921,10 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
   }
   // Unpack sub-block
   if (subBlock.dataWords() && !subBlock.unpack()) {
-    if (debug) msg() << "CMM-Jet sub-block unpacking failed" << endreq;
+    if (debug) {
+      std::string errMsg(subBlock.unpackErrorMsg());
+      msg() << "CMM-Jet sub-block unpacking failed: " << errMsg << endreq;
+    }
   }
 
   // Retrieve required data
@@ -1060,7 +1066,10 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
   }
   // Unpack sub-block
   if (subBlock.dataWords() && !subBlock.unpack()) {
-    if (debug) msg() << "JEM sub-block unpacking failed" << endreq;
+    if (debug) {
+      std::string errMsg(subBlock.unpackErrorMsg());
+      msg() << "JEM sub-block unpacking failed: " << errMsg << endreq;
+    }
   }
 
   // Retrieve required data

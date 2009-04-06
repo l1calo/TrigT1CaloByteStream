@@ -212,10 +212,12 @@ bool CpmSubBlock::unpack()
 	  rc = unpackUncompressed();
 	  break;
         default:
+	  setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
 	  break;
       }
       break;
     default:
+      setUnpackErrorCode(L1CaloSubBlock::UNPACK_VERSION);
       break;
   }
   return rc;
@@ -401,7 +403,9 @@ bool CpmSubBlock::unpackNeutral()
     setHits(slice, hit0, hit1);
     setBunchCrossing(bunchCrossing);
   }
-  return unpackerSuccess();
+  const bool rc = unpackerSuccess();
+  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  return rc;
 }
 
 // Unpack uncompressed data
@@ -418,12 +422,18 @@ bool CpmSubBlock::unpackUncompressed()
     if (id == s_ttWordId) {
       const int ix = (word >> s_pairBit) & s_pairPinMask;
       if (ix < m_channels) m_ttData[ix] = word;
-      else return false;
+      else {
+	setUnpackErrorCode(L1CaloSubBlock::UNPACK_SOURCE_ID);
+        return false;
+      }
     // Hits
     } else if (id == s_threshWordId) {
       const int indicator = (word >> s_indicatorBit) & 0x1;
       m_hitData[indicator] = word;
-    } else return false;
+    } else {
+      setUnpackErrorCode(L1CaloSubBlock::UNPACK_WORD_ID);
+      return false;
+    }
     word = unpacker(s_wordLength);
   }
   return true;

@@ -23,6 +23,10 @@ class L1CaloSubBlock {
    enum SubBlockWordType { HEADER, DATA, STATUS };
    enum DataFormats      { NEUTRAL = 0, UNCOMPRESSED = 1, COMPRESSED = 2,
                            SUPERCOMPRESSED = 3 };
+   enum UnpackErrorType  { UNPACK_NONE, UNPACK_VERSION, UNPACK_FORMAT,
+                           UNPACK_COMPRESSION_VERSION,
+			   UNPACK_COMPRESSION_SLICES, UNPACK_DATA_TRUNCATED,
+			   UNPACK_SOURCE_ID, UNPACK_WORD_ID };
 
    L1CaloSubBlock();
    ~L1CaloSubBlock();
@@ -97,6 +101,14 @@ class L1CaloSubBlock {
    /// Return module field from given header word
    static int module(uint32_t word);
 
+   //  Unpacking error code.  Set by derived classes
+   /// Set the unpacking error code
+   void     setUnpackErrorCode(int code);
+   /// Return the unpacking error code
+   int      unpackErrorCode() const;
+   /// Return the unpacking error message for printing
+   std::string unpackErrorMsg() const;
+
    //  Packing utilities
    /// Return the minimum number of bits needed for given data
    int      minBits(uint32_t datum) const;
@@ -112,7 +124,7 @@ class L1CaloSubBlock {
    uint32_t unpacker(int nbits);
    /// Initialise unpacker
    void     unpackerInit();
-   /// Return unpacking success flag
+   /// Return unpacker success flag
    bool     unpackerSuccess() const;
 
    //  Neutral format packing utilities
@@ -176,6 +188,8 @@ class L1CaloSubBlock {
    uint32_t m_trailer;
    /// Bunch Crossing number (neutral format only)
    int m_bunchCrossing;
+   /// Unpacking error code
+   int m_unpackError;
    //  Used for bit-packing
    uint32_t m_bitword;
    int      m_currentBit;
@@ -297,6 +311,16 @@ inline void L1CaloSubBlock::setBunchCrossing(const int bc)
 inline int L1CaloSubBlock::bunchCrossing() const
 {
   return m_bunchCrossing;
+}
+
+inline void L1CaloSubBlock::setUnpackErrorCode(const int code)
+{
+  m_unpackError = code;
+}
+
+inline int L1CaloSubBlock::unpackErrorCode() const
+{
+  return m_unpackError;
 }
 
 inline void L1CaloSubBlock::setStreamed()

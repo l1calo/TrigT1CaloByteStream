@@ -478,7 +478,11 @@ StatusCode JepRoiByteStreamTool::convertBs(
             payload = subBlock.read(payload, payloadEnd);
 	    if (collection == CMM_ROI) {
 	      if (subBlock.dataWords() && !subBlock.unpack()) {
-	        msg() << "CMM-Jet sub-block unpacking failed" << endreq;
+	        if (debug) {
+		  std::string errMsg(subBlock.unpackErrorMsg());
+	          msg() << "CMM-Jet sub-block unpacking failed: "
+		        << errMsg << endreq;
+	        }
               }
 	      const LVL1::CMMRoI roi(subBlock.jetEtMap(slice),
 	                             0,0,0,0,0,0,0,0,0,0,0);
@@ -489,7 +493,11 @@ StatusCode JepRoiByteStreamTool::convertBs(
 	    payload = subBlock.read(payload, payloadEnd);
 	    if (collection == CMM_ROI) {
 	      if (subBlock.dataWords() && !subBlock.unpack()) {
-	        msg() << "CMM-Energy sub-block unpacking failed" << endreq;
+	        if (debug) {
+		  std::string errMsg(subBlock.unpackErrorMsg());
+	          msg() << "CMM-Energy sub-block unpacking failed: "
+		        << errMsg << endreq;
+	        }
               }
 	      const LVL1::CMMRoI roi(0, subBlock.sumEtHits(slice),
 	                   subBlock.missingEtHits(slice),
@@ -511,7 +519,11 @@ StatusCode JepRoiByteStreamTool::convertBs(
           payload = subBlock.read(payload, payloadEnd);
 	  if (collection == JEM_ROI) {
 	    if (subBlock.dataWords() && !subBlock.unpack()) {
-	      msg() << "JEM RoI sub-block unpacking failed" << endreq;
+	      if (debug) {
+		std::string errMsg(subBlock.unpackErrorMsg());
+	        msg() << "JEM RoI sub-block unpacking failed: "
+		      << errMsg << endreq;
+	      }
             }
 	    for (int frame = 0; frame < 8; ++frame) {
 	      for (int forward = 0; forward < 2; ++forward) {

@@ -318,7 +318,10 @@ StatusCode PpmByteStreamTool::convert(
 	    return StatusCode::FAILURE;
           }
 	  if (m_errorBlock->dataWords() && !m_errorBlock->unpack()) {
-	    if (debug) msg() << "Unpacking error block failed" << endreq;
+	    if (debug) {
+	      std::string errMsg(m_errorBlock->unpackErrorMsg());
+	      msg() << "Unpacking error block failed: " << errMsg << endreq;
+	    }
 	  }
         }
       }
@@ -339,7 +342,10 @@ StatusCode PpmByteStreamTool::convert(
 	        << subBlock->seqno() << endreq;
 	}
         if (subBlock->dataWords() && !subBlock->unpack()) {
-	  if (debug) msg() << "Unpacking PPM sub-block failed" << endreq;
+	  if (debug) {
+	    std::string errMsg(subBlock->unpackErrorMsg());
+	    msg() << "Unpacking PPM sub-block failed: " << errMsg << endreq;
+	  }
         }
 	if (m_printCompStats) addCompStats(subBlock->compStats());
         for (int chan = 0; chan < chanPerSubBlock; ++chan) {

@@ -225,10 +225,12 @@ bool JemSubBlock::unpack()
 	  rc = unpackUncompressed();
 	  break;
         default:
+	  setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
 	  break;
       }
       break;
     default:
+      setUnpackErrorCode(L1CaloSubBlock::UNPACK_VERSION);
       break;
   }
   return rc;
@@ -354,7 +356,9 @@ bool JemSubBlock::unpackNeutral()
     // G-Link parity errors
     for (int pin = 0; pin <= lastpin; ++pin) unpackerNeutralParityError(pin);
   }
-  return unpackerSuccess();
+  const bool rc = unpackerSuccess();
+  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  return rc;
 }
 
 // Unpack uncompressed data
@@ -373,7 +377,10 @@ bool JemSubBlock::unpackUncompressed()
       const JemJetElement jetEle(word);
       const int channel = jetEle.channel();
       if (channel < m_channels) m_jeData[channel] = word;
-      else return false;
+      else {
+	setUnpackErrorCode(L1CaloSubBlock::UNPACK_SOURCE_ID);
+        return false;
+      }
     // Other data
     } else if (id == s_threshWordId) {
       switch (sourceId(word)) {
@@ -387,10 +394,14 @@ bool JemSubBlock::unpackUncompressed()
 	  m_energySubsums[0] = word;
 	  break;
         default:
+	  setUnpackErrorCode(L1CaloSubBlock::UNPACK_SOURCE_ID);
 	  return false;
 	  break;
       }
-    } else return false;
+    } else {
+      setUnpackErrorCode(L1CaloSubBlock::UNPACK_WORD_ID);
+      return false;
+    }
     word = unpacker(s_wordLength);
   }
   return true;
