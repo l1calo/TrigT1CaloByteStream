@@ -12,10 +12,11 @@
 class ISvcLocator;
 class StatusCode;
 
+namespace LVL1 {
+  class IL1CaloMappingTool;
+}
 
 namespace LVL1BS {
-
-class IL1CaloMappingTool;
 
 /** Algorithm to compare Trigger tower mapping tools.
  *
@@ -33,17 +34,17 @@ class PpmMappingTester : public AthAlgorithm {
    virtual StatusCode finalize();
 
  private:
-   void etaPhiToChannel(ToolHandle<LVL1BS::IL1CaloMappingTool>& tool,
+   void etaPhiToChannel(ToolHandle<LVL1::IL1CaloMappingTool>& tool,
                                    std::vector<unsigned int>& chanIds);
-   void channelToEtaPhi(ToolHandle<LVL1BS::IL1CaloMappingTool>& tool,
+   void channelToEtaPhi(ToolHandle<LVL1::IL1CaloMappingTool>& tool,
                         std::vector<double>& etas, std::vector<double>& phis,
 			std::vector<int>& layers);
    bool notEqual(double item1, double item2);
 
    /// Mapping tool 1
-   ToolHandle<LVL1BS::IL1CaloMappingTool> m_tool1;
+   ToolHandle<LVL1::IL1CaloMappingTool> m_tool1;
    /// Mapping tool 2
-   ToolHandle<LVL1BS::IL1CaloMappingTool> m_tool2;
+   ToolHandle<LVL1::IL1CaloMappingTool> m_tool2;
 
    int m_timing;
    std::vector<double> m_etaBins;

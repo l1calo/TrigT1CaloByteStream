@@ -15,7 +15,7 @@ from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__JepByteStreamT
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__JepRoiByteStreamTool
 ToolSvc = Service("ToolSvc")
 ToolSvc += LVL1BS__PpmByteStreamTool("PpmByteStreamTool",
-           PpmMappingTool="LVL1BS::PpmCoolOrBuiltinMappingTool/PpmCoolOrBuiltinMappingTool")
+           PpmMappingTool="LVL1::PpmCoolOrBuiltinMappingTool/PpmCoolOrBuiltinMappingTool")
 ToolSvc += LVL1BS__CpByteStreamTool("CpByteStreamTool")
 ToolSvc += LVL1BS__CpmRoiByteStreamTool("CpmRoiByteStreamTool")
 ToolSvc += LVL1BS__JepByteStreamTool("JepByteStreamTool")

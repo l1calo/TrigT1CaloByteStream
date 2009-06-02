@@ -25,6 +25,7 @@ namespace LVL1 {
   class CPMHits;
   class CPMTower;
   class CPBSCollection;
+  class IL1CaloMappingTool;
   class TriggerTowerKey;
 }
 
@@ -32,7 +33,6 @@ namespace LVL1BS {
 
 class CmmCpSubBlock;
 class CpmSubBlock;
-class IL1CaloMappingTool;
 class L1CaloSrcIdMap;
 
 /** Tool to perform ROB fragments to CPM towers, CPM hits and CMM-CP hits,
@@ -113,7 +113,7 @@ class CpByteStreamTool : public AthAlgTool {
                     int& timeslices, int& trigJem);
 
    /// Channel mapping tool
-   ToolHandle<IL1CaloMappingTool> m_cpmMaps;
+   ToolHandle<LVL1::IL1CaloMappingTool> m_cpmMaps;
 
    /// Hardware crate number offset
    int m_crateOffsetHw;

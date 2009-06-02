@@ -14,11 +14,11 @@
 #include "TrigT1CaloEvent/CPBSCollection.h"
 #include "TrigT1CaloUtils/DataError.h"
 #include "TrigT1CaloUtils/TriggerTowerKey.h"
+#include "TrigT1CaloMappingToolInterfaces/IL1CaloMappingTool.h"
 
 #include "CmmCpSubBlock.h"
 #include "CmmSubBlock.h"
 #include "CpmSubBlock.h"
-#include "IL1CaloMappingTool.h"
 #include "L1CaloSrcIdMap.h"
 #include "L1CaloSubBlock.h"
 #include "L1CaloUserHeader.h"
@@ -43,7 +43,7 @@ CpByteStreamTool::CpByteStreamTool(const std::string& type,
                                    const std::string& name,
 				   const IInterface*  parent)
    : AthAlgTool(type, name, parent),
-     m_cpmMaps("LVL1BS::CpmMappingTool/CpmMappingTool"),
+     m_cpmMaps("LVL1::CpmMappingTool/CpmMappingTool"),
      m_channels(80), m_crates(4), m_modules(14),
      m_coreOverlap(0), m_subDetector(eformat::TDAQ_CALO_CLUSTER_PROC_DAQ),
      m_srcIdMap(0), m_towerKey(0), m_rodStatus(0), m_fea(0)

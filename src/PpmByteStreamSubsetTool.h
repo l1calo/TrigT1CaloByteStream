@@ -21,13 +21,13 @@ class IInterface;
 class StatusCode;
 
 namespace LVL1 {
+  class IL1CaloMappingTool;
   class TriggerTower;
   class TriggerTowerKey;
 }
 
 namespace LVL1BS {
 
-class IL1CaloMappingTool;
 class L1CaloSrcIdMap;
 class PpmSubBlock;
 
@@ -70,7 +70,7 @@ class PpmByteStreamSubsetTool : virtual public IPpmByteStreamSubsetTool,
    void printVec(const std::vector<int>& vec) const;
 
    /// Tool for mappings
-   ToolHandle<LVL1BS::IL1CaloMappingTool> m_ppmMaps;
+   ToolHandle<LVL1::IL1CaloMappingTool> m_ppmMaps;
 
    /// Number of channels per module (may not all be used)
    int m_channels;

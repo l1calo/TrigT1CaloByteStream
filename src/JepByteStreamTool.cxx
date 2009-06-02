@@ -16,13 +16,13 @@
 #include "TrigT1CaloEvent/JetElement.h"
 #include "TrigT1CaloUtils/DataError.h"
 #include "TrigT1CaloUtils/JetElementKey.h"
+#include "TrigT1CaloMappingToolInterfaces/IL1CaloMappingTool.h"
 
 #include "CmmEnergySubBlock.h"
 #include "CmmJetSubBlock.h"
 #include "CmmSubBlock.h"
 #include "JemJetElement.h"
 #include "JemSubBlock.h"
-#include "IL1CaloMappingTool.h"
 #include "L1CaloSrcIdMap.h"
 #include "L1CaloSubBlock.h"
 #include "L1CaloUserHeader.h"
@@ -47,7 +47,7 @@ JepByteStreamTool::JepByteStreamTool(const std::string& type,
                                      const std::string& name,
 				     const IInterface*  parent)
                   : AthAlgTool(type, name, parent),
-		    m_jemMaps("LVL1BS::JemMappingTool/JemMappingTool"),
+		    m_jemMaps("LVL1::JemMappingTool/JemMappingTool"),
                     m_channels(44), m_crates(2), m_modules(16),
 		    m_coreOverlap(0),
 		    m_subDetector(eformat::TDAQ_CALO_JET_PROC_DAQ),

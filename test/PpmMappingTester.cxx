@@ -4,7 +4,7 @@
 #include "GaudiKernel/MsgStream.h"
 #include "GaudiKernel/StatusCode.h"
 
-#include "../src/IL1CaloMappingTool.h"
+#include "TrigT1CaloMappingToolInterfaces/IL1CaloMappingTool.h"
 
 #include "PpmMappingTester.h"
 
@@ -13,8 +13,8 @@ namespace LVL1BS {
 PpmMappingTester::PpmMappingTester(const std::string& name,
                                    ISvcLocator* pSvcLocator)
  : AthAlgorithm(name, pSvcLocator),
-   m_tool1("LVL1BS::PpmMappingTool/PpmMappingTool"),
-   m_tool2("LVL1BS::PpmCoolMappingTool/PpmCoolMappingTool")
+   m_tool1("LVL1::PpmMappingTool/PpmMappingTool"),
+   m_tool2("LVL1::PpmCoolMappingTool/PpmCoolMappingTool")
 {
 
   declareProperty("PpmMappingTool1", m_tool1);
@@ -145,7 +145,7 @@ StatusCode PpmMappingTester::execute()
 // Return a list of TT channel IDs for all possible eta/phi/layers
 
 void PpmMappingTester::etaPhiToChannel(
-                       ToolHandle<LVL1BS::IL1CaloMappingTool>& tool,
+                       ToolHandle<LVL1::IL1CaloMappingTool>& tool,
 				  std::vector<unsigned int>& chanIds)
 {
   const double etaMin = -4.9;
@@ -183,7 +183,7 @@ void PpmMappingTester::etaPhiToChannel(
 }
 
 void PpmMappingTester::channelToEtaPhi(
-                       ToolHandle<LVL1BS::IL1CaloMappingTool>& tool,
+                       ToolHandle<LVL1::IL1CaloMappingTool>& tool,
                        std::vector<double>& etas, std::vector<double>& phis,
                        std::vector<int>& layers)
 {

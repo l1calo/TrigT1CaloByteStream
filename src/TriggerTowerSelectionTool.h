@@ -12,9 +12,12 @@
 class IInterface;
 class StatusCode;
 
+namespace LVL1 {
+  class IL1CaloMappingTool;
+}
+
 namespace LVL1BS {
 
-class IL1CaloMappingTool;
 class L1CaloSrcIdMap;
 
 /** TriggerTower subset selection for bytestream.
@@ -45,7 +48,7 @@ class TriggerTowerSelectionTool : virtual public ITriggerTowerSelectionTool,
  private:
 
    /// Tool for mappings
-   ToolHandle<LVL1BS::IL1CaloMappingTool> m_mappingTool;
+   ToolHandle<LVL1::IL1CaloMappingTool> m_mappingTool;
    /// Source ID converter
    L1CaloSrcIdMap* m_srcIdMap;
    /// TT eta bins

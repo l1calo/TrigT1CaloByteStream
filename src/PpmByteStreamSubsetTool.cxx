@@ -8,8 +8,8 @@
 #include "TrigT1CaloEvent/TriggerTower.h"
 #include "TrigT1CaloUtils/DataError.h"
 #include "TrigT1CaloUtils/TriggerTowerKey.h"
+#include "TrigT1CaloMappingToolInterfaces/IL1CaloMappingTool.h"
 
-#include "IL1CaloMappingTool.h"
 #include "L1CaloSrcIdMap.h"
 #include "L1CaloSubBlock.h"
 #include "L1CaloUserHeader.h"
@@ -24,7 +24,7 @@ namespace LVL1BS {
 PpmByteStreamSubsetTool::PpmByteStreamSubsetTool(const std::string& type,
                const std::string& name, const IInterface*  parent)
              : AthAlgTool(type, name, parent),
-	       m_ppmMaps("LVL1BS::PpmMappingTool/PpmMappingTool"),
+	       m_ppmMaps("LVL1::PpmMappingTool/PpmMappingTool"),
 	       m_channels(64), m_crates(8), m_modules(16),
 	       m_subDetector(eformat::TDAQ_CALO_PREPROC),
 	       m_srcIdMap(0), m_towerKey(0), m_errorBlock(0)

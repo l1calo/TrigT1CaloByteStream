@@ -7,8 +7,8 @@
 #include "GaudiKernel/StatusCode.h"
 
 #include "TrigT1CaloUtils/TriggerTowerKey.h"
+#include "TrigT1CaloMappingToolInterfaces/IL1CaloMappingTool.h"
 
-#include "IL1CaloMappingTool.h"
 #include "L1CaloSrcIdMap.h"
 
 #include "TriggerTowerSelectionTool.h"
@@ -19,7 +19,7 @@ TriggerTowerSelectionTool::TriggerTowerSelectionTool(const std::string& type,
                                          const std::string& name,
 					 const IInterface*  parent)
  : AthAlgTool(type, name, parent),
-   m_mappingTool("LVL1BS::PpmMappingTool/PpmMappingTool"),
+   m_mappingTool("LVL1::PpmMappingTool/PpmMappingTool"),
    m_srcIdMap(0)
 {
   declareInterface<ITriggerTowerSelectionTool>(this);

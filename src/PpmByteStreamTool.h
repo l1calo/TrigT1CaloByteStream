@@ -21,13 +21,13 @@ class StatusCode;
 template <class T> class FullEventAssembler;
 
 namespace LVL1 {
+  class IL1CaloMappingTool;
   class TriggerTower;
   class TriggerTowerKey;
 }
 
 namespace LVL1BS {
 
-class IL1CaloMappingTool;
 class L1CaloSrcIdMap;
 class PpmSubBlock;
 
@@ -94,7 +94,7 @@ class PpmByteStreamTool : public AthAlgTool {
    void printVec(const std::vector<int>& vec) const;
 
    /// Channel mapping tool
-   ToolHandle<IL1CaloMappingTool> m_ppmMaps;
+   ToolHandle<LVL1::IL1CaloMappingTool> m_ppmMaps;
 
    /// Sub_block header version
    int m_version;

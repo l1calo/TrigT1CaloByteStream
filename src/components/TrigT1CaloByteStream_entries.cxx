@@ -30,12 +30,7 @@
 #include "../PpmByteStreamTool.h"
 #include "../RodHeaderByteStreamTool.h"
 
-#include "../CpmMappingTool.h"
-#include "../JemMappingTool.h"
 #include "../PpmByteStreamSubsetTool.h"
-#include "../PpmCoolMappingTool.h"
-#include "../PpmCoolOrBuiltinMappingTool.h"
-#include "../PpmMappingTool.h"
 #include "../TriggerTowerSelectionTool.h"
 #include "../TrigT1CaloDataAccess.h"
 
@@ -89,12 +84,7 @@ DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, JepRoiByteStreamTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, RodHeaderByteStreamTool )
 
-DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, CpmMappingTool )
-DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, JemMappingTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamSubsetTool )
-DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmMappingTool )
-DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmCoolMappingTool )
-DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmCoolOrBuiltinMappingTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, TriggerTowerSelectionTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, TrigT1CaloDataAccess )
 
@@ -124,12 +114,7 @@ DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
   DECLARE_NAMESPACE_TOOL( LVL1BS, PpmByteStreamTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, RodHeaderByteStreamTool )
 
-  DECLARE_NAMESPACE_TOOL( LVL1BS, CpmMappingTool )
-  DECLARE_NAMESPACE_TOOL( LVL1BS, JemMappingTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, PpmByteStreamSubsetTool )
-  DECLARE_NAMESPACE_TOOL( LVL1BS, PpmMappingTool )
-  DECLARE_NAMESPACE_TOOL( LVL1BS, PpmCoolMappingTool )
-  DECLARE_NAMESPACE_TOOL( LVL1BS, PpmCoolOrBuiltinMappingTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, TriggerTowerSelectionTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, TrigT1CaloDataAccess )
 }

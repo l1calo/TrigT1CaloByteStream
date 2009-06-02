@@ -23,6 +23,7 @@ template <class T> class FullEventAssembler;
 namespace LVL1 {
   class CMMJetHits;
   class CMMEtSums;
+  class IL1CaloMappingTool;
   class JEMHits;
   class JEMEtSums;
   class JEPBSCollection;
@@ -34,7 +35,6 @@ namespace LVL1BS {
 
 class CmmEnergySubBlock;
 class CmmJetSubBlock;
-class IL1CaloMappingTool;
 class JemSubBlock;
 class L1CaloSrcIdMap;
 
@@ -136,7 +136,7 @@ class JepByteStreamTool : public AthAlgTool {
                     int& timeslices, int& trigJem);
 
    /// Channel mapping tool
-   ToolHandle<LVL1BS::IL1CaloMappingTool> m_jemMaps;
+   ToolHandle<LVL1::IL1CaloMappingTool> m_jemMaps;
 
    /// Hardware crate number offset
    int m_crateOffsetHw;

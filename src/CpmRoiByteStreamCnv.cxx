@@ -9,8 +9,6 @@
 #include "ByteStreamData/RawEvent.h"
 #include "ByteStreamData/ROBData.h"
 
-#include "CLIDSvc/tools/ClassID_traits.h"
-
 #include "DataModel/DataVector.h"
 
 #include "GaudiKernel/CnvFactory.h"
@@ -20,6 +18,7 @@
 #include "GaudiKernel/ISvcLocator.h"
 #include "GaudiKernel/StatusCode.h"
 
+#include "SGTools/ClassID_traits.h"
 #include "SGTools/StorableConversions.h"
 
 #include "TrigT1CaloEvent/CPMRoI.h"
