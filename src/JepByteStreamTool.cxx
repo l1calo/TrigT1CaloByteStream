@@ -1,5 +1,6 @@
 
 #include <numeric>
+#include <set>
 #include <utility>
 
 #include "GaudiKernel/IInterface.h"
@@ -23,6 +24,7 @@
 #include "CmmSubBlock.h"
 #include "JemJetElement.h"
 #include "JemSubBlock.h"
+#include "L1CaloErrorByteStreamTool.h"
 #include "L1CaloSrcIdMap.h"
 #include "L1CaloSubBlock.h"
 #include "L1CaloUserHeader.h"
@@ -46,12 +48,12 @@ const InterfaceID& JepByteStreamTool::interfaceID()
 JepByteStreamTool::JepByteStreamTool(const std::string& type,
                                      const std::string& name,
 				     const IInterface*  parent)
-                  : AthAlgTool(type, name, parent),
-		    m_jemMaps("LVL1::JemMappingTool/JemMappingTool"),
-                    m_channels(44), m_crates(2), m_modules(16),
-		    m_coreOverlap(0),
-		    m_subDetector(eformat::TDAQ_CALO_JET_PROC_DAQ),
-		    m_srcIdMap(0), m_elementKey(0), m_rodStatus(0), m_fea(0)
+  : AthAlgTool(type, name, parent),
+    m_jemMaps("LVL1::JemMappingTool/JemMappingTool"),
+    m_errorTool("LVL1BS::L1CaloErrorByteStreamTool/L1CaloErrorByteStreamTool"),
+    m_channels(44), m_crates(2), m_modules(16), m_coreOverlap(0),
+    m_subDetector(eformat::TDAQ_CALO_JET_PROC_DAQ),
+    m_srcIdMap(0), m_elementKey(0), m_rodStatus(0), m_fea(0)
 {
   declareInterface<JepByteStreamTool>(this);
 
@@ -103,6 +105,12 @@ StatusCode JepByteStreamTool::initialize()
     msg(MSG::ERROR) << "Failed to retrieve tool " << m_jemMaps << endreq;
     return sc;
   } else msg(MSG::INFO) << "Retrieved tool " << m_jemMaps << endreq;
+
+  sc = m_errorTool.retrieve();
+  if (sc.isFailure()) {
+    msg(MSG::ERROR) << "Failed to retrieve tool " << m_errorTool << endreq;
+    return sc;
+  } else msg(MSG::INFO) << "Retrieved tool " << m_errorTool << endreq;
 
   m_srcIdMap    = new L1CaloSrcIdMap();
   m_elementKey  = new LVL1::JetElementKey();
@@ -569,6 +577,7 @@ StatusCode JepByteStreamTool::convertBs(
   // Loop over ROB fragments
 
   int robCount = 0;
+  std::set<uint32_t> dupCheck;
   ROBIterator rob    = robFrags.begin();
   ROBIterator robEnd = robFrags.end();
   for (; rob != robEnd; ++rob) {
@@ -576,6 +585,27 @@ StatusCode JepByteStreamTool::convertBs(
     if (debug) {
       ++robCount;
       msg() << "Treating ROB fragment " << robCount << endreq;
+    }
+
+    // Skip fragments with ROB status errors
+
+    uint32_t robid = (*rob)->source_id();
+    if ((*rob)->nstatus() > 0) {
+      ROBPointer robData;
+      (*rob)->status(robData);
+      if (*robData != 0) {
+        m_errorTool->robError(robid, *robData);
+	if (debug) msg() << "ROB status error - skipping fragment" << endreq;
+	continue;
+      }
+    }
+
+    // Skip duplicate fragments
+
+    if (!dupCheck.insert(robid).second) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_DUPLICATE_ROB);
+      if (debug) msg() << "Skipping duplicate ROB fragment" << endreq;
+      continue;
     }
 
     // Unpack ROD data (slinks)
@@ -630,11 +660,13 @@ StatusCode JepByteStreamTool::convertBs(
 
     // Loop over sub-blocks
 
+    m_rodErr = L1CaloSubBlock::ERROR_NONE;
     while (payload != payloadEnd) {
       
       if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER) {
-        msg(MSG::ERROR) << "Unexpected data sequence" << endreq;
-        return StatusCode::FAILURE;
+        if (debug) msg() << "Unexpected data sequence" << endreq;
+	m_rodErr = L1CaloSubBlock::ERROR_MISSING_HEADER;
+	break;
       }
       if (CmmSubBlock::cmmBlock(*payload)) {
         // CMMs
@@ -642,18 +674,20 @@ StatusCode JepByteStreamTool::convertBs(
           CmmJetSubBlock subBlock;
           payload = subBlock.read(payload, payloadEnd);
 	  if (collection == CMM_HITS) {
-	    StatusCode sc = decodeCmmJet(subBlock, trigCmm);
-	    if (sc.isFailure() && debug) {
-	      msg() << "decodeCmmJet failed" << endreq;
+	    decodeCmmJet(subBlock, trigCmm);
+	    if (m_rodErr != L1CaloSubBlock::ERROR_NONE) {
+	      if (debug) msg() << "decodeCmmJet failed" << endreq;
+	      break;
 	    }
           }
         } else {
 	  CmmEnergySubBlock subBlock;
 	  payload = subBlock.read(payload, payloadEnd);
 	  if (collection == CMM_SUMS) {
-	    StatusCode sc = decodeCmmEnergy(subBlock, trigCmm);
-	    if (sc.isFailure() && debug) {
-	      msg() << "decodeCmmEnergy failed" << endreq;
+	    decodeCmmEnergy(subBlock, trigCmm);
+	    if (m_rodErr != L1CaloSubBlock::ERROR_NONE) {
+	      if (debug) msg() << "decodeCmmEnergy failed" << endreq;
+	      break;
 	    }
           }
 	}
@@ -663,13 +697,16 @@ StatusCode JepByteStreamTool::convertBs(
         payload = subBlock.read(payload, payloadEnd);
 	if (collection == JET_ELEMENTS || collection == JET_HITS ||
 	                                  collection == ENERGY_SUMS) {
-	  StatusCode sc = decodeJem(subBlock, trigJem, collection);
-	  if (sc.isFailure() && debug) {
-	    msg() << "decodeJem failed" << endreq;
+	  decodeJem(subBlock, trigJem, collection);
+	  if (m_rodErr != L1CaloSubBlock::ERROR_NONE) {
+	    if (debug) msg() << "decodeJem failed" << endreq;
+	    break;
 	  }
         }
       }
     }
+    if (m_rodErr != L1CaloSubBlock::ERROR_NONE)
+                                       m_errorTool->rodError(robid, m_rodErr);
   }
 
   return StatusCode::SUCCESS;
@@ -677,8 +714,8 @@ StatusCode JepByteStreamTool::convertBs(
 
 // Unpack CMM-Energy sub-block
 
-StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
-                                                              int trigCmm)
+void JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
+                                                                 int trigCmm)
 {
   const bool debug = msgLvl(MSG::DEBUG);
   if (debug) msg(MSG::DEBUG);
@@ -696,8 +733,9 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
           << "  Slice "           << sliceNum    << endreq;
   }
   if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
-    msg(MSG::ERROR) << "Unexpected crate number: " << hwCrate << endreq;
-    return StatusCode::FAILURE;
+    if (debug) msg() << "Unexpected crate number: " << hwCrate << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
+    return;
   }
   if (timeslices <= trigCmm) {
     if (debug) {
@@ -708,9 +746,10 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
     trigCmm = 0;
   }
   if (timeslices <= sliceNum) {
-    msg(MSG::ERROR) << "Total slices inconsistent with slice number: "
-                    << timeslices << ", " << sliceNum << endreq;
-    return StatusCode::FAILURE;
+    if (debug) msg() << "Total slices inconsistent with slice number: "
+                     << timeslices << ", " << sliceNum << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_SLICE_NUMBER;
+    return;
   }
   // Unpack sub-block
   if (subBlock.dataWords() && !subBlock.unpack()) {
@@ -718,6 +757,8 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
       std::string errMsg(subBlock.unpackErrorMsg());
       msg() << "CMM-Energy sub-block unpacking failed: " << errMsg << endreq;
     }
+    m_rodErr = subBlock.unpackErrorCode();
+    return;
   }
 
   // Retrieve required data
@@ -879,13 +920,12 @@ StatusCode JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
     }
   }
   
-  return StatusCode::SUCCESS;
+  return;
 }
 
 // Unpack CMM-Jet sub-block
 
-StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
-                                                                  int trigCmm)
+void JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock, int trigCmm)
 {
   const bool debug = msgLvl(MSG::DEBUG);
   if (debug) msg(MSG::DEBUG);
@@ -903,8 +943,9 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
           << "  Slice "        << sliceNum    << endreq;
   }
   if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
-    msg(MSG::ERROR) << "Unexpected crate number: " << hwCrate << endreq;
-    return StatusCode::FAILURE;
+    if (debug) msg() << "Unexpected crate number: " << hwCrate << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
+    return;
   }
   if (timeslices <= trigCmm) {
     if (debug) {
@@ -915,9 +956,10 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
     trigCmm = 0;
   }
   if (timeslices <= sliceNum) {
-    msg(MSG::ERROR) << "Total slices inconsistent with slice number: "
-                    << timeslices << ", " << sliceNum << endreq;
-    return StatusCode::FAILURE;
+    if (debug) msg() << "Total slices inconsistent with slice number: "
+                     << timeslices << ", " << sliceNum << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_SLICE_NUMBER;
+    return;
   }
   // Unpack sub-block
   if (subBlock.dataWords() && !subBlock.unpack()) {
@@ -925,6 +967,8 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
       std::string errMsg(subBlock.unpackErrorMsg());
       msg() << "CMM-Jet sub-block unpacking failed: " << errMsg << endreq;
     }
+    m_rodErr = subBlock.unpackErrorCode();
+    return;
   }
 
   // Retrieve required data
@@ -1025,12 +1069,12 @@ StatusCode JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock,
     }
   }
   
-  return StatusCode::SUCCESS;
+  return;
 }
 
 // Unpack JEM sub-block
 
-StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
+void JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
                                         const CollectionType collection)
 {
   const bool debug   = msgLvl(MSG::DEBUG);
@@ -1048,8 +1092,9 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
           << "  Slice "        << sliceNum    << endreq;
   }
   if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
-    msg(MSG::ERROR) << "Unexpected crate number: " << hwCrate << endreq;
-    return StatusCode::FAILURE;
+    if (debug) msg() << "Unexpected crate number: " << hwCrate << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
+    return;
   }
   if (timeslices <= trigJem) {
     if (debug) {
@@ -1060,9 +1105,10 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
     trigJem = 0;
   }
   if (timeslices <= sliceNum) {
-    msg(MSG::ERROR) << "Total slices inconsistent with slice number: "
-                    << timeslices << ", " << sliceNum << endreq;
-    return StatusCode::FAILURE;
+    if (debug) msg() << "Total slices inconsistent with slice number: "
+                     << timeslices << ", " << sliceNum << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_SLICE_NUMBER;
+    return;
   }
   // Unpack sub-block
   if (subBlock.dataWords() && !subBlock.unpack()) {
@@ -1070,6 +1116,8 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
       std::string errMsg(subBlock.unpackErrorMsg());
       msg() << "JEM sub-block unpacking failed: " << errMsg << endreq;
     }
+    m_rodErr = subBlock.unpackErrorCode();
+    return;
   }
 
   // Retrieve required data
@@ -1188,7 +1236,7 @@ StatusCode JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
       }
     }
   }
-  return StatusCode::SUCCESS;
+  return;
 }
 
 // Find a jet element given eta, phi

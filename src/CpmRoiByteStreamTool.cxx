@@ -1,5 +1,6 @@
 
 #include <numeric>
+#include <set>
 #include <utility>
 
 #include "ByteStreamCnvSvcBase/FullEventAssembler.h"
@@ -11,6 +12,7 @@
 #include "TrigT1CaloEvent/CPMRoI.h"
 
 #include "CpmRoiSubBlock.h"
+#include "L1CaloErrorByteStreamTool.h"
 #include "L1CaloSrcIdMap.h"
 #include "L1CaloUserHeader.h"
 
@@ -33,10 +35,10 @@ const InterfaceID& CpmRoiByteStreamTool::interfaceID()
 CpmRoiByteStreamTool::CpmRoiByteStreamTool(const std::string& type,
                                            const std::string& name,
                                            const IInterface*  parent)
-                      : AthAlgTool(type, name, parent),
-		        m_crates(4), m_modules(14),
-                        m_srcIdMap(0), m_subBlock(0), m_rodStatus(0),
-			m_fea(0)
+  : AthAlgTool(type, name, parent),
+    m_errorTool("LVL1BS::L1CaloErrorByteStreamTool/L1CaloErrorByteStreamTool"),
+    m_crates(4), m_modules(14), m_srcIdMap(0), m_subBlock(0), m_rodStatus(0),
+    m_fea(0)
 {
   declareInterface<CpmRoiByteStreamTool>(this);
 
@@ -78,6 +80,12 @@ StatusCode CpmRoiByteStreamTool::initialize()
   msg(MSG::INFO) << "Initializing " << name() << " - package version "
                  << PACKAGE_VERSION << endreq;
 
+  StatusCode sc = m_errorTool.retrieve();
+  if (sc.isFailure()) {
+    msg(MSG::ERROR) << "Failed to retrieve tool " << m_errorTool << endreq;
+    return sc;
+  } else msg(MSG::INFO) << "Retrieved tool " << m_errorTool << endreq;
+
   m_subDetector = eformat::TDAQ_CALO_CLUSTER_PROC_ROI;
   m_srcIdMap    = new L1CaloSrcIdMap();
   m_rodStatus   = new std::vector<uint32_t>(2);
@@ -109,6 +117,7 @@ StatusCode CpmRoiByteStreamTool::convert(
   // Loop over ROB fragments
 
   int robCount = 0;
+  std::set<uint32_t> dupCheck;
   ROBIterator rob    = robFrags.begin();
   ROBIterator robEnd = robFrags.end();
   for (; rob != robEnd; ++rob) {
@@ -116,6 +125,27 @@ StatusCode CpmRoiByteStreamTool::convert(
     if (debug) {
       ++robCount;
       msg() << "Treating ROB fragment " << robCount << endreq;
+    }
+
+    // Skip fragments with ROB status errors
+
+    uint32_t robid = (*rob)->source_id();
+    if ((*rob)->nstatus() > 0) {
+      ROBPointer robData;
+      (*rob)->status(robData);
+      if (*robData != 0) {
+        m_errorTool->robError(robid, *robData);
+	if (debug) msg() << "ROB status error - skipping fragment" << endreq;
+	continue;
+      }
+    }
+
+    // Skip duplicate fragments
+
+    if (!dupCheck.insert(robid).second) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_DUPLICATE_ROB);
+      if (debug) msg() << "Skipping duplicate ROB fragment" << endreq;
+      continue;
     }
 
     // Unpack ROD data (slinks)
@@ -155,6 +185,7 @@ StatusCode CpmRoiByteStreamTool::convert(
 
     // Loop over sub-blocks if there are any
 
+    unsigned int rodErr = L1CaloSubBlock::ERROR_NONE;
     while (payload != payloadEnd) {
       
       if (L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::HEADER) {
@@ -170,6 +201,8 @@ StatusCode CpmRoiByteStreamTool::convert(
             std::string errMsg(m_subBlock->unpackErrorMsg());
 	    msg() << "CPM RoI sub-block unpacking failed: " << errMsg << endreq;
 	  }
+	  rodErr = m_subBlock->unpackErrorCode();
+	  break;
         }
 	const int numChips = 8;
 	const int numLocs  = 2;
@@ -186,13 +219,17 @@ StatusCode CpmRoiByteStreamTool::convert(
 	LVL1::CPMRoI roi;
 	if (roi.setRoiWord(*payload)) {
 	  roiCollection->push_back(new LVL1::CPMRoI(*payload));
-	} else if (debug) {
-	  msg() << "Invalid RoI word "
-	        << MSG::hex << *payload << MSG::dec << endreq;
+	} else {
+	  if (debug) msg() << "Invalid RoI word "
+	                   << MSG::hex << *payload << MSG::dec << endreq;
+	  rodErr = L1CaloSubBlock::ERROR_ROI_WORD;
+	  break;
         }
 	++payload;
       }
     }
+    if (rodErr != L1CaloSubBlock::ERROR_NONE)
+                                        m_errorTool->rodError(robid, rodErr);
   }
 
   return StatusCode::SUCCESS;

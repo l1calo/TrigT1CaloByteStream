@@ -28,6 +28,7 @@ namespace LVL1 {
 
 namespace LVL1BS {
 
+class L1CaloErrorByteStreamTool;
 class L1CaloSrcIdMap;
 class PpmSubBlock;
 
@@ -64,11 +65,13 @@ class PpmByteStreamTool : public AthAlgTool {
    const std::vector<uint32_t>& sourceIDs();
 
  private:
+
    typedef DataVector<LVL1::TriggerTower>                TriggerTowerCollection;
    typedef std::map<unsigned int, LVL1::TriggerTower*>   TriggerTowerMap;
    typedef std::map<unsigned int, const LVL1::TriggerTower*>
                                                          TriggerTowerMapConst;
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
+   typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      ROBPointer;
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
 
    /// Add compression stats to totals
@@ -95,6 +98,8 @@ class PpmByteStreamTool : public AthAlgTool {
 
    /// Channel mapping tool
    ToolHandle<LVL1::IL1CaloMappingTool> m_ppmMaps;
+   /// Error collection tool
+   ToolHandle<LVL1BS::L1CaloErrorByteStreamTool> m_errorTool;
 
    /// Sub_block header version
    int m_version;

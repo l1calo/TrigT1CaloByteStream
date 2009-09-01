@@ -58,6 +58,7 @@ class PpmByteStreamSubsetTool : virtual public IPpmByteStreamSubsetTool,
    typedef DataVector<LVL1::TriggerTower>                TriggerTowerCollection;
    typedef std::map<unsigned int, LVL1::TriggerTower*>   TriggerTowerMap;
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
+   typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      ROBPointer;
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
    typedef std::pair<std::vector<unsigned int>::const_iterator,
                      std::vector<unsigned int>::const_iterator> IteratorPair;

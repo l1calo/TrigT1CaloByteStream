@@ -12,6 +12,7 @@
 #include "ByteStreamData/RawEvent.h"
 #include "DataModel/DataVector.h"
 #include "eformat/SourceIdentifier.h"
+#include "GaudiKernel/ToolHandle.h"
 
 class IInterface;
 class InterfaceID;
@@ -32,6 +33,7 @@ namespace LVL1BS {
 class CmmEnergySubBlock;
 class CmmJetSubBlock;
 class JemRoiSubBlock;
+class L1CaloErrorByteStreamTool;
 class L1CaloSrcIdMap;
 
 /** Tool to perform ROB fragments to JEM RoI and CMM RoI,
@@ -78,11 +80,15 @@ class JepRoiByteStreamTool : public AthAlgTool {
    typedef std::map<int, const LVL1::CMMJetHits*>        CmmHitsMap;
    typedef std::map<int, const LVL1::CMMEtSums*>         CmmSumsMap;
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
+   typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      ROBPointer;
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
 
    /// Convert bytestream to given container type
    StatusCode convertBs(const IROBDataProviderSvc::VROBFRAG& robFrags,
                         CollectionType collection);
+
+   /// Error collection tool
+   ToolHandle<LVL1BS::L1CaloErrorByteStreamTool> m_errorTool;
 
    /// Find CMM hits for given crate, data ID
    const LVL1::CMMJetHits* findCmmHits(int crate, int dataID);

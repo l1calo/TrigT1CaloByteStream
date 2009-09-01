@@ -19,6 +19,7 @@
 #include "PpmSubsetTester.h"
 #include "PpmTester.h"
 #include "RodTester.h"
+#include "ErrorTester.h"
 
 #include "../src/CpByteStreamCnv.h"
 #include "../src/CpmRoiByteStreamCnv.h"
@@ -29,6 +30,7 @@
 #include "../src/JepRoiReadByteStreamCnv.h"
 #include "../src/PpmByteStreamCnv.h"
 #include "../src/RodHeaderByteStreamCnv.h"
+#include "../src/L1CaloErrorByteStreamCnv.h"
 
 #include "../src/CpByteStreamTool.h"
 #include "../src/CpmRoiByteStreamTool.h"
@@ -36,6 +38,7 @@
 #include "../src/JepRoiByteStreamTool.h"
 #include "../src/PpmByteStreamTool.h"
 #include "../src/RodHeaderByteStreamTool.h"
+#include "../src/L1CaloErrorByteStreamTool.h"
 
 #include "../src/PpmByteStreamSubsetTool.h"
 #include "../src/TriggerTowerSelectionTool.h"
@@ -73,6 +76,7 @@ DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, JepByteStreamCnv )
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, JepRoiByteStreamCnv )
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, PpmByteStreamCnv )
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, RodHeaderByteStreamCnv )
+DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, L1CaloErrorByteStreamCnv )
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, CpReadCTByteStreamCnvT )
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, CpReadCHByteStreamCnvT )
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, CpReadCCByteStreamCnvT )
@@ -88,6 +92,7 @@ DECLARE_NAMESPACE_ALGORITHM_FACTORY( LVL1BS, CpmTester )
 DECLARE_NAMESPACE_ALGORITHM_FACTORY( LVL1BS, JemTester )
 DECLARE_NAMESPACE_ALGORITHM_FACTORY( LVL1BS, PpmTester )
 DECLARE_NAMESPACE_ALGORITHM_FACTORY( LVL1BS, RodTester )
+DECLARE_NAMESPACE_ALGORITHM_FACTORY( LVL1BS, ErrorTester )
 DECLARE_NAMESPACE_ALGORITHM_FACTORY( LVL1BS, PpmSubsetTester )
 DECLARE_NAMESPACE_ALGORITHM_FACTORY( LVL1BS, PpmMappingTester )
 
@@ -97,6 +102,7 @@ DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, JepByteStreamTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, JepRoiByteStreamTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, RodHeaderByteStreamTool )
+DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, L1CaloErrorByteStreamTool )
 
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamSubsetTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, TriggerTowerSelectionTool )
@@ -110,6 +116,7 @@ DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, JepRoiByteStreamCnv )
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, PpmByteStreamCnv )
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, RodHeaderByteStreamCnv )
+  DECLARE_NAMESPACE_CONVERTER( LVL1BS, L1CaloErrorByteStreamCnv )
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, CpReadCTByteStreamCnvT )
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, CpReadCHByteStreamCnvT )
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, CpReadCCByteStreamCnvT )
@@ -125,6 +132,7 @@ DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
   DECLARE_NAMESPACE_ALGORITHM( LVL1BS, JemTester )
   DECLARE_NAMESPACE_ALGORITHM( LVL1BS, PpmTester )
   DECLARE_NAMESPACE_ALGORITHM( LVL1BS, RodTester )
+  DECLARE_NAMESPACE_ALGORITHM( LVL1BS, ErrorTester )
   DECLARE_NAMESPACE_ALGORITHM( LVL1BS, PpmSubsetTester )
   DECLARE_NAMESPACE_ALGORITHM( LVL1BS, PpmMappingTester )
 
@@ -134,6 +142,7 @@ DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
   DECLARE_NAMESPACE_TOOL( LVL1BS, JepRoiByteStreamTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, PpmByteStreamTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, RodHeaderByteStreamTool )
+  DECLARE_NAMESPACE_TOOL( LVL1BS, L1CaloErrorByteStreamTool )
 
   DECLARE_NAMESPACE_TOOL( LVL1BS, PpmByteStreamSubsetTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, TriggerTowerSelectionTool )

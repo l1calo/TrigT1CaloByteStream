@@ -36,6 +36,7 @@ namespace LVL1BS {
 class CmmEnergySubBlock;
 class CmmJetSubBlock;
 class JemSubBlock;
+class L1CaloErrorByteStreamTool;
 class L1CaloSrcIdMap;
 
 /** Tool to perform ROB fragments to jet elements, jet hits and energy sums,
@@ -96,18 +97,19 @@ class JepByteStreamTool : public AthAlgTool {
    typedef std::map<int, LVL1::CMMJetHits*>              CmmHitsMap;
    typedef std::map<int, LVL1::CMMEtSums*>               CmmSumsMap;
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
+   typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      ROBPointer;
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
 
    /// Convert bytestream to given container type
    StatusCode convertBs(const IROBDataProviderSvc::VROBFRAG& robFrags,
                         CollectionType collection);
    /// Unpack CMM-Energy sub-block
-   StatusCode decodeCmmEnergy(CmmEnergySubBlock& subBlock, int trigCmm);
+   void decodeCmmEnergy(CmmEnergySubBlock& subBlock, int trigCmm);
    /// Unpack CMM-Jet sub-block
-   StatusCode decodeCmmJet(CmmJetSubBlock& subBlock, int trigCmm);
+   void decodeCmmJet(CmmJetSubBlock& subBlock, int trigCmm);
    /// Unpack JEM sub-block
-   StatusCode decodeJem(JemSubBlock& subBlock, int trigJem,
-                                               CollectionType collection);
+   void decodeJem(JemSubBlock& subBlock, int trigJem,
+                                         CollectionType collection);
 
    /// Find a jet element given eta, phi
    LVL1::JetElement* findJetElement(double eta, double phi);
@@ -137,6 +139,8 @@ class JepByteStreamTool : public AthAlgTool {
 
    /// Channel mapping tool
    ToolHandle<LVL1::IL1CaloMappingTool> m_jemMaps;
+   /// Error collection tool
+   ToolHandle<LVL1BS::L1CaloErrorByteStreamTool> m_errorTool;
 
    /// Hardware crate number offset
    int m_crateOffsetHw;
@@ -160,6 +164,8 @@ class JepByteStreamTool : public AthAlgTool {
    int m_forceSlices;
    /// Jet elements to accept (0=Core, 1=Overlap)
    int m_coreOverlap;
+   /// Unpacking error code
+   unsigned int m_rodErr;
    /// ROB source IDs
    std::vector<uint32_t> m_sourceIDs;
    /// Sub-detector type

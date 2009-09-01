@@ -14,6 +14,7 @@ from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__CpmRoiByteStre
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__JepByteStreamTool
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__JepRoiByteStreamTool
 from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__RodHeaderByteStreamTool
+from TrigT1CaloByteStream.TrigT1CaloByteStreamConf import LVL1BS__L1CaloErrorByteStreamTool
 ToolSvc = Service("ToolSvc")
 ToolSvc += LVL1BS__PpmByteStreamTool("PpmByteStreamTool",
            PpmMappingTool="LVL1::PpmCoolOrBuiltinMappingTool/PpmCoolOrBuiltinMappingTool")
@@ -22,6 +23,7 @@ ToolSvc += LVL1BS__CpmRoiByteStreamTool("CpmRoiByteStreamTool")
 ToolSvc += LVL1BS__JepByteStreamTool("JepByteStreamTool")
 ToolSvc += LVL1BS__JepRoiByteStreamTool("JepRoiByteStreamTool")
 ToolSvc += LVL1BS__RodHeaderByteStreamTool("RodHeaderByteStreamTool")
+ToolSvc += LVL1BS__L1CaloErrorByteStreamTool("L1CaloErrorByteStreamTool")
 
 ByteStreamAddressProviderSvc = Service( "ByteStreamAddressProviderSvc" )
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::TriggerTower>/TriggerTowers" ]
@@ -49,3 +51,4 @@ ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::RODHeader>/RODHead
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::RODHeader>/RODHeadersJEPRoI" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::RODHeader>/RODHeadersCPRoIB" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::RODHeader>/RODHeadersJEPRoIB" ]
+ByteStreamAddressProviderSvc.TypeNames += [ "std::vector<unsigned int>/L1CaloUnpackingErrors" ]

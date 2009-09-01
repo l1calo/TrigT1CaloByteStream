@@ -33,6 +33,7 @@ namespace LVL1BS {
 
 class CmmCpSubBlock;
 class CpmSubBlock;
+class L1CaloErrorByteStreamTool;
 class L1CaloSrcIdMap;
 
 /** Tool to perform ROB fragments to CPM towers, CPM hits and CMM-CP hits,
@@ -83,16 +84,16 @@ class CpByteStreamTool : public AthAlgTool {
    typedef std::map<int, LVL1::CPMHits*>                 CpmHitsMap;
    typedef std::map<int, LVL1::CMMCPHits*>               CmmCpHitsMap;
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
+   typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      ROBPointer;
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
 
    /// Convert bytestream to given container type
    StatusCode convertBs(const IROBDataProviderSvc::VROBFRAG& robFrags,
                         CollectionType collection);
    /// Unpack CMM-CP sub-block
-   StatusCode decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm);
+   void decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm);
    /// Unpack CPM sub-block
-   StatusCode decodeCpm(CpmSubBlock& subBlock, int trigCpm,
-                                               CollectionType collection);
+   void decodeCpm(CpmSubBlock& subBlock, int trigCpm, CollectionType collection);
 
    /// Find a CPM tower given eta, phi
    LVL1::CPMTower*  findCpmTower(double eta, double phi);
@@ -114,6 +115,8 @@ class CpByteStreamTool : public AthAlgTool {
 
    /// Channel mapping tool
    ToolHandle<LVL1::IL1CaloMappingTool> m_cpmMaps;
+   /// Error collection tool
+   ToolHandle<LVL1BS::L1CaloErrorByteStreamTool> m_errorTool;
 
    /// Hardware crate number offset
    int m_crateOffsetHw;
@@ -137,6 +140,8 @@ class CpByteStreamTool : public AthAlgTool {
    int m_forceSlices;
    /// Tower channels to accept (1=Core, 2=Overlap)
    int m_coreOverlap;
+   /// Unpacking error code
+   unsigned int m_rodErr;
    /// ROB source IDs
    std::vector<uint32_t> m_sourceIDs;
    /// Sub-detector type

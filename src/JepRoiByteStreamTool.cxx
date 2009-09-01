@@ -1,5 +1,6 @@
 
 #include <numeric>
+#include <set>
 #include <utility>
 
 #include "GaudiKernel/IInterface.h"
@@ -18,6 +19,7 @@
 #include "CmmJetSubBlock.h"
 #include "CmmSubBlock.h"
 #include "JemRoiSubBlock.h"
+#include "L1CaloErrorByteStreamTool.h"
 #include "L1CaloSrcIdMap.h"
 #include "L1CaloSubBlock.h"
 #include "L1CaloUserHeader.h"
@@ -41,10 +43,10 @@ const InterfaceID& JepRoiByteStreamTool::interfaceID()
 JepRoiByteStreamTool::JepRoiByteStreamTool(const std::string& type,
                                            const std::string& name,
 				           const IInterface*  parent)
-                     : AthAlgTool(type, name, parent),
-		       m_crates(2), m_modules(16),
-		       m_srcIdMap(0), m_subBlock(0), m_rodStatus(0),
-		       m_fea(0)
+  : AthAlgTool(type, name, parent),
+    m_errorTool("LVL1BS::L1CaloErrorByteStreamTool/L1CaloErrorByteStreamTool"),
+    m_crates(2), m_modules(16), m_srcIdMap(0), m_subBlock(0), m_rodStatus(0),
+    m_fea(0)
 {
   declareInterface<JepRoiByteStreamTool>(this);
 
@@ -85,6 +87,12 @@ StatusCode JepRoiByteStreamTool::initialize()
 {
   msg(MSG::INFO) << "Initializing " << name() << " - package version "
                  << PACKAGE_VERSION << endreq;
+
+  StatusCode sc = m_errorTool.retrieve();
+  if (sc.isFailure()) {
+    msg(MSG::ERROR) << "Failed to retrieve tool " << m_errorTool << endreq;
+    return sc;
+  } else msg(MSG::INFO) << "Retrieved tool " << m_errorTool << endreq;
 
   m_subDetector = eformat::TDAQ_CALO_JET_PROC_ROI;
   m_srcIdMap    = new L1CaloSrcIdMap();
@@ -421,6 +429,7 @@ StatusCode JepRoiByteStreamTool::convertBs(
   // Loop over ROB fragments
 
   int robCount = 0;
+  std::set<uint32_t> dupCheck;
   ROBIterator rob    = robFrags.begin();
   ROBIterator robEnd = robFrags.end();
   for (; rob != robEnd; ++rob) {
@@ -428,6 +437,27 @@ StatusCode JepRoiByteStreamTool::convertBs(
     if (debug) {
       ++robCount;
       msg() << "Treating ROB fragment " << robCount << endreq;
+    }
+
+    // Skip fragments with ROB status errors
+
+    uint32_t robid = (*rob)->source_id();
+    if ((*rob)->nstatus() > 0) {
+      ROBPointer robData;
+      (*rob)->status(robData);
+      if (*robData != 0) {
+        m_errorTool->robError(robid, *robData);
+	if (debug) msg() << "ROB status error - skipping fragment" << endreq;
+	continue;
+      }
+    }
+
+    // Skip duplicate fragments
+
+    if (!dupCheck.insert(robid).second) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_DUPLICATE_ROB);
+      if (debug) msg() << "Skipping duplicate ROB fragment" << endreq;
+      continue;
     }
 
     // Unpack ROD data (slinks)
@@ -467,6 +497,7 @@ StatusCode JepRoiByteStreamTool::convertBs(
 
     // Loop over sub-blocks if there are any
 
+    unsigned int rodErr = L1CaloSubBlock::ERROR_NONE;
     while (payload != payloadEnd) {
       
       if (L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::HEADER) {
@@ -483,6 +514,8 @@ StatusCode JepRoiByteStreamTool::convertBs(
 	          msg() << "CMM-Jet sub-block unpacking failed: "
 		        << errMsg << endreq;
 	        }
+		rodErr = m_subBlock->unpackErrorCode();
+		break;
               }
 	      const LVL1::CMMRoI roi(subBlock.jetEtMap(slice),
 	                             0,0,0,0,0,0,0,0,0,0,0);
@@ -498,6 +531,8 @@ StatusCode JepRoiByteStreamTool::convertBs(
 	          msg() << "CMM-Energy sub-block unpacking failed: "
 		        << errMsg << endreq;
 	        }
+		rodErr = m_subBlock->unpackErrorCode();
+		break;
               }
 	      const LVL1::CMMRoI roi(0, subBlock.sumEtHits(slice),
 	                   subBlock.missingEtHits(slice),
@@ -524,6 +559,8 @@ StatusCode JepRoiByteStreamTool::convertBs(
 	        msg() << "JEM RoI sub-block unpacking failed: "
 		      << errMsg << endreq;
 	      }
+              rodErr = m_subBlock->unpackErrorCode();
+              break;
             }
 	    for (int frame = 0; frame < 8; ++frame) {
 	      for (int forward = 0; forward < 2; ++forward) {
@@ -547,13 +584,17 @@ StatusCode JepRoiByteStreamTool::convertBs(
 	  if (collection == CMM_ROI) {
 	    m_cmCollection->setRoiWord(*payload);
 	  }
-        } else if (debug) {
-	  msg() << "Invalid RoI word "
-	        << MSG::hex << *payload << MSG::dec << endreq;
+        } else {
+	  if (debug) msg() << "Invalid RoI word "
+	                   << MSG::hex << *payload << MSG::dec << endreq;
+	  rodErr = L1CaloSubBlock::ERROR_ROI_WORD;
+	  break;
         }
 	++payload;
       }
     }
+    if (rodErr != L1CaloSubBlock::ERROR_NONE)
+                                        m_errorTool->rodError(robid, rodErr);
   }
 
   return StatusCode::SUCCESS;

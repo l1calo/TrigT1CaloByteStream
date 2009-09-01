@@ -1,9 +1,11 @@
 
 #include <numeric>
+#include <set>
 #include <utility>
 
 #include "GaudiKernel/IInterface.h"
 #include "GaudiKernel/MsgStream.h"
+#include "GaudiKernel/StatusCode.h"
 
 #include "ByteStreamCnvSvcBase/FullEventAssembler.h"
 
@@ -12,6 +14,7 @@
 #include "TrigT1CaloUtils/TriggerTowerKey.h"
 #include "TrigT1CaloMappingToolInterfaces/IL1CaloMappingTool.h"
 
+#include "L1CaloErrorByteStreamTool.h"
 #include "L1CaloSrcIdMap.h"
 #include "L1CaloSubBlock.h"
 #include "L1CaloUserHeader.h"
@@ -36,12 +39,12 @@ const InterfaceID& PpmByteStreamTool::interfaceID()
 PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
                                      const std::string& name,
 				     const IInterface*  parent)
-                  : AthAlgTool(type, name, parent),
-		    m_ppmMaps("LVL1::PpmMappingTool/PpmMappingTool"),
-		    m_version(1), m_compVers(4), m_channels(64), m_crates(8),
-		    m_modules(16), m_subDetector(eformat::TDAQ_CALO_PREPROC),
-		    m_srcIdMap(0), m_towerKey(0),
-		    m_errorBlock(0), m_rodStatus(0), m_fea(0)
+  : AthAlgTool(type, name, parent),
+    m_ppmMaps("LVL1::PpmMappingTool/PpmMappingTool"),
+    m_errorTool("LVL1BS::L1CaloErrorByteStreamTool/L1CaloErrorByteStreamTool"),
+    m_version(1), m_compVers(4), m_channels(64), m_crates(8),
+    m_modules(16), m_subDetector(eformat::TDAQ_CALO_PREPROC),
+    m_srcIdMap(0), m_towerKey(0), m_errorBlock(0), m_rodStatus(0), m_fea(0)
 {
   declareInterface<PpmByteStreamTool>(this);
 
@@ -102,6 +105,12 @@ StatusCode PpmByteStreamTool::initialize()
     return sc;
   } else msg(MSG::INFO) << "Retrieved tool " << m_ppmMaps << endreq;
 
+  sc = m_errorTool.retrieve();
+  if (sc.isFailure()) {
+    msg(MSG::ERROR) << "Failed to retrieve tool " << m_errorTool << endreq;
+    return sc;
+  } else msg(MSG::INFO) << "Retrieved tool " << m_errorTool << endreq;
+
   m_srcIdMap  = new L1CaloSrcIdMap();
   m_towerKey  = new LVL1::TriggerTowerKey();
   m_rodStatus = new std::vector<uint32_t>(2);
@@ -144,6 +153,7 @@ StatusCode PpmByteStreamTool::convert(
   // Loop over ROB fragments
 
   int robCount = 0;
+  std::set<uint32_t> dupCheck;
   ROBIterator rob    = robFrags.begin();
   ROBIterator robEnd = robFrags.end();
   for (; rob != robEnd; ++rob) {
@@ -151,6 +161,27 @@ StatusCode PpmByteStreamTool::convert(
     if (debug) {
       ++robCount;
       msg() << "Treating ROB fragment " << robCount << endreq;
+    }
+
+    // Skip fragments with ROB status errors
+
+    uint32_t robid = (*rob)->source_id();
+    if ((*rob)->nstatus() > 0) {
+      ROBPointer robData;
+      (*rob)->status(robData);
+      if (*robData != 0) {
+        m_errorTool->robError(robid, *robData);
+	if (debug) msg() << "ROB status error - skipping fragment" << endreq;
+	continue;
+      }
+    }
+
+    // Skip duplicate fragments
+
+    if (!dupCheck.insert(robid).second) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_DUPLICATE_ROB);
+      if (debug) msg() << "Skipping duplicate ROB fragment" << endreq;
+      continue;
     }
 
     // Unpack ROD data (slinks)
@@ -210,22 +241,25 @@ StatusCode PpmByteStreamTool::convert(
     int chanPerSubBlock = 0;
     if (payload != payloadEnd) {
       if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER) {
-        msg(MSG::ERROR) << "Missing Sub-block header" << endreq;
-        return StatusCode::FAILURE;
+	m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_MISSING_HEADER);
+        if (debug) msg() << "Missing Sub-block header" << endreq;
+	continue;
       }
       PpmSubBlock testBlock;
       payload = testBlock.read(payload, payloadEnd);
       chanPerSubBlock = testBlock.channelsPerSubBlock();
       if (chanPerSubBlock == 0) {
-        msg(MSG::ERROR) << "Unsupported version/data format: "
-                        << testBlock.version() << "/"
-                        << testBlock.format()  << endreq;
-        return StatusCode::FAILURE;
+        m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_VERSION_FORMAT);
+        if (debug) msg() << "Unsupported version/data format: "
+                         << testBlock.version() << "/"
+                         << testBlock.format()  << endreq;
+	continue;
       }
       if (m_channels%chanPerSubBlock != 0) {
-        msg(MSG::ERROR) << "Invalid channels per sub-block: "
-                        << chanPerSubBlock << endreq;
-        return StatusCode::FAILURE;
+        m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_CHANNELS);
+        if (debug) msg() << "Invalid channels per sub-block: "
+                         << chanPerSubBlock << endreq;
+	continue;
       }
       if (debug) msg() << "Channels per sub-block: "
                        << chanPerSubBlock << endreq;
@@ -239,6 +273,7 @@ StatusCode PpmByteStreamTool::convert(
 
     payload = payloadBeg;
     for (int i = 0; i < headerWords; ++i) ++payload;
+    unsigned int rodErr = L1CaloSubBlock::ERROR_NONE;
     while (payload != payloadEnd) {
 
       // Get all sub-blocks for one PPM
@@ -249,8 +284,9 @@ StatusCode PpmByteStreamTool::convert(
       for (int block = 0; block < numSubBlocks; ++block) {
         if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER
 	                           || PpmSubBlock::errorBlock(*payload)) {
-          msg(MSG::ERROR) << "Unexpected data sequence" << endreq;
-	  return StatusCode::FAILURE;
+          if (debug) msg() << "Unexpected data sequence" << endreq;
+	  rodErr = L1CaloSubBlock::ERROR_MISSING_HEADER;
+	  break;
         }
         if (chanPerSubBlock != m_channels && 
 	    L1CaloSubBlock::seqno(*payload) != block * chanPerSubBlock) {
@@ -259,13 +295,8 @@ StatusCode PpmByteStreamTool::convert(
 	          << L1CaloSubBlock::seqno(*payload) << " expected " 
 	          << block * chanPerSubBlock << endreq;
 	  }
-	  if ( !m_ppmBlocks.empty()) break;
-	  else {
-	    if (!debug) {
-	      msg(MSG::ERROR) << "Unexpected channel sequence number" << endreq;
-	    }
-	    return StatusCode::FAILURE;
-	  }
+	  rodErr = L1CaloSubBlock::ERROR_MISSING_DATA;
+	  break;
         }
         PpmSubBlock* const subBlock = new PpmSubBlock();
         m_ppmBlocks.push_back(subBlock);
@@ -281,47 +312,55 @@ StatusCode PpmByteStreamTool::convert(
           }
         } else {
           if (subBlock->crate() != crate) {
-	    msg(MSG::ERROR) << "Inconsistent crate number in sub-blocks"
-	                    << endreq;
-	    return StatusCode::FAILURE;
+	    if (debug) msg() << "Inconsistent crate number in sub-blocks"
+	                     << endreq;
+	    rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
+	    break;
           }
           if (subBlock->module() != module) {
-	    msg(MSG::ERROR) << "Inconsistent module number in sub-blocks"
-	                    << endreq;
-	    return StatusCode::FAILURE;
+	    if (debug) msg() << "Inconsistent module number in sub-blocks"
+	                     << endreq;
+	    rodErr = L1CaloSubBlock::ERROR_MODULE_NUMBER;
+	    break;
           }
         }
         if (payload == payloadEnd && block != numSubBlocks - 1) {
           if (debug) msg() << "Premature end of data" << endreq;
+	  rodErr = L1CaloSubBlock::ERROR_MISSING_DATA;
 	  break;
         }
       }
+      if (rodErr != L1CaloSubBlock::ERROR_NONE) break;
 
       // Is there an error block?
 
       delete m_errorBlock;
       m_errorBlock = 0;
-      if (payload != payloadEnd) {
+      if (payload != payloadEnd && rodErr == L1CaloSubBlock::ERROR_NONE) {
         if (L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::HEADER
 	                            && PpmSubBlock::errorBlock(*payload)) {
 	  if (debug) msg() << "Error block found" << endreq;
 	  m_errorBlock = new PpmSubBlock();
 	  payload = m_errorBlock->read(payload, payloadEnd);
           if (m_errorBlock->crate() != crate) {
-	    msg(MSG::ERROR) << "Inconsistent crate number in error block"
-	                    << endreq;
-	    return StatusCode::FAILURE;
+	    if (debug) msg() << "Inconsistent crate number in error block"
+	                     << endreq;
+	    rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
+	    break;
           }
           if (m_errorBlock->module() != module) {
-	    msg(MSG::ERROR) << "Inconsistent module number in error block"
-	                    << endreq;
-	    return StatusCode::FAILURE;
+	    if (debug) msg() << "Inconsistent module number in error block"
+	                     << endreq;
+	    rodErr = L1CaloSubBlock::ERROR_MODULE_NUMBER;
+	    break;
           }
 	  if (m_errorBlock->dataWords() && !m_errorBlock->unpack()) {
 	    if (debug) {
 	      std::string errMsg(m_errorBlock->unpackErrorMsg());
 	      msg() << "Unpacking error block failed: " << errMsg << endreq;
 	    }
+	    rodErr = m_errorBlock->unpackErrorCode();
+	    break;
 	  }
         }
       }
@@ -346,6 +385,8 @@ StatusCode PpmByteStreamTool::convert(
 	    std::string errMsg(subBlock->unpackErrorMsg());
 	    msg() << "Unpacking PPM sub-block failed: " << errMsg << endreq;
 	  }
+	  rodErr = subBlock->unpackErrorCode();
+	  break;
         }
 	if (m_printCompStats) addCompStats(subBlock->compStats());
         for (int chan = 0; chan < chanPerSubBlock; ++chan) {
@@ -446,7 +487,10 @@ StatusCode PpmByteStreamTool::convert(
           }
         }
       }
+      if (rodErr != L1CaloSubBlock::ERROR_NONE) break;
     }
+    if (rodErr != L1CaloSubBlock::ERROR_NONE)
+                                          m_errorTool->rodError(robid, rodErr);
   }
 
   // Swap wanted trigger towers into StoreGate container

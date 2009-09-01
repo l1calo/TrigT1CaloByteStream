@@ -12,6 +12,7 @@
 #include "ByteStreamData/RawEvent.h"
 #include "DataModel/DataVector.h"
 #include "eformat/SourceIdentifier.h"
+#include "GaudiKernel/ToolHandle.h"
 
 class IInterface;
 class InterfaceID;
@@ -26,6 +27,7 @@ namespace LVL1 {
 namespace LVL1BS {
 
 class CpmRoiSubBlock;
+class L1CaloErrorByteStreamTool;
 class L1CaloSrcIdMap;
 
 /** Tool to perform ROB fragments to CPM RoI and CPM RoI to raw data
@@ -65,10 +67,14 @@ class CpmRoiByteStreamTool : public AthAlgTool {
    typedef DataVector<LVL1::CPMRoI>                      CpmRoiCollection;
    typedef std::map<uint32_t, const LVL1::CPMRoI*>       CpmRoiMap;
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
+   typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      ROBPointer;
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
 
    /// Set up CPM RoI map
    void setupCpmRoiMap(const CpmRoiCollection* roiCollection);
+
+   /// Error collection tool
+   ToolHandle<LVL1BS::L1CaloErrorByteStreamTool> m_errorTool;
 
    /// Hardware crate number offset
    int m_crateOffsetHw;

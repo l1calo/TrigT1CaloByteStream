@@ -23,8 +23,16 @@ class L1CaloSubBlock {
    enum SubBlockWordType { HEADER, DATA, STATUS };
    enum DataFormats      { NEUTRAL = 0, UNCOMPRESSED = 1, COMPRESSED = 2,
                            SUPERCOMPRESSED = 3 };
-   enum UnpackErrorType  { UNPACK_NONE, UNPACK_VERSION, UNPACK_FORMAT,
-                           UNPACK_COMPRESSION_VERSION,
+   // Errors detected before unpacking
+   enum DataErrorType    { ERROR_NONE, ERROR_MISSING_HEADER,
+                           ERROR_VERSION_FORMAT, ERROR_CHANNELS,
+			   ERROR_MISSING_DATA, ERROR_CRATE_NUMBER,
+			   ERROR_MODULE_NUMBER, ERROR_SLICE_NUMBER,
+			   ERROR_ROI_WORD, ERROR_ROD_NSTATUS,
+			   ERROR_DUPLICATE_ROB, ERROR_MAX };
+   // Errors detected during unpacking
+   enum UnpackErrorType  { UNPACK_NONE = ERROR_NONE, UNPACK_VERSION = ERROR_MAX,
+                           UNPACK_FORMAT, UNPACK_COMPRESSION_VERSION,
 			   UNPACK_COMPRESSION_SLICES, UNPACK_DATA_TRUNCATED,
 			   UNPACK_SOURCE_ID, UNPACK_WORD_ID };
 

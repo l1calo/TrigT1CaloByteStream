@@ -1,5 +1,6 @@
 
 #include <algorithm>
+#include <set>
 
 #include "GaudiKernel/IInterface.h"
 #include "GaudiKernel/MsgStream.h"
@@ -7,7 +8,9 @@
 
 #include "TrigT1CaloEvent/RODHeader.h"
 
+#include "L1CaloErrorByteStreamTool.h"
 #include "L1CaloSrcIdMap.h"
+#include "L1CaloSubBlock.h"
 
 #include "RodHeaderByteStreamTool.h"
 
@@ -27,8 +30,9 @@ const InterfaceID& RodHeaderByteStreamTool::interfaceID()
 RodHeaderByteStreamTool::RodHeaderByteStreamTool(const std::string& type,
                                                  const std::string& name,
 	    			                 const IInterface*  parent)
-                  : AthAlgTool(type, name, parent),
-		    m_srcIdMap(0)
+  : AthAlgTool(type, name, parent),
+    m_errorTool("LVL1BS::L1CaloErrorByteStreamTool/L1CaloErrorByteStreamTool"),
+    m_srcIdMap(0)
 {
   declareInterface<RodHeaderByteStreamTool>(this);
 
@@ -68,6 +72,12 @@ StatusCode RodHeaderByteStreamTool::initialize()
   msg(MSG::INFO) << "Initializing " << name() << " - package version "
                  << PACKAGE_VERSION << endreq;
 
+  StatusCode sc = m_errorTool.retrieve();
+  if (sc.isFailure()) {
+    msg(MSG::ERROR) << "Failed to retrieve tool " << m_errorTool << endreq;
+    return sc;
+  } else msg(MSG::INFO) << "Retrieved tool " << m_errorTool << endreq;
+
   m_srcIdMap = new L1CaloSrcIdMap();
   return StatusCode::SUCCESS;
 }
@@ -92,6 +102,7 @@ StatusCode RodHeaderByteStreamTool::convert(
   // Loop over ROB fragments
 
   int robCount = 0;
+  std::set<uint32_t> dupCheck;
   ROBIterator rob    = robFrags.begin();
   ROBIterator robEnd = robFrags.end();
   for (; rob != robEnd; ++rob) {
@@ -99,6 +110,27 @@ StatusCode RodHeaderByteStreamTool::convert(
     if (debug) {
       ++robCount;
       msg() << "Treating ROB fragment " << robCount << endreq;
+    }
+
+    // Skip fragments with ROB status errors
+
+    uint32_t robid = (*rob)->source_id();
+    if ((*rob)->nstatus() > 0) {
+      ROBPointer robData;
+      (*rob)->status(robData);
+      if (*robData != 0) {
+        m_errorTool->robError(robid, *robData);
+	if (debug) msg() << "ROB status error - skipping fragment" << endreq;
+	continue;
+      }
+    }
+
+    // Skip duplicate fragments
+
+    if (!dupCheck.insert(robid).second) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_DUPLICATE_ROB);
+      if (debug) msg() << "Skipping duplicate ROB fragment" << endreq;
+      continue;
     }
 
     // Unpack ROD header info
@@ -114,12 +146,18 @@ StatusCode RodHeaderByteStreamTool::convert(
 
     // Unpack status words
 
-    RODPointer status;
-    RODPointer statusEnd;
-    (*rob)->rod_status(status);
-    statusEnd = status + (*rob)->rod_nstatus();
     std::vector<uint32_t> statusWords;
-    for (; status != statusEnd; ++status) statusWords.push_back(*status);
+    unsigned int nstatus = (*rob)->rod_nstatus();
+    if (nstatus <= 2) {
+      RODPointer status;
+      RODPointer statusEnd;
+      (*rob)->rod_status(status);
+      statusEnd = status + nstatus;
+      for (; status != statusEnd; ++status) statusWords.push_back(*status);
+    } else { // Likely corruption
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_ROD_NSTATUS);
+      continue;
+    }
 
     // Save
 

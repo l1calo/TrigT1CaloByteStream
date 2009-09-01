@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "eformat/SourceIdentifier.h"
+#include "GaudiKernel/ToolHandle.h"
 
 #include "AthenaBaseComps/AthAlgTool.h"
 #include "ByteStreamCnvSvcBase/IROBDataProviderSvc.h"
@@ -23,6 +24,7 @@ namespace LVL1 {
 
 namespace LVL1BS {
 
+class L1CaloErrorByteStreamTool;
 class L1CaloSrcIdMap;
 
 /** Tool to perform ROB fragments to ROD Header conversions.
@@ -55,6 +57,7 @@ class RodHeaderByteStreamTool : public AthAlgTool {
  private:
    typedef DataVector<LVL1::RODHeader>                   RodHeaderCollection;
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
+   typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      ROBPointer;
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
 
    /// Fill vector with ROB IDs for given sub-detector
@@ -65,6 +68,9 @@ class RodHeaderByteStreamTool : public AthAlgTool {
 
    /// Return true if StoreGate key ends in given string
    bool isAppended(const std::string& sgKey, const std::string& flag) const;
+
+   /// Error collection tool
+   ToolHandle<LVL1BS::L1CaloErrorByteStreamTool> m_errorTool;
 
    /// ROB source IDs
    std::vector<uint32_t> m_sourceIDs;

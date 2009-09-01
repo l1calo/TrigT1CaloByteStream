@@ -1,5 +1,6 @@
 
 #include <numeric>
+#include <set>
 #include <utility>
 
 #include "GaudiKernel/IInterface.h"
@@ -19,6 +20,7 @@
 #include "CmmCpSubBlock.h"
 #include "CmmSubBlock.h"
 #include "CpmSubBlock.h"
+#include "L1CaloErrorByteStreamTool.h"
 #include "L1CaloSrcIdMap.h"
 #include "L1CaloSubBlock.h"
 #include "L1CaloUserHeader.h"
@@ -44,6 +46,7 @@ CpByteStreamTool::CpByteStreamTool(const std::string& type,
 				   const IInterface*  parent)
    : AthAlgTool(type, name, parent),
      m_cpmMaps("LVL1::CpmMappingTool/CpmMappingTool"),
+     m_errorTool("LVL1BS::L1CaloErrorByteStreamTool/L1CaloErrorByteStreamTool"),
      m_channels(80), m_crates(4), m_modules(14),
      m_coreOverlap(0), m_subDetector(eformat::TDAQ_CALO_CLUSTER_PROC_DAQ),
      m_srcIdMap(0), m_towerKey(0), m_rodStatus(0), m_fea(0)
@@ -98,6 +101,12 @@ StatusCode CpByteStreamTool::initialize()
     msg(MSG::ERROR) << "Failed to retrieve tool " << m_cpmMaps << endreq;
     return sc;
   } else msg(MSG::INFO) << "Retrieved tool " << m_cpmMaps << endreq;
+
+  sc = m_errorTool.retrieve();
+  if (sc.isFailure()) {
+    msg(MSG::ERROR) << "Failed to retrieve tool " << m_errorTool << endreq;
+    return sc;
+  } else msg(MSG::INFO) << "Retrieved tool " << m_errorTool << endreq;
 
   m_srcIdMap    = new L1CaloSrcIdMap();
   m_towerKey    = new LVL1::TriggerTowerKey();
@@ -460,6 +469,7 @@ StatusCode CpByteStreamTool::convertBs(
   // Loop over ROB fragments
 
   int robCount = 0;
+  std::set<uint32_t> dupCheck;
   ROBIterator rob    = robFrags.begin();
   ROBIterator robEnd = robFrags.end();
   for (; rob != robEnd; ++rob) {
@@ -467,6 +477,27 @@ StatusCode CpByteStreamTool::convertBs(
     if (debug) {
       ++robCount;
       msg() << "Treating ROB fragment " << robCount << endreq;
+    }
+
+    // Skip fragments with ROB status errors
+
+    uint32_t robid = (*rob)->source_id();
+    if ((*rob)->nstatus() > 0) {
+      ROBPointer robData;
+      (*rob)->status(robData);
+      if (*robData != 0) {
+        m_errorTool->robError(robid, *robData);
+	if (debug) msg() << "ROB status error - skipping fragment" << endreq;
+	continue;
+      }
+    }
+
+    // Skip duplicate fragments
+
+    if (!dupCheck.insert(robid).second) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_DUPLICATE_ROB);
+      if (debug) msg() << "Skipping duplicate ROB fragment" << endreq;
+      continue;
     }
 
     // Unpack ROD data (slinks)
@@ -521,20 +552,23 @@ StatusCode CpByteStreamTool::convertBs(
 
     // Loop over sub-blocks
 
+    m_rodErr = L1CaloSubBlock::ERROR_NONE;
     while (payload != payloadEnd) {
       
       if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER) {
-        msg(MSG::ERROR) << "Unexpected data sequence" << endreq;
-        return StatusCode::FAILURE;
+        if (debug) msg() << "Unexpected data sequence" << endreq;
+	m_rodErr = L1CaloSubBlock::ERROR_MISSING_HEADER;
+	break;
       }
       if (CmmSubBlock::cmmBlock(*payload)) {
         // CMM
         CmmCpSubBlock subBlock;
         payload = subBlock.read(payload, payloadEnd);
 	if (collection == CMM_CP_HITS) {
-	  StatusCode sc = decodeCmmCp(subBlock, trigCmm);
-	  if (sc.isFailure() && debug) {
-	    msg() << "decodeCmmCp failed" << endreq;
+	  decodeCmmCp(subBlock, trigCmm);
+	  if (m_rodErr != L1CaloSubBlock::ERROR_NONE) {
+	    if (debug) msg() << "decodeCmmCp failed" << endreq;
+	    break;
 	  }
         }
       } else {
@@ -542,13 +576,16 @@ StatusCode CpByteStreamTool::convertBs(
         CpmSubBlock subBlock;
         payload = subBlock.read(payload, payloadEnd);
 	if (collection == CPM_TOWERS || collection == CPM_HITS) {
-	  StatusCode sc = decodeCpm(subBlock, trigCpm, collection);
-	  if (sc.isFailure() && debug) {
-	    msg() << "decodeCpm failed" << endreq;
+	  decodeCpm(subBlock, trigCpm, collection);
+	  if (m_rodErr != L1CaloSubBlock::ERROR_NONE) {
+	    if (debug) msg() << "decodeCpm failed" << endreq;
+	    break;
 	  }
         }
       }
     }
+    if (m_rodErr != L1CaloSubBlock::ERROR_NONE) 
+                                       m_errorTool->rodError(robid, m_rodErr);
   }
 
   return StatusCode::SUCCESS;
@@ -556,7 +593,7 @@ StatusCode CpByteStreamTool::convertBs(
 
 // Unpack CMM-CP sub-block
 
-StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
+void CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
 {
   const bool debug = msgLvl(MSG::DEBUG);
   if (debug) msg(MSG::DEBUG);
@@ -574,8 +611,9 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
           << "  Slice "        << sliceNum    << endreq;
   }
   if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
-    msg(MSG::ERROR) << "Unexpected crate number: " << hwCrate << endreq;
-    return StatusCode::FAILURE;
+    if (debug) msg() << "Unexpected crate number: " << hwCrate << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
+    return;
   }
   if (timeslices <= trigCmm) {
     if (debug) {
@@ -586,9 +624,10 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
     trigCmm = 0;
   }
   if (timeslices <= sliceNum) {
-    msg(MSG::ERROR) << "Total slices inconsistent with slice number: "
-                    << timeslices << ", " << sliceNum << endreq;
-    return StatusCode::FAILURE;
+    if (debug) msg() << "Total slices inconsistent with slice number: "
+                     << timeslices << ", " << sliceNum << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_SLICE_NUMBER;
+    return;
   }
   // Unpack sub-block
   if (subBlock.dataWords() && !subBlock.unpack()) {
@@ -596,6 +635,8 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
       std::string errMsg(subBlock.unpackErrorMsg());
       msg() << "CMM-CP sub-block unpacking failed: " << errMsg << endreq;
     }
+    m_rodErr = subBlock.unpackErrorCode();
+    return;
   }
 
   // Retrieve required data
@@ -678,12 +719,12 @@ StatusCode CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
     }
   }
   
-  return StatusCode::SUCCESS;
+  return;
 }
 
 // Unpack CPM sub-block
 
-StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
+void CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
                                  int trigCpm, const CollectionType collection)
 {
   const bool debug   = msgLvl(MSG::DEBUG);
@@ -701,8 +742,9 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
           << "  Slice "        << sliceNum    << endreq;
   }
   if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
-    msg(MSG::ERROR) << "Unexpected crate number: " << hwCrate << endreq;
-    return StatusCode::FAILURE;
+    if (debug) msg() << "Unexpected crate number: " << hwCrate << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
+    return;
   }
   if (timeslices <= trigCpm) {
     if (debug) {
@@ -713,9 +755,10 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
     trigCpm = 0;
   }
   if (timeslices <= sliceNum) {
-    msg(MSG::ERROR) << "Total slices inconsistent with slice number: "
-                    << timeslices << ", " << sliceNum << endreq;
-    return StatusCode::FAILURE;
+    if (debug) msg() << "Total slices inconsistent with slice number: "
+                     << timeslices << ", " << sliceNum << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_SLICE_NUMBER;
+    return;
   }
   // Unpack sub-block
   if (subBlock.dataWords() && !subBlock.unpack()) {
@@ -723,6 +766,8 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
       std::string errMsg(subBlock.unpackErrorMsg());
       msg() << "CPM sub-block unpacking failed: " << errMsg << endreq;
     }
+    m_rodErr = subBlock.unpackErrorCode();
+    return;
   }
 
   // Retrieve required data
@@ -828,7 +873,7 @@ StatusCode CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
       }
     }
   }
-  return StatusCode::SUCCESS;
+  return;
 }
 
 // Find a CPM tower given eta, phi

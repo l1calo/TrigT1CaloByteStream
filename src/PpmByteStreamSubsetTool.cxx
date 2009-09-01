@@ -1,5 +1,6 @@
 
 #include <numeric>
+#include <set>
 
 #include "GaudiKernel/IInterface.h"
 #include "GaudiKernel/MsgStream.h"
@@ -122,11 +123,31 @@ StatusCode PpmByteStreamSubsetTool::convert(
   // Loop over ROB fragments
 
   int robCount = 0;
+  std::set<uint32_t> dupCheck;
   ROBIterator rob    = robFrags.begin();
   ROBIterator robEnd = robFrags.end();
   for (; rob != robEnd; ++rob) {
 
     if (debug) msg() << "Treating ROB fragment " << ++robCount << endreq;
+
+    // Skip fragments with ROB status errors
+
+    if ((*rob)->nstatus() > 0) {
+      ROBPointer robData;
+      (*rob)->status(robData);
+      if (*robData != 0) {
+	if (debug) msg() << "ROB status error - skipping fragment" << endreq;
+	continue;
+      }
+    }
+
+    // Skip duplicate fragments
+
+    uint32_t robid = (*rob)->source_id();
+    if (!dupCheck.insert(robid).second) {
+      if (debug) msg() << "Skipping duplicate ROB fragment" << endreq;
+      continue;
+    }
 
     // Unpack ROD data (slinks)
 
@@ -185,22 +206,22 @@ StatusCode PpmByteStreamSubsetTool::convert(
     int chanPerSubBlock = 0;
     if (payload != payloadEnd) {
       if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER) {
-        msg(MSG::ERROR) << "Missing Sub-block header" << endreq;
-        return StatusCode::FAILURE;
+        if (debug) msg() << "Missing Sub-block header" << endreq;
+        continue;
       }
       PpmSubBlock testBlock;
       payload = testBlock.read(payload, payloadEnd);
       chanPerSubBlock = testBlock.channelsPerSubBlock();
       if (chanPerSubBlock == 0) {
-        msg(MSG::ERROR) << "Unsupported version/data format: "
-                        << testBlock.version() << "/"
-                        << testBlock.format()  << endreq;
-        return StatusCode::FAILURE;
+        if (debug) msg() << "Unsupported version/data format: "
+                         << testBlock.version() << "/"
+                         << testBlock.format()  << endreq;
+        continue;
       }
       if (m_channels%chanPerSubBlock != 0) {
-        msg(MSG::ERROR) << "Invalid channels per sub-block: "
-                        << chanPerSubBlock << endreq;
-        return StatusCode::FAILURE;
+        if (debug) msg() << "Invalid channels per sub-block: "
+                         << chanPerSubBlock << endreq;
+        continue;
       }
       if (debug) {
         msg() << "Channels per sub-block: " << chanPerSubBlock << endreq;
@@ -215,6 +236,7 @@ StatusCode PpmByteStreamSubsetTool::convert(
 
     payload = payloadBeg;
     for (int i = 0; i < headerWords; ++i) ++payload;
+    bool isErr = false;
     while (payload != payloadEnd) {
 
       // Get all sub-blocks for one PPM
@@ -225,8 +247,9 @@ StatusCode PpmByteStreamSubsetTool::convert(
       for (int block = 0; block < numSubBlocks; ++block) {
         if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER
 	                           || PpmSubBlock::errorBlock(*payload)) {
-          msg(MSG::ERROR) << "Unexpected data sequence" << endreq;
-	  return StatusCode::FAILURE;
+          if (debug) msg() << "Unexpected data sequence" << endreq;
+	  isErr = true;
+	  break;
         }
         if (chanPerSubBlock != m_channels && 
 	    L1CaloSubBlock::seqno(*payload) != block * chanPerSubBlock) {
@@ -235,13 +258,8 @@ StatusCode PpmByteStreamSubsetTool::convert(
 	          << L1CaloSubBlock::seqno(*payload) << " expected " 
 	          << block * chanPerSubBlock << endreq;
 	  }
-	  if ( !m_ppmBlocks.empty()) break;
-	  else {
-	    if (!debug) {
-	      msg(MSG::ERROR) << "Unexpected channel sequence number" << endreq;
-	    }
-	    return StatusCode::FAILURE;
-	  }
+	  isErr = true;
+	  break;
         }
         PpmSubBlock* const subBlock = new PpmSubBlock();
         m_ppmBlocks.push_back(subBlock);
@@ -257,14 +275,16 @@ StatusCode PpmByteStreamSubsetTool::convert(
           }
         } else {
           if (subBlock->crate() != crate) {
-	    msg(MSG::ERROR) << "Inconsistent crate number in sub-blocks"
-	                    << endreq;
-	    return StatusCode::FAILURE;
+	    if (debug) msg() << "Inconsistent crate number in sub-blocks"
+	                     << endreq;
+	    isErr = true;
+	    break;
           }
           if (subBlock->module() != module) {
-	    msg(MSG::ERROR) << "Inconsistent module number in sub-blocks"
-	                    << endreq;
-	    return StatusCode::FAILURE;
+	    if (debug) msg() << "Inconsistent module number in sub-blocks"
+	                     << endreq;
+	    isErr = true;
+	    break;
           }
         }
         if (payload == payloadEnd && block != numSubBlocks - 1) {
@@ -272,6 +292,7 @@ StatusCode PpmByteStreamSubsetTool::convert(
 	  break;
         }
       }
+      if (isErr) break;
 
       // Is there an error block?
 
@@ -284,20 +305,24 @@ StatusCode PpmByteStreamSubsetTool::convert(
 	  m_errorBlock = new PpmSubBlock();
 	  payload = m_errorBlock->read(payload, payloadEnd);
           if (m_errorBlock->crate() != crate) {
-	    msg(MSG::ERROR) << "Inconsistent crate number in error block"
-	                    << endreq;
-	    return StatusCode::FAILURE;
+	    if (debug) msg() << "Inconsistent crate number in error block"
+	                     << endreq;
+	    isErr = true;
+	    break;
           }
           if (m_errorBlock->module() != module) {
-	    msg(MSG::ERROR) << "Inconsistent module number in error block"
-	                    << endreq;
-	    return StatusCode::FAILURE;
+	    if (debug) msg() << "Inconsistent module number in error block"
+	                     << endreq;
+	    isErr = true;
+	    break;
           }
 	  if (m_errorBlock->dataWords() && !m_errorBlock->unpack()) {
 	    if (debug) {
 	      std::string errMsg(m_errorBlock->unpackErrorMsg());
 	      msg() << "Unpacking error block failed: " << errMsg << endreq;
 	    }
+	    isErr = true;
+	    break;
 	  }
         }
       }
@@ -339,6 +364,8 @@ StatusCode PpmByteStreamSubsetTool::convert(
 	      std::string errMsg(subBlock->unpackErrorMsg());
 	      msg() << "Unpacking PPM sub-block failed: " << errMsg << endreq;
 	    }
+	    isErr = true;
+	    break;
           }
 	}
   	std::vector<int> lut;
@@ -435,6 +462,7 @@ StatusCode PpmByteStreamSubsetTool::convert(
           }
         }
       }
+      if (isErr) break;
     }
   }
 
