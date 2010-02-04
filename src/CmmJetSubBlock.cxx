@@ -163,12 +163,12 @@ bool CmmJetSubBlock::unpack()
 	  rc = unpackUncompressed();
 	  break;
         default:
-	  setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
+	  setUnpackErrorCode(UNPACK_FORMAT);
 	  break;
       }
       break;
     default:
-      setUnpackErrorCode(L1CaloSubBlock::UNPACK_VERSION);
+      setUnpackErrorCode(UNPACK_VERSION);
       break;
   }
   return rc;
@@ -295,7 +295,7 @@ bool CmmJetSubBlock::unpackNeutral()
   setGlinkParity(parity);
 
   const bool rc = unpackerSuccess();
-  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  if (!rc) setUnpackErrorCode(UNPACK_DATA_TRUNCATED);
   return rc;
 }
 
@@ -308,9 +308,9 @@ bool CmmJetSubBlock::unpackUncompressed()
   uint32_t word = unpacker(s_wordLength);
   while (unpackerSuccess()) {
     const int source = sourceId(word);
-    if (source < s_maxHits) m_hitsData[source] = word;
+    if (source < s_maxHits && m_hitsData[source] == 0) m_hitsData[source] = word;
     else {
-      setUnpackErrorCode(L1CaloSubBlock::UNPACK_SOURCE_ID);
+      setUnpackErrorCode(UNPACK_SOURCE_ID);
       return false;
     }
     word = unpacker(s_wordLength);

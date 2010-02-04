@@ -42,7 +42,7 @@ class PpmSubBlock : public L1CaloSubBlock {
    void ppmData(int chan, std::vector<int>& lut,
                           std::vector<int>& fadc,
 			  std::vector<int>& bcidLut,
-			  std::vector<int>& bcidFadc) const;
+			  std::vector<int>& bcidFadc);
 
    /// Store an error word corresponding to a data channel
    void fillPpmError(int chan, int errorWord);
@@ -101,8 +101,8 @@ class PpmSubBlock : public L1CaloSubBlock {
    bool unpack();
 
    /// Return the number of channels per sub-block
-   static int channelsPerSubBlock(int version, int format);
-          int channelsPerSubBlock() const;
+   int channelsPerSubBlock(int version, int format);
+   int channelsPerSubBlock();
 
    /// Check if a header word is for an error block
    static bool errorBlock(uint32_t word);

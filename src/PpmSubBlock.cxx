@@ -140,7 +140,7 @@ void PpmSubBlock::fillPpmData(const int chan, const std::vector<int>& lut,
 void PpmSubBlock::ppmData(const int chan, std::vector<int>& lut,
                                           std::vector<int>& fadc,
 				          std::vector<int>& bcidLut,
-				          std::vector<int>& bcidFadc) const
+				          std::vector<int>& bcidFadc)
 {
   lut.clear();
   fadc.clear();
@@ -286,12 +286,12 @@ bool PpmSubBlock::unpack()
 	  rc = PpmCompression::unpack(*this);
 	  break;
         default:
-	  setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
+	  setUnpackErrorCode(UNPACK_FORMAT);
 	  break;
       }
       break;
     default:
-      setUnpackErrorCode(L1CaloSubBlock::UNPACK_VERSION);
+      setUnpackErrorCode(UNPACK_VERSION);
       break;
   }
   return rc;
@@ -381,7 +381,7 @@ bool PpmSubBlock::unpackNeutral()
     }
   }
   const bool rc = unpackerSuccess();
-  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  if (!rc) setUnpackErrorCode(UNPACK_DATA_TRUNCATED);
   // Errors
   m_errormap.clear();
   for (int pin = 0; pin < s_glinkPins; ++pin) {
@@ -405,8 +405,18 @@ bool PpmSubBlock::unpackUncompressedData()
       m_datamap[sl + chan*slices] = unpacker(s_wordLen);
     }
   }
-  const bool rc = unpackerSuccess();
-  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  bool rc = unpackerSuccess();
+  if (!rc) setUnpackErrorCode(UNPACK_DATA_TRUNCATED);
+  else {
+    // Check no more non-zero data
+    while (unpackerSuccess()) {
+      if (unpacker(s_wordLen)) {
+        setUnpackErrorCode(UNPACK_EXCESS_DATA);
+	rc = false;
+	break;
+      }
+    }
+  }
   return rc;
 }
 
@@ -419,8 +429,17 @@ bool PpmSubBlock::unpackUncompressedErrors()
   for (int pin = 0; pin < s_glinkPins; ++pin) {
     m_errormap.push_back(unpacker(s_wordLen));
   }
-  const bool rc = unpackerSuccess();
-  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  bool rc = unpackerSuccess();
+  if (!rc) setUnpackErrorCode(UNPACK_DATA_TRUNCATED);
+  else {
+    while (unpackerSuccess()) {
+      if (unpacker(s_wordLen)) {
+        setUnpackErrorCode(UNPACK_EXCESS_DATA);
+	rc = false;
+	break;
+      }
+    }
+  }
   return rc;
 }
 
@@ -441,16 +460,18 @@ int PpmSubBlock::channelsPerSubBlock(const int version, const int format)
 	  chan = s_channels;
 	  break;
         default:
+	  setUnpackErrorCode(UNPACK_FORMAT);
 	  break;
       }
       break;
     default:
+      setUnpackErrorCode(UNPACK_VERSION);
       break;
   }
   return chan;
 }
 
-int PpmSubBlock::channelsPerSubBlock() const
+int PpmSubBlock::channelsPerSubBlock()
 {
   return channelsPerSubBlock(version(), format());
 }

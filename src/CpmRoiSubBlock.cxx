@@ -93,12 +93,12 @@ bool CpmRoiSubBlock::unpack()
 	  rc = unpackNeutral();
 	  break;
         default:
-	  setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
+	  setUnpackErrorCode(UNPACK_FORMAT);
 	  break;
       }
       break;
     default:
-      setUnpackErrorCode(L1CaloSubBlock::UNPACK_VERSION);
+      setUnpackErrorCode(UNPACK_VERSION);
       break;
   }
   return rc;
@@ -148,7 +148,7 @@ bool CpmRoiSubBlock::unpackNeutral()
   }
   setBunchCrossing(bunchCrossing);
   const bool rc = unpackerSuccess();
-  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  if (!rc) setUnpackErrorCode(UNPACK_DATA_TRUNCATED);
   return rc;
 }
 

@@ -625,8 +625,18 @@ bool PpmCompression::unpackV104(PpmSubBlock& subBlock)
     // it is not possible to detect it reliably in data.
   }
   subBlock.setCompStats(compStats);
-  const bool rc = subBlock.unpackerSuccess();
+  bool rc = subBlock.unpackerSuccess();
   if (!rc) subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  else {
+    // Check no more non-zero data - indicates corruption
+    while (subBlock.unpackerSuccess()) {
+      if (subBlock.unpacker(31)) {
+        subBlock.setUnpackErrorCode(L1CaloSubBlock::UNPACK_EXCESS_DATA);
+	rc = false;
+	break;
+      }
+    }
+  }
   return rc;
 }
 

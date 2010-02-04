@@ -430,6 +430,7 @@ StatusCode JepRoiByteStreamTool::convertBs(
 
   int robCount = 0;
   std::set<uint32_t> dupCheck;
+  std::set<uint32_t> dupRoiCheck;
   ROBIterator rob    = robFrags.begin();
   ROBIterator robEnd = robFrags.end();
   for (; rob != robEnd; ++rob) {
@@ -468,15 +469,25 @@ StatusCode JepRoiByteStreamTool::convertBs(
     (*rob)->rod_data(payloadBeg);
     payloadEnd = payloadBeg + (*rob)->rod_ndata();
     payload = payloadBeg;
+    if (payload == payloadEnd) {
+      if (debug) msg() << "ROB fragment empty" << endreq;
+      continue;
+    }
 
     // Check identifier
     const uint32_t sourceID = (*rob)->rod_source_id();
-    if (debug) {
-      if (m_srcIdMap->subDet(sourceID)   != m_subDetector ||
-          m_srcIdMap->daqOrRoi(sourceID) != 1) {
+    if (m_srcIdMap->getRobID(sourceID) != robid           ||
+        m_srcIdMap->subDet(sourceID)   != m_subDetector   ||
+	m_srcIdMap->daqOrRoi(sourceID) != 1               ||
+       (m_srcIdMap->slink(sourceID) != 0 && m_srcIdMap->slink(sourceID) != 2) ||
+        m_srcIdMap->crate(sourceID)    <  m_crateOffsetHw ||
+	m_srcIdMap->crate(sourceID)    >= m_crateOffsetHw + m_crates) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_ROD_ID);
+      if (debug) {
         msg() << "Wrong source identifier in data: "
 	      << MSG::hex << sourceID << MSG::dec << endreq;
       }
+      continue;
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
     if (debug) {
@@ -486,11 +497,15 @@ StatusCode JepRoiByteStreamTool::convertBs(
 
     // First word may be User Header
     if (L1CaloUserHeader::isValid(*payload)) {
-      const L1CaloUserHeader userHeader(*payload);
+      L1CaloUserHeader userHeader(*payload);
+      const int minorVersion = (*rob)->rod_version() & 0xffff;
+      userHeader.setVersion(minorVersion);
       const int headerWords = userHeader.words();
-      if (headerWords != 1 && debug) {
-        msg() << "Unexpected number of user header words: "
-	      << headerWords << endreq;
+      if (headerWords != 1) {
+        m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_USER_HEADER);
+        if (debug) msg() << "Unexpected number of user header words: "
+	                 << headerWords << endreq;
+        continue;
       }
       for (int i = 0; i < headerWords; ++i) ++payload;
     }
@@ -578,16 +593,41 @@ StatusCode JepRoiByteStreamTool::convertBs(
 	LVL1::CMMRoI croi;
 	if (jroi.setRoiWord(*payload)) {
 	  if (collection == JEM_ROI) {
-	    m_jeCollection->push_back(new LVL1::JEMRoI(*payload));
+	    if (jroi.crate() != rodCrate - m_crateOffsetHw) {
+	      if (debug) msg() << "Inconsistent RoI crate number: "
+	                       << jroi.crate() << endreq;
+              rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
+	      break;
+            }
+	    const uint32_t location = (*payload) & 0xfffc0000;
+	    if (dupRoiCheck.insert(location).second) {
+	      if (jroi.hits() || jroi.error()) {
+	        m_jeCollection->push_back(new LVL1::JEMRoI(*payload));
+	      }
+	    } else {
+	      if (debug) msg() << "Duplicate RoI word "
+	                       << MSG::hex << *payload << MSG::dec << endreq;
+              rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
+	      break;
+            }
 	  }
         } else if (croi.setRoiWord(*payload)) {
 	  if (collection == CMM_ROI) {
-	    m_cmCollection->setRoiWord(*payload);
+	    uint32_t roiType = (*payload) & 0xf0000000;
+	    if ((roiType & 0xe0000000) == 0xa0000000) roiType = 0xa0000000;
+	    if (dupRoiCheck.insert(roiType).second) {
+	      m_cmCollection->setRoiWord(*payload);
+	    } else {
+	      if (debug) msg() << "Duplicate RoI word "
+	                       << MSG::hex << *payload << MSG::dec << endreq;
+              rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
+	      break;
+            }
 	  }
         } else {
 	  if (debug) msg() << "Invalid RoI word "
 	                   << MSG::hex << *payload << MSG::dec << endreq;
-	  rodErr = L1CaloSubBlock::ERROR_ROI_WORD;
+	  rodErr = L1CaloSubBlock::ERROR_ROI_TYPE;
 	  break;
         }
 	++payload;

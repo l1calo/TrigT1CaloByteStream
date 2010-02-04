@@ -12,6 +12,8 @@ const uint32_t L1CaloSubBlock::s_statusMask;
 const uint32_t L1CaloSubBlock::s_headerVal;
 const uint32_t L1CaloSubBlock::s_statusVal;
 
+const int      L1CaloSubBlock::s_ppmCrates;
+
 const int      L1CaloSubBlock::s_wordIdBit;
 const int      L1CaloSubBlock::s_versionBit;
 const int      L1CaloSubBlock::s_formatBit;
@@ -116,9 +118,24 @@ OFFLINE_FRAGMENTS_NAMESPACE::PointerType L1CaloSubBlock::read(
     if (type == HEADER) {
       if (m_header) return pos;
       m_header = word;
-    }
-    else if (type == STATUS) m_trailer = word;
-    else {
+    } else if (type == STATUS) {
+      // Word ID should be consistent with header
+      if (m_trailer || (wordId(word) != wordId()+1)) return pos;
+      m_trailer = word;
+    } else {
+      // Check data word IDs
+      const int id = wordId(word);
+      bool badId = false;
+      // All neutral format '0000'
+      if (format() == NEUTRAL)        badId = (id != 0);
+      // Other PPM '0xxx'
+      else if (crate() < s_ppmCrates) badId = ((id & 0x8) != 0);
+      // Other CPM/JEM '01xx' or '10xx'
+      else if (wordId() == 0xc)       badId = (((id & 0xc) != 0x4) &&
+                                               ((id & 0xc) != 0x8));
+      // Other CMM '00xx'
+      else                            badId = ((id & 0xc) != 0);
+      if (m_trailer || badId) return pos;
       m_data.push_back(word);
       ++m_dataWords;
     }
@@ -209,11 +226,11 @@ std::string L1CaloSubBlock::unpackErrorMsg() const
     case UNPACK_DATA_TRUNCATED:
       msg = "Premature End of Sub-block Data";
       break;
+    case UNPACK_EXCESS_DATA:
+      msg = "Excess Data in Sub-block";
+      break;
     case UNPACK_SOURCE_ID:
       msg = "Invalid Source ID in Sub-block Data";
-      break;
-    case UNPACK_WORD_ID:
-      msg = "Invalid Word ID in Sub-block Data";
       break;
     default:
       msg = "Unknown Error Code";

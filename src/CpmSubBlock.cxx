@@ -212,12 +212,12 @@ bool CpmSubBlock::unpack()
 	  rc = unpackUncompressed();
 	  break;
         default:
-	  setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
+	  setUnpackErrorCode(UNPACK_FORMAT);
 	  break;
       }
       break;
     default:
-      setUnpackErrorCode(L1CaloSubBlock::UNPACK_VERSION);
+      setUnpackErrorCode(UNPACK_VERSION);
       break;
   }
   return rc;
@@ -404,7 +404,7 @@ bool CpmSubBlock::unpackNeutral()
     setBunchCrossing(bunchCrossing);
   }
   const bool rc = unpackerSuccess();
-  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  if (!rc) setUnpackErrorCode(UNPACK_DATA_TRUNCATED);
   return rc;
 }
 
@@ -418,20 +418,20 @@ bool CpmSubBlock::unpackUncompressed()
   uint32_t word = unpacker(s_wordLength);
   while (unpackerSuccess()) {
     const int id = dataId(word);
+    bool err = false;
     // Trigger tower data
     if (id == s_ttWordId) {
       const int ix = (word >> s_pairBit) & s_pairPinMask;
-      if (ix < m_channels) m_ttData[ix] = word;
-      else {
-	setUnpackErrorCode(L1CaloSubBlock::UNPACK_SOURCE_ID);
-        return false;
-      }
+      if (ix < m_channels && m_ttData[ix] == 0) m_ttData[ix] = word;
+      else err = true;
     // Hits
-    } else if (id == s_threshWordId) {
-      const int indicator = (word >> s_indicatorBit) & 0x1;
-      m_hitData[indicator] = word;
     } else {
-      setUnpackErrorCode(L1CaloSubBlock::UNPACK_WORD_ID);
+      const int indicator = (word >> s_indicatorBit) & 0x1;
+      if (m_hitData[indicator] == 0) m_hitData[indicator] = word;
+      else err = true;
+    }
+    if (err) {
+      setUnpackErrorCode(UNPACK_SOURCE_ID);
       return false;
     }
     word = unpacker(s_wordLength);

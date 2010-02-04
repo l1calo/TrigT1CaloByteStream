@@ -225,12 +225,12 @@ bool JemSubBlock::unpack()
 	  rc = unpackUncompressed();
 	  break;
         default:
-	  setUnpackErrorCode(L1CaloSubBlock::UNPACK_FORMAT);
+	  setUnpackErrorCode(UNPACK_FORMAT);
 	  break;
       }
       break;
     default:
-      setUnpackErrorCode(L1CaloSubBlock::UNPACK_VERSION);
+      setUnpackErrorCode(UNPACK_VERSION);
       break;
   }
   return rc;
@@ -357,7 +357,7 @@ bool JemSubBlock::unpackNeutral()
     for (int pin = 0; pin <= lastpin; ++pin) unpackerNeutralParityError(pin);
   }
   const bool rc = unpackerSuccess();
-  if (!rc) setUnpackErrorCode(L1CaloSubBlock::UNPACK_DATA_TRUNCATED);
+  if (!rc) setUnpackErrorCode(UNPACK_DATA_TRUNCATED);
   return rc;
 }
 
@@ -372,34 +372,37 @@ bool JemSubBlock::unpackUncompressed()
   uint32_t word = unpacker(s_wordLength);
   while (unpackerSuccess()) {
     const int id = dataId(word);
+    bool err = false;
     // Jet element data
     if (id == s_jeWordId) {
       const JemJetElement jetEle(word);
       const int channel = jetEle.channel();
-      if (channel < m_channels) m_jeData[channel] = word;
-      else {
-	setUnpackErrorCode(L1CaloSubBlock::UNPACK_SOURCE_ID);
-        return false;
-      }
+      if (channel < m_channels && m_jeData[channel] == 0) {
+        m_jeData[channel] = word;
+      } else err = true;
     // Other data
-    } else if (id == s_threshWordId) {
+    } else {
       switch (sourceId(word)) {
 	// Jet hit counts/thresholds
         case s_mainThreshId:
-        case s_mainFwdThreshId:
-          m_jetHits[0] = word;
+        case s_mainFwdThreshId: {
+	  if (m_jetHits[0] == 0) m_jetHits[0] = word;
+	  else err = true;
           break;
+	}
 	// Energy subsums
-        case s_subsumId:
-	  m_energySubsums[0] = word;
+        case s_subsumId: {
+	  if (m_energySubsums[0] == 0) m_energySubsums[0] = word;
+	  else err = true;
 	  break;
+	}
         default:
-	  setUnpackErrorCode(L1CaloSubBlock::UNPACK_SOURCE_ID);
-	  return false;
+	  err = true;
 	  break;
       }
-    } else {
-      setUnpackErrorCode(L1CaloSubBlock::UNPACK_WORD_ID);
+    }
+    if (err) {
+      setUnpackErrorCode(UNPACK_SOURCE_ID);
       return false;
     }
     word = unpacker(s_wordLength);

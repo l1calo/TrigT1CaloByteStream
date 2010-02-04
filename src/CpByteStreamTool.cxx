@@ -508,15 +508,26 @@ StatusCode CpByteStreamTool::convertBs(
     (*rob)->rod_data(payloadBeg);
     payloadEnd = payloadBeg + (*rob)->rod_ndata();
     payload = payloadBeg;
+    if (payload == payloadEnd) {
+      if (debug) msg() << "ROB fragment empty" << endreq;
+      continue;
+    }
 
     // Check identifier
     const uint32_t sourceID = (*rob)->rod_source_id();
-    if (debug) {
-      if (m_srcIdMap->subDet(sourceID)   != m_subDetector ||
-          m_srcIdMap->daqOrRoi(sourceID) != 0) {
-        msg() << "Wrong source identifier in data: "
-	      << MSG::hex << sourceID << MSG::dec << endreq;
+    if (m_srcIdMap->getRobID(sourceID) != robid           ||
+        m_srcIdMap->subDet(sourceID)   != m_subDetector   ||
+	m_srcIdMap->daqOrRoi(sourceID) != 0               ||
+       (m_srcIdMap->slink(sourceID) != 0 && m_srcIdMap->slink(sourceID) != 2) ||
+	m_srcIdMap->crate(sourceID)    <  m_crateOffsetHw ||
+	m_srcIdMap->crate(sourceID)    >= m_crateOffsetHw + m_crates) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_ROD_ID);
+      if (debug) {
+        msg() << "Wrong source identifier in data: ROD "
+	      << MSG::hex << sourceID << "  ROB " << robid
+	      << MSG::dec << endreq;
       }
+      continue;
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
     if (debug) {
@@ -524,14 +535,21 @@ StatusCode CpByteStreamTool::convertBs(
             << " slink " << m_srcIdMap->slink(sourceID) << endreq;
     }
 
-    // First word is User Header
+    // First word should be User Header
+    if ( !L1CaloUserHeader::isValid(*payload) ) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_USER_HEADER);
+      if (debug) msg() << "Invalid or missing user header" << endreq;
+      continue;
+    }
     L1CaloUserHeader userHeader(*payload);
     const int minorVersion = (*rob)->rod_version() & 0xffff;
     userHeader.setVersion(minorVersion);
     const int headerWords = userHeader.words();
-    if (headerWords != 1 && debug) {
-      msg() << "Unexpected number of user header words: "
-            << headerWords << endreq;
+    if (headerWords != 1) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_USER_HEADER);
+      if (debug) msg() << "Unexpected number of user header words: "
+                       << headerWords << endreq;
+      continue;
     }
     for (int i = 0; i < headerWords; ++i) ++payload;
     // triggered slice offsets
@@ -562,19 +580,37 @@ StatusCode CpByteStreamTool::convertBs(
       }
       if (CmmSubBlock::cmmBlock(*payload)) {
         // CMM
-        CmmCpSubBlock subBlock;
-        payload = subBlock.read(payload, payloadEnd);
-	if (collection == CMM_CP_HITS) {
-	  decodeCmmCp(subBlock, trigCmm);
-	  if (m_rodErr != L1CaloSubBlock::ERROR_NONE) {
-	    if (debug) msg() << "decodeCmmCp failed" << endreq;
+	if (CmmSubBlock::cmmType(*payload) == CmmSubBlock::CMM_CP) {
+          CmmCpSubBlock subBlock;
+          payload = subBlock.read(payload, payloadEnd);
+	  if (subBlock.crate() != rodCrate) {
+	    if (debug) msg() << "Inconsistent crate number in ROD source ID"
+	                     << endreq;
+	    m_rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
 	    break;
-	  }
+          }
+	  if (collection == CMM_CP_HITS) {
+	    decodeCmmCp(subBlock, trigCmm);
+	    if (m_rodErr != L1CaloSubBlock::ERROR_NONE) {
+	      if (debug) msg() << "decodeCmmCp failed" << endreq;
+	      break;
+	    }
+          }
+        } else {
+          if (debug) msg() << "Invalid CMM type in module field" << endreq;
+          m_rodErr = L1CaloSubBlock::ERROR_MODULE_NUMBER;
+	  break;
         }
       } else {
         // CPM
         CpmSubBlock subBlock;
         payload = subBlock.read(payload, payloadEnd);
+	if (subBlock.crate() != rodCrate) {
+	  if (debug) msg() << "Inconsistent crate number in ROD source ID"
+	                   << endreq;
+	  m_rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
+	  break;
+        }
 	if (collection == CPM_TOWERS || collection == CPM_HITS) {
 	  decodeCpm(subBlock, trigCpm, collection);
 	  if (m_rodErr != L1CaloSubBlock::ERROR_NONE) {
@@ -600,33 +636,29 @@ void CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
 
   const int hwCrate    = subBlock.crate();
   const int module     = subBlock.cmmPosition();
+  const int firmware   = subBlock.cmmFirmware();
   const int summing    = subBlock.cmmSumming();
   const int timeslices = subBlock.timeslices();
   const int sliceNum   = subBlock.slice();
   if (debug) {
     msg() << "CMM-CP: Crate "  << hwCrate
           << "  Module "       << module
+	  << "  Firmware "     << firmware
 	  << "  Summing "      << summing
           << "  Total slices " << timeslices
           << "  Slice "        << sliceNum    << endreq;
   }
-  if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
-    if (debug) msg() << "Unexpected crate number: " << hwCrate << endreq;
-    m_rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
-    return;
-  }
   if (timeslices <= trigCmm) {
-    if (debug) {
-      msg() << "Triggered CMM slice from header "
-            << "inconsistent with number of slices: "
-            << trigCmm << ", " << timeslices << ", reset to 0" << endreq;
-    }
-    trigCmm = 0;
+    if (debug) msg() << "Triggered CMM slice from header "
+                     << "inconsistent with number of slices: "
+                     << trigCmm << ", " << timeslices << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_SLICES;
+    return;
   }
   if (timeslices <= sliceNum) {
     if (debug) msg() << "Total slices inconsistent with slice number: "
                      << timeslices << ", " << sliceNum << endreq;
-    m_rodErr = L1CaloSubBlock::ERROR_SLICE_NUMBER;
+    m_rodErr = L1CaloSubBlock::ERROR_SLICES;
     return;
   }
   // Unpack sub-block
@@ -706,6 +738,20 @@ void CpByteStreamTool::decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm)
 	  std::vector<unsigned int> hitsVec1(ch->HitsVec1());
 	  std::vector<int> errVec0(ch->ErrorVec0());
 	  std::vector<int> errVec1(ch->ErrorVec1());
+	  const int nsl = hitsVec0.size();
+	  if (timeslices != nsl) {
+	    if (debug) msg() << "Inconsistent number of slices in sub-blocks"
+	                     << endreq;
+            m_rodErr = L1CaloSubBlock::ERROR_SLICES;
+	    return;
+          }
+	  if ((module == CmmSubBlock::RIGHT && (hitsVec0[slice] != 0 ||
+	       errVec0[slice] != 0)) || (module == CmmSubBlock::LEFT &&
+	       (hitsVec1[slice] != 0 || errVec1[slice]  != 0))) {
+            if (debug) msg() << "Duplicate data for slice " << slice << endreq;
+	    m_rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
+	    return;
+          }
 	  if (module == CmmSubBlock::RIGHT) {
 	    hitsVec0[slice] = hits;
 	    errVec0[slice]  = err;
@@ -741,23 +787,22 @@ void CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
           << "  Total slices " << timeslices
           << "  Slice "        << sliceNum    << endreq;
   }
-  if (hwCrate < m_crateOffsetHw || hwCrate >= m_crateOffsetHw + m_crates) {
-    if (debug) msg() << "Unexpected crate number: " << hwCrate << endreq;
-    m_rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
+  if (module < 1 || module > m_modules) {
+    if (debug) msg() << "Unexpected module number: " << module << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_MODULE_NUMBER;
     return;
   }
   if (timeslices <= trigCpm) {
-    if (debug) {
-      msg() << "Triggered CPM slice from header "
-            << "inconsistent with number of slices: "
-            << trigCpm << ", " << timeslices << ", reset to 0" << endreq;
-    }
-    trigCpm = 0;
+    if (debug) msg() << "Triggered CPM slice from header "
+                     << "inconsistent with number of slices: "
+                     << trigCpm << ", " << timeslices << endreq;
+    m_rodErr = L1CaloSubBlock::ERROR_SLICES;
+    return;
   }
   if (timeslices <= sliceNum) {
     if (debug) msg() << "Total slices inconsistent with slice number: "
                      << timeslices << ", " << sliceNum << endreq;
-    m_rodErr = L1CaloSubBlock::ERROR_SLICE_NUMBER;
+    m_rodErr = L1CaloSubBlock::ERROR_SLICES;
     return;
   }
   // Unpack sub-block
@@ -824,6 +869,22 @@ void CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
 	        std::vector<int> hadVec(tt->hadEnergyVec());
 	        std::vector<int> emErrVec(tt->emErrorVec());
 	        std::vector<int> hadErrVec(tt->hadErrorVec());
+		const int nsl = emVec.size();
+	        if (timeslices != nsl) {
+	          if (debug) {
+		    msg() << "Inconsistent number of slices in sub-blocks"
+	                  << endreq;
+	          }
+                  m_rodErr = L1CaloSubBlock::ERROR_SLICES;
+	          return;
+                }
+		if (emVec[slice]    != 0 || hadVec[slice]    != 0 ||
+		    emErrVec[slice] != 0 || hadErrVec[slice] != 0) {
+                  if (debug) msg() << "Duplicate data for slice "
+		                   << slice << endreq;
+	          m_rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
+	          return;
+                }
 	        emVec[slice]     = em;
 	        hadVec[slice]    = had;
 	        emErrVec[slice]  = emErr1;
@@ -861,6 +922,18 @@ void CpByteStreamTool::decodeCpm(CpmSubBlock& subBlock,
         } else {
 	  std::vector<unsigned int> hitsVec0(ch->HitsVec0());
 	  std::vector<unsigned int> hitsVec1(ch->HitsVec1());
+	  const int nsl = hitsVec0.size();
+	  if (timeslices != nsl) {
+	    if (debug) msg() << "Inconsistent number of slices in sub-blocks"
+	                     << endreq;
+            m_rodErr = L1CaloSubBlock::ERROR_SLICES;
+	    return;
+          }
+	  if (hitsVec0[slice] != 0 || hitsVec1[slice] != 0) {
+            if (debug) msg() << "Duplicate data for slice " << slice << endreq;
+	    m_rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
+	    return;
+          }
 	  hitsVec0[slice] = hits0;
 	  hitsVec1[slice] = hits1;
 	  ch->addHits(hitsVec0, hitsVec1);

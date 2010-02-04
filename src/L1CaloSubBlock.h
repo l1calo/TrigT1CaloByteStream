@@ -24,17 +24,17 @@ class L1CaloSubBlock {
    enum DataFormats      { NEUTRAL = 0, UNCOMPRESSED = 1, COMPRESSED = 2,
                            SUPERCOMPRESSED = 3 };
    // Errors detected before unpacking
-   enum DataErrorType    { ERROR_NONE, ERROR_MISSING_HEADER,
-                           ERROR_VERSION_FORMAT, ERROR_CHANNELS,
-			   ERROR_MISSING_DATA, ERROR_CRATE_NUMBER,
-			   ERROR_MODULE_NUMBER, ERROR_SLICE_NUMBER,
-			   ERROR_ROI_WORD, ERROR_ROD_NSTATUS,
-			   ERROR_DUPLICATE_ROB, ERROR_MAX };
+   enum DataErrorType    { ERROR_NONE, ERROR_DUPLICATE_ROB, ERROR_ROD_ID,
+                           ERROR_ROD_NSTATUS, ERROR_USER_HEADER,
+                           ERROR_MISSING_HEADER, ERROR_MISSING_SUBBLOCK,
+			   ERROR_CRATE_NUMBER, ERROR_MODULE_NUMBER,
+			   ERROR_SLICES, ERROR_DUPLICATE_DATA,
+			   ERROR_ROI_TYPE, ERROR_MAX };
    // Errors detected during unpacking
    enum UnpackErrorType  { UNPACK_NONE = ERROR_NONE, UNPACK_VERSION = ERROR_MAX,
                            UNPACK_FORMAT, UNPACK_COMPRESSION_VERSION,
 			   UNPACK_COMPRESSION_SLICES, UNPACK_DATA_TRUNCATED,
-			   UNPACK_SOURCE_ID, UNPACK_WORD_ID };
+			   UNPACK_EXCESS_DATA, UNPACK_SOURCE_ID };
 
    L1CaloSubBlock();
    ~L1CaloSubBlock();
@@ -154,6 +154,8 @@ class L1CaloSubBlock {
    static const uint32_t s_statusMask       = 0x1;
    static const uint32_t s_headerVal        = 0x3;
    static const uint32_t s_statusVal        = 0x1;
+   //  First non-PPM crate
+   static const int      s_ppmCrates        = 8;
    //  Header word data positions and masks
    static const int      s_wordIdBit        = 28;
    static const int      s_versionBit       = 25;

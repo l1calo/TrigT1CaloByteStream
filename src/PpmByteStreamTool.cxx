@@ -14,6 +14,7 @@
 #include "TrigT1CaloUtils/TriggerTowerKey.h"
 #include "TrigT1CaloMappingToolInterfaces/IL1CaloMappingTool.h"
 
+#include "CmmSubBlock.h"
 #include "L1CaloErrorByteStreamTool.h"
 #include "L1CaloSrcIdMap.h"
 #include "L1CaloSubBlock.h"
@@ -53,6 +54,8 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
 
   declareProperty("PrintCompStats",     m_printCompStats  = 0,
                   "Print compressed format statistics");
+  declareProperty("SlinksPerCrate",     m_slinks          = 4,
+                  "The number of S-Links per crate");
 
   // Properties for reading bytestream only
   declareProperty("ZeroSuppress",       m_zeroSuppress    = 0,
@@ -69,8 +72,6 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
                   "FADC baseline lower bound for compressed formats");
   declareProperty("FADCThreshold",      m_fadcThreshold   = 1,
                   "FADC threshold for super-compressed format");
-  declareProperty("SlinksPerCrate",     m_slinks          = 4,
-                  "The number of S-Links per crate");
   declareProperty("SimulSlicesLUT",     m_dfltSlicesLut   = 1,
                   "The number of LUT slices in the simulation");
   declareProperty("SimulSlicesFADC",    m_dfltSlicesFadc  = 7,
@@ -199,27 +200,42 @@ StatusCode PpmByteStreamTool::convert(
 
     // Check identifier
     const uint32_t sourceID = (*rob)->rod_source_id();
-    if (debug) {
-      if (m_srcIdMap->subDet(sourceID) != m_subDetector ||
-          m_srcIdMap->daqOrRoi(sourceID) != 0) {
-        msg() << "Wrong source identifier in data: "
-	      << MSG::hex << sourceID << MSG::dec << endreq;
+    if (m_srcIdMap->getRobID(sourceID) != robid         ||
+        m_srcIdMap->subDet(sourceID)   != m_subDetector ||
+	m_srcIdMap->daqOrRoi(sourceID) != 0             ||
+	m_srcIdMap->slink(sourceID)    >= m_slinks      ||
+	m_srcIdMap->crate(sourceID)    >= m_crates) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_ROD_ID);
+      if (debug) {
+        msg() << "Wrong source identifier in data: ROD "
+	      << MSG::hex << sourceID << "  ROB " << robid
+	      << MSG::dec << endreq;
       }
+      continue;
     }
     const int rodCrate = m_srcIdMap->crate(sourceID);
     if (debug) {
       msg() << "Treating crate " << rodCrate 
-            << " slink " << m_srcIdMap->slink(sourceID) << endreq;
+            << " slink "         << m_srcIdMap->slink(sourceID) << endreq;
     }
 
-    // First word is User Header
+    // First word should be User Header
+    if ( !L1CaloUserHeader::isValid(*payload) ) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_USER_HEADER);
+      if (debug) msg() << "Invalid or missing user header" << endreq;
+      continue;
+    }
     L1CaloUserHeader userHeader(*payload);
     const int minorVersion = (*rob)->rod_version() & 0xffff;
     userHeader.setVersion(minorVersion);
     const int headerWords = userHeader.words();
-    if (headerWords != 1 && debug) {
-      msg() << "Unexpected number of user header words: "
-            << headerWords << endreq;
+    if (headerWords != 1) {
+      m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_USER_HEADER);
+      if (debug) {
+        msg() << "Unexpected number of user header words: "
+              << headerWords << endreq;
+      }
+      continue;
     }
     for (int i = 0; i < headerWords; ++i) ++payload;
     // triggered slice offsets
@@ -240,7 +256,8 @@ StatusCode PpmByteStreamTool::convert(
 
     int chanPerSubBlock = 0;
     if (payload != payloadEnd) {
-      if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER) {
+      if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER
+                                   || CmmSubBlock::cmmBlock(*payload)) {
 	m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_MISSING_HEADER);
         if (debug) msg() << "Missing Sub-block header" << endreq;
 	continue;
@@ -249,16 +266,10 @@ StatusCode PpmByteStreamTool::convert(
       payload = testBlock.read(payload, payloadEnd);
       chanPerSubBlock = testBlock.channelsPerSubBlock();
       if (chanPerSubBlock == 0) {
-        m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_VERSION_FORMAT);
+        m_errorTool->rodError(robid, testBlock.unpackErrorCode());
         if (debug) msg() << "Unsupported version/data format: "
                          << testBlock.version() << "/"
                          << testBlock.format()  << endreq;
-	continue;
-      }
-      if (m_channels%chanPerSubBlock != 0) {
-        m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_CHANNELS);
-        if (debug) msg() << "Invalid channels per sub-block: "
-                         << chanPerSubBlock << endreq;
 	continue;
       }
       if (debug) msg() << "Channels per sub-block: "
@@ -283,6 +294,7 @@ StatusCode PpmByteStreamTool::convert(
       m_ppmBlocks.clear();
       for (int block = 0; block < numSubBlocks; ++block) {
         if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER
+                                   || CmmSubBlock::cmmBlock(*payload)
 	                           || PpmSubBlock::errorBlock(*payload)) {
           if (debug) msg() << "Unexpected data sequence" << endreq;
 	  rodErr = L1CaloSubBlock::ERROR_MISSING_HEADER;
@@ -295,7 +307,7 @@ StatusCode PpmByteStreamTool::convert(
 	          << L1CaloSubBlock::seqno(*payload) << " expected " 
 	          << block * chanPerSubBlock << endreq;
 	  }
-	  rodErr = L1CaloSubBlock::ERROR_MISSING_DATA;
+	  rodErr = L1CaloSubBlock::ERROR_MISSING_SUBBLOCK;
 	  break;
         }
         PpmSubBlock* const subBlock = new PpmSubBlock();
@@ -305,10 +317,14 @@ StatusCode PpmByteStreamTool::convert(
           crate = subBlock->crate();
 	  module = subBlock->module();
 	  if (debug) {
-	    msg() << "Module " << module << endreq;
-	    if (crate != rodCrate) {
+	    msg() << "Crate " << crate << "  Module " << module << endreq;
+	  }
+	  if (crate != rodCrate) {
+	    if (debug) {
 	      msg() << "Inconsistent crate number in ROD source ID" << endreq;
 	    }
+	    rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
+	    break;
           }
         } else {
           if (subBlock->crate() != crate) {
@@ -326,7 +342,7 @@ StatusCode PpmByteStreamTool::convert(
         }
         if (payload == payloadEnd && block != numSubBlocks - 1) {
           if (debug) msg() << "Premature end of data" << endreq;
-	  rodErr = L1CaloSubBlock::ERROR_MISSING_DATA;
+	  rodErr = L1CaloSubBlock::ERROR_MISSING_SUBBLOCK;
 	  break;
         }
       }
@@ -336,8 +352,9 @@ StatusCode PpmByteStreamTool::convert(
 
       delete m_errorBlock;
       m_errorBlock = 0;
-      if (payload != payloadEnd && rodErr == L1CaloSubBlock::ERROR_NONE) {
+      if (payload != payloadEnd) {
         if (L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::HEADER
+                                    && !CmmSubBlock::cmmBlock(*payload)
 	                            && PpmSubBlock::errorBlock(*payload)) {
 	  if (debug) msg() << "Error block found" << endreq;
 	  m_errorBlock = new PpmSubBlock();
@@ -396,25 +413,23 @@ StatusCode PpmByteStreamTool::convert(
 	  std::vector<int> bcidLut;
 	  std::vector<int> bcidFadc;
 	  subBlock->ppmData(channel, lut, fadc, bcidLut, bcidFadc);
-	  int trigLutKeep  = trigLut;
-	  int trigFadcKeep = trigFadc;
 	  if (lut.size() < size_t(trigLut + 1)) {
 	    if (debug) {
 	      msg() << "Triggered LUT slice from header "
 	            << "inconsistent with number of slices: "
-		    << trigLut << ", " << lut.size() << ", reset to 0"
-		    << endreq;
+		    << trigLut << ", " << lut.size() << endreq;
 	    }
-	    trigLutKeep = 0;
+	    rodErr = L1CaloSubBlock::ERROR_SLICES;
+	    break;
           }
 	  if (fadc.size() < size_t(trigFadc + 1)) {
 	    if (debug) {
 	      msg() << "Triggered FADC slice from header "
 	            << "inconsistent with number of slices: "
-		    << trigFadc << ", " << fadc.size() << ", reset to 0"
-		    << endreq;
+		    << trigFadc << ", " << fadc.size() << endreq;
 	    }
-	    trigFadcKeep = 0;
+	    rodErr = L1CaloSubBlock::ERROR_SLICES;
+	    break;
           }
 	  LVL1::DataError errorBits(0);
 	  if (m_errorBlock) {
@@ -476,16 +491,50 @@ StatusCode PpmByteStreamTool::convert(
 	      tt = new LVL1::TriggerTower(phi, eta, key);
               m_ttMap.insert(std::make_pair(key, tt));
 	      ttTemp.push_back(tt);
-            }
+            } else {
+	      // Check for duplicate data
+	      if (layer == 0) {
+	        const std::vector<int>& emLut(tt->emLUT());
+		const std::vector<int>& emFadc(tt->emADC());
+		const std::vector<int>& emBcidLut(tt->emBCIDvec());
+		const std::vector<int>& emBcidFadc(tt->emBCIDext());
+		const int emError(tt->emError());
+		if (std::accumulate(emLut.begin(),      emLut.end(),      0) ||
+		    std::accumulate(emFadc.begin(),     emFadc.end(),     0) ||
+		    std::accumulate(emBcidLut.begin(),  emBcidLut.end(),  0) ||
+		    std::accumulate(emBcidFadc.begin(), emBcidFadc.end(), 0) ||
+		    emError) {
+                  if (debug) msg() << "Duplicate EM data at eta/phi "
+		                   << eta << "/" << phi << endreq;
+                  rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
+		  break;
+                }
+              } else {
+	        const std::vector<int>& hadLut(tt->hadLUT());
+		const std::vector<int>& hadFadc(tt->hadADC());
+		const std::vector<int>& hadBcidLut(tt->hadBCIDvec());
+		const std::vector<int>& hadBcidFadc(tt->hadBCIDext());
+		const int hadError(tt->hadError());
+		if (std::accumulate(hadLut.begin(),      hadLut.end(),      0) ||
+		    std::accumulate(hadFadc.begin(),     hadFadc.end(),     0) ||
+		    std::accumulate(hadBcidLut.begin(),  hadBcidLut.end(),  0) ||
+		    std::accumulate(hadBcidFadc.begin(), hadBcidFadc.end(), 0) ||
+		    hadError) {
+                  if (debug) msg() << "Duplicate HAD data at eta/phi "
+		                   << eta << "/" << phi << endreq;
+                  rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
+		  break;
+                }
+	      }
+	    }
             if (layer == 0) {  // EM
-	      tt->addEM(fadc, lut, bcidFadc, bcidLut, error,
-	                                           trigLutKeep, trigFadcKeep);
+	      tt->addEM(fadc, lut, bcidFadc, bcidLut, error, trigLut, trigFadc);
             } else {           // Had
-	      tt->addHad(fadc, lut, bcidFadc, bcidLut, error,
-	                                           trigLutKeep, trigFadcKeep);
+	      tt->addHad(fadc, lut, bcidFadc, bcidLut, error, trigLut, trigFadc);
             }
           }
         }
+        if (rodErr != L1CaloSubBlock::ERROR_NONE) break;
       }
       if (rodErr != L1CaloSubBlock::ERROR_NONE) break;
     }
@@ -537,7 +586,7 @@ StatusCode PpmByteStreamTool::convert(
   // Create the sub-blocks to do the packing
 
   PpmSubBlock subBlock;
-  const int chanPerSubBlock = PpmSubBlock::channelsPerSubBlock(m_version,
+  const int chanPerSubBlock = subBlock.channelsPerSubBlock(m_version,
                                                                m_dataFormat);
   if (chanPerSubBlock == 0) {
     msg(MSG::ERROR) << "Unsupported version/data format: "
