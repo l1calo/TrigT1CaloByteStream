@@ -117,7 +117,7 @@ StatusCode PpmByteStreamCnv::createObj( IOpaqueAddress* pAddr,
   if (m_debug) m_log << MSG::DEBUG << " Creating Objects " << nm << endreq;
 
   // get SourceIDs
-  const std::vector<uint32_t>& vID(m_tool->sourceIDs());
+  const std::vector<uint32_t>& vID(m_tool->sourceIDs(nm));
 
   // get ROB fragments
   IROBDataProviderSvc::VROBFRAG robFrags;

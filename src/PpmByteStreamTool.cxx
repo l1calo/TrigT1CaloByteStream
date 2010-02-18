@@ -44,7 +44,8 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
     m_ppmMaps("LVL1::PpmMappingTool/PpmMappingTool"),
     m_errorTool("LVL1BS::L1CaloErrorByteStreamTool/L1CaloErrorByteStreamTool"),
     m_version(1), m_compVers(4), m_channels(64), m_crates(8),
-    m_modules(16), m_subDetector(eformat::TDAQ_CALO_PREPROC),
+    m_modules(16), m_spareChannels(false),
+    m_subDetector(eformat::TDAQ_CALO_PREPROC),
     m_srcIdMap(0), m_towerKey(0), m_errorBlock(0), m_rodStatus(0), m_fea(0)
 {
   declareInterface<PpmByteStreamTool>(this);
@@ -473,21 +474,29 @@ StatusCode PpmByteStreamTool::convert(
 	    double eta = 0.;
 	    double phi = 0.;
 	    int layer = 0;
+	    unsigned int key = 0;
 	    if (!m_ppmMaps->mapping(crate, module, channel, eta, phi, layer)) {
-	      if (verbose && any) {
-	        msg() << " Unexpected non-zero data words" << endreq;
-	      }
-              continue;
-            }
+	      if (m_spareChannels) {
+	        const int pin  = channel%16;
+		const int asic = channel/16;
+		eta = 16*crate + module;
+		phi = 4*pin + asic;
+		layer = 0;
+		const int type = 1;
+		key = (crate<<24) | (type<<20) | (module<<16) | (pin<<8) | asic;
+	      } else continue;
+            } else {
+	      if (m_spareChannels) continue;
+	      key = m_towerKey->ttKey(phi, eta);
+	    }
 	    if (verbose) {
 	      msg() << " eta/phi/layer: " << eta << "/" << phi << "/" << layer
 		    << "/" << endreq;
 	      msg(MSG::DEBUG);
             }
-	    LVL1::TriggerTower* tt = findTriggerTower(eta, phi);
+	    LVL1::TriggerTower* tt = findTriggerTower(key);
             if ( ! tt) {
 	      // make new tower and add to map
-	      const unsigned int key = m_towerKey->ttKey(phi, eta);
 	      tt = new LVL1::TriggerTower(phi, eta, key);
               m_ttMap.insert(std::make_pair(key, tt));
 	      ttTemp.push_back(tt);
@@ -834,11 +843,10 @@ const LVL1::TriggerTower* PpmByteStreamTool::findLayerTriggerTower(
 
 // Find a trigger tower given eta, phi
 
-LVL1::TriggerTower* PpmByteStreamTool::findTriggerTower(const double eta,
-                                                        const double phi)
+LVL1::TriggerTower* PpmByteStreamTool::findTriggerTower(
+                                                     const unsigned int key)
 {
   LVL1::TriggerTower* tt = 0;
-  const unsigned int key = m_towerKey->ttKey(phi, eta);
   TriggerTowerMap::const_iterator mapIter;
   mapIter = m_ttMap.find(key);
   if (mapIter != m_ttMap.end()) tt = mapIter->second;
@@ -938,8 +946,14 @@ bool PpmByteStreamTool::slinkSlices(const int crate, const int module,
 
 // Return reference to vector with all possible Source Identifiers
 
-const std::vector<uint32_t>& PpmByteStreamTool::sourceIDs()
+const std::vector<uint32_t>& PpmByteStreamTool::sourceIDs(
+                                                 const std::string& sgKey)
 {
+  // Check if spare channels wanted
+  const std::string flag("Spare");
+  const std::string::size_type pos = sgKey.find(flag);
+  m_spareChannels =
+    (pos != std::string::npos && pos == (sgKey.length() - flag.length()));
   if (m_sourceIDs.empty()) {
     const int maxlinks = m_srcIdMap->maxSlinks();
     for (int crate = 0; crate < m_crates; ++crate) {

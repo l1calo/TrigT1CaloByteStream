@@ -27,6 +27,7 @@ ToolSvc += LVL1BS__L1CaloErrorByteStreamTool("L1CaloErrorByteStreamTool")
 
 ByteStreamAddressProviderSvc = Service( "ByteStreamAddressProviderSvc" )
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::TriggerTower>/TriggerTowers" ]
+ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::TriggerTower>/TriggerTowersSpare" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::CPMTower>/CPMTowers" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::CPMTower>/CPMTowersOverlap" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::CPMHits>/CPMHits" ]

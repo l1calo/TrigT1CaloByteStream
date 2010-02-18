@@ -62,7 +62,7 @@ class PpmByteStreamTool : public AthAlgTool {
                       RawEventWrite* re);
 
    /// Return reference to vector with all possible Source Identifiers
-   const std::vector<uint32_t>& sourceIDs();
+   const std::vector<uint32_t>& sourceIDs(const std::string& sgKey);
 
  private:
 
@@ -84,7 +84,7 @@ class PpmByteStreamTool : public AthAlgTool {
                                                                int layer);
 
    /// Find a trigger tower given eta, phi
-   LVL1::TriggerTower* findTriggerTower(double eta, double phi);
+   LVL1::TriggerTower* findTriggerTower(unsigned int key);
 
    /// Set up separate Em and Had trigger tower maps
    void setupTTMaps(const TriggerTowerCollection* ttCollection);
@@ -133,6 +133,8 @@ class PpmByteStreamTool : public AthAlgTool {
    int m_fadcThreshold;
    /// Zero suppression on input
    int m_zeroSuppress;
+   /// Spare channel flag
+   bool m_spareChannels;
    /// ROB source IDs
    std::vector<uint32_t> m_sourceIDs;
    /// Sub-detector type
