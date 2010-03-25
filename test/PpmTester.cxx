@@ -166,7 +166,9 @@ void PpmTester::setupTTMap(const TriggerTowerCollection* const ttCollection)
   TriggerTowerCollection::const_iterator pose = ttCollection->end();
   for (; pos != pose; ++pos) {
     const LVL1::TriggerTower* const tt = *pos;
-    const unsigned int key = m_towerKey->ttKey(tt->phi(), tt->eta());
+    // doesn't work for spare channels (unphysical eta/phi):
+    //const unsigned int key = m_towerKey->ttKey(tt->phi(), tt->eta());
+    const unsigned int key = tt->key();
     m_ttMap.insert(std::make_pair(key, tt));
   }
 }

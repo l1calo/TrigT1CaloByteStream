@@ -135,6 +135,8 @@ class PpmByteStreamTool : public AthAlgTool {
    int m_zeroSuppress;
    /// Spare channel flag
    bool m_spareChannels;
+   /// Tile Muon channel flag
+   bool m_muonChannels;
    /// ROB source IDs
    std::vector<uint32_t> m_sourceIDs;
    /// Sub-detector type

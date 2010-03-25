@@ -44,7 +44,7 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
     m_ppmMaps("LVL1::PpmMappingTool/PpmMappingTool"),
     m_errorTool("LVL1BS::L1CaloErrorByteStreamTool/L1CaloErrorByteStreamTool"),
     m_version(1), m_compVers(4), m_channels(64), m_crates(8),
-    m_modules(16), m_spareChannels(false),
+    m_modules(16), m_spareChannels(false), m_muonChannels(false),
     m_subDetector(eformat::TDAQ_CALO_PREPROC),
     m_srcIdMap(0), m_towerKey(0), m_errorBlock(0), m_rodStatus(0), m_fea(0)
 {
@@ -476,7 +476,8 @@ StatusCode PpmByteStreamTool::convert(
 	    int layer = 0;
 	    unsigned int key = 0;
 	    if (!m_ppmMaps->mapping(crate, module, channel, eta, phi, layer)) {
-	      if (m_spareChannels) {
+	      if (m_spareChannels || (m_muonChannels && (crate == 2 || crate == 3)
+	                                             && (module == 0))) {
 	        const int pin  = channel%16;
 		const int asic = channel/16;
 		eta = 16*crate + module;
@@ -486,7 +487,7 @@ StatusCode PpmByteStreamTool::convert(
 		key = (crate<<24) | (type<<20) | (module<<16) | (pin<<8) | asic;
 	      } else continue;
             } else {
-	      if (m_spareChannels) continue;
+	      if (m_spareChannels || m_muonChannels) continue;
 	      key = m_towerKey->ttKey(phi, eta);
 	    }
 	    if (verbose) {
@@ -954,6 +955,11 @@ const std::vector<uint32_t>& PpmByteStreamTool::sourceIDs(
   const std::string::size_type pos = sgKey.find(flag);
   m_spareChannels =
     (pos != std::string::npos && pos == (sgKey.length() - flag.length()));
+  // Check if Tile Muon channels wanted
+  const std::string flag2("Muon");
+  const std::string::size_type pos2 = sgKey.find(flag2);
+  m_muonChannels =
+    (pos2 != std::string::npos && pos2 == (sgKey.length() - flag2.length()));
   if (m_sourceIDs.empty()) {
     const int maxlinks = m_srcIdMap->maxSlinks();
     for (int crate = 0; crate < m_crates; ++crate) {
