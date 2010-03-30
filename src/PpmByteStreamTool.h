@@ -139,6 +139,8 @@ class PpmByteStreamTool : public AthAlgTool {
    bool m_muonChannels;
    /// ROB source IDs
    std::vector<uint32_t> m_sourceIDs;
+   std::vector<uint32_t> m_sourceIDsSpare;
+   std::vector<uint32_t> m_sourceIDsMuon;
    /// Sub-detector type
    eformat::SubDetector m_subDetector;
    /// Source ID converter

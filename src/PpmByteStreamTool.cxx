@@ -969,9 +969,15 @@ const std::vector<uint32_t>& PpmByteStreamTool::sourceIDs(
                                                             m_subDetector);
         const uint32_t robId = m_srcIdMap->getRobID(rodId);
         m_sourceIDs.push_back(robId);
+	if (crate > 1 && crate < 6) {
+	  m_sourceIDsSpare.push_back(robId);
+	  if (crate < 4) m_sourceIDsMuon.push_back(robId);
+        }
       }
     }
   }
+  if (m_spareChannels) return m_sourceIDsSpare;
+  if (m_muonChannels)  return m_sourceIDsMuon;
   return m_sourceIDs;
 }
 

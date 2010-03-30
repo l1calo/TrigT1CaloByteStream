@@ -1,3 +1,7 @@
+2010-03-30  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+        * Tag TrigT1CaloByteStream-00-08-05
+        * Efficiency improvements.
+
 2010-03-25  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
         * Tag TrigT1CaloByteStream-00-08-04
         * Allow separate unpacking of Tile Muon channels.
