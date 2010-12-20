@@ -66,6 +66,52 @@ StatusCode PpmByteStreamSubsetTool::initialize()
   m_srcIdMap = new L1CaloSrcIdMap();
   m_towerKey = new LVL1::TriggerTowerKey();
 
+  m_ttMap.clear();
+
+  // if you retrieved it nicely, build tables
+  // See that all mapping is now done by channel number
+  // leading to the unique_idx we have bellow.
+  // See also that the EM and Had parts will be a single
+  // tt pointer
+  unsigned int maxkey=0;
+  for(int crate = 0; crate<m_crates; crate++)
+  for(int module = 0; module<m_modules; module++)
+  for(int channel = 0; channel<m_channels; channel++){
+        double eta = 0;
+        double phi = 0;
+        int layer = 0;
+        LVL1::TriggerTower* tt=0;
+        if(m_ppmMaps->mapping(crate, module, channel, eta, phi, layer)){
+            tt = findTriggerTower(eta, phi);
+            if ( !tt ) {
+            const unsigned int key = m_towerKey->ttKey(phi, eta);
+            tt = new LVL1::TriggerTower(phi, eta, key);
+            m_ttMap.insert(std::make_pair(key, tt));
+            }
+        }
+        unsigned int unique_idx = channel;
+        unique_idx+=module*m_channels;
+        unique_idx+=crate*m_channels*m_modules;
+        etamap[unique_idx] = eta;
+        phimap[unique_idx] = phi;
+        layermap[unique_idx] = layer;
+        ttpool[unique_idx] = tt;
+	if (tt && tt->key()> maxkey) maxkey=tt->key();
+  }
+  ttTemp.reserve(8192);
+  m_ppmBlocks.reserve(4);
+  // Make an array (pool) of SubBlock objects to help
+  for(size_t ii=0; ii<size_t(10);++ii){
+        PpmSubBlock* const subBlock = new PpmSubBlock();
+        m_ppmBlocksPool[ii] = subBlock;
+  }
+
+  m_event = 0xffffffff;
+  m_first=true;
+  for(int i=0;i<8192;i++)
+	   uniqueness[i]=0xffffffff;
+
+
   return StatusCode::SUCCESS;
 }
 
@@ -73,6 +119,22 @@ StatusCode PpmByteStreamSubsetTool::initialize()
 
 StatusCode PpmByteStreamSubsetTool::finalize()
 {
+  for(int crate = 0; crate<m_crates; crate++)
+  for(int module = 0; module<m_modules; module++)
+  for(int channel = 0; channel<m_channels; channel++){
+	unsigned int unique_idx = channel;
+        unique_idx+=module*m_channels;
+        unique_idx+=crate*m_channels*m_modules;
+	if ( ttpool[unique_idx] && layermap[unique_idx] ){
+	  delete ttpool[unique_idx];
+	  ttpool[unique_idx] = NULL;
+	}
+  }
+  for(size_t ii=0; ii<size_t(10);++ii){
+        delete m_ppmBlocksPool[ii];
+  }
+
+
   delete m_errorBlock;
   delete m_towerKey;
   delete m_srcIdMap;
@@ -86,16 +148,56 @@ StatusCode PpmByteStreamSubsetTool::convert(
                             DataVector<LVL1::TriggerTower>* const ttCollection,
 			    const std::vector<unsigned int> chanIds)
 {
+  std::vector<int> lut;
+  std::vector<int> fadc;
+  std::vector<int> bcidLut;
+  std::vector<int> bcidFadc;
+  lut     .reserve(10);
+  fadc    .reserve(10);
+  bcidLut .reserve(10);
+  bcidFadc.reserve(10);
+
+
   const bool debug   = msgLvl(MSG::DEBUG);
+#ifndef NDEBUG
   const bool verbose = msgLvl(MSG::VERBOSE);
+#endif
   if (debug) msg(MSG::DEBUG);
 
   // Index wanted channels by crate/module
 
-  ChannelMap chanMap;
-  std::vector<unsigned int>::const_iterator pos  = chanIds.begin();
-  std::vector<unsigned int>::const_iterator posE = chanIds.end();
-  std::vector<unsigned int>::const_iterator posB = pos;
+  std::vector<unsigned int>::const_iterator pos ;
+  std::vector<unsigned int>::const_iterator posE;
+  std::vector<unsigned int>::const_iterator posB;
+  bool full = ( chanIds.size() == 7168 ); // hardcoded number
+  if ( full && m_first ){
+  pos  = chanIds.begin();
+  posE = chanIds.end();
+  posB = pos;
+  unsigned int lastKey = (pos != posE) ? (*pos)/64 : 9999;
+  for (; pos != posE; ++pos) {
+    const unsigned int key = (*pos)/64;
+    if (key != lastKey) {
+      if (debug) msg() << "Adding key to index: " << lastKey << endreq;
+      chanMapFull.insert(std::make_pair(lastKey, std::make_pair(posB, pos)));
+      lastKey = key;
+      posB = pos;
+    }
+  }
+  if (lastKey != 9999) {
+    if (debug) msg() << "Adding key to index: " << lastKey << endreq;
+    chanMapFull.insert(std::make_pair(lastKey, std::make_pair(posB, posE)));
+  }
+  if (debug) {
+    msg() << "Number of channels wanted: " << chanIds.size()
+          << "  Channel map size: " << chanMapFull.size() << endreq;
+  }
+  m_first = false;
+  }
+  else if ( !full ) {
+  pos  = chanIds.begin();
+  posE = chanIds.end();
+  posB = pos;
   unsigned int lastKey = (pos != posE) ? (*pos)/64 : 9999;
   for (; pos != posE; ++pos) {
     const unsigned int key = (*pos)/64;
@@ -114,11 +216,8 @@ StatusCode PpmByteStreamSubsetTool::convert(
     msg() << "Number of channels wanted: " << chanIds.size()
           << "  Channel map size: " << chanMap.size() << endreq;
   }
+  }
 
-  // Clear trigger tower map
-
-  m_ttMap.clear();
-  TriggerTowerCollection ttTemp;
 
   // Loop over ROB fragments
 
@@ -186,7 +285,7 @@ StatusCode PpmByteStreamSubsetTool::convert(
       msg() << "Unexpected number of user header words: "
             << headerWords << endreq;
     }
-    for (int i = 0; i < headerWords; ++i) ++payload;
+    payload+=headerWords;
     // triggered slice offsets
     const int trigLut  = userHeader.ppmLut();
     const int trigFadc = userHeader.ppmFadc();
@@ -209,7 +308,8 @@ StatusCode PpmByteStreamSubsetTool::convert(
         if (debug) msg() << "Missing Sub-block header" << endreq;
         continue;
       }
-      PpmSubBlock testBlock;
+      testBlock.clear();
+
       payload = testBlock.read(payload, payloadEnd);
       chanPerSubBlock = testBlock.channelsPerSubBlock();
       if (chanPerSubBlock == 0) {
@@ -235,7 +335,7 @@ StatusCode PpmByteStreamSubsetTool::convert(
     // Loop over PPMs
 
     payload = payloadBeg;
-    for (int i = 0; i < headerWords; ++i) ++payload;
+    payload+=headerWords;
     bool isErr = false;
     while (payload != payloadEnd) {
 
@@ -244,6 +344,7 @@ StatusCode PpmByteStreamSubsetTool::convert(
       int crate = 0;
       int module = 0;
       m_ppmBlocks.clear();
+      int pool = 0;
       for (int block = 0; block < numSubBlocks; ++block) {
         if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER
 	                           || PpmSubBlock::errorBlock(*payload)) {
@@ -261,8 +362,9 @@ StatusCode PpmByteStreamSubsetTool::convert(
 	  isErr = true;
 	  break;
         }
-        PpmSubBlock* const subBlock = new PpmSubBlock();
-        m_ppmBlocks.push_back(subBlock);
+        PpmSubBlock* const subBlock = m_ppmBlocksPool[pool];
+        subBlock->clear();
+        m_ppmBlocks.push_back((  m_ppmBlocksPool[pool++] ));
         payload = subBlock->read(payload, payloadEnd);
         if (block == 0) {
           crate  = subBlock->crate();
@@ -332,8 +434,12 @@ StatusCode PpmByteStreamSubsetTool::convert(
       const int actualSubBlocks = m_ppmBlocks.size();
       int lastBlock = -1;
       unsigned int key = crate*16 + module;
-      ChannelMap::iterator mapIter = chanMap.find(key);
-      if (mapIter == chanMap.end()) {
+      ChannelMap::iterator mapIter = full ? chanMapFull.find(key) : chanMap.find(key);
+      if (full && mapIter == chanMapFull.end()) {
+        if (debug) msg() << "Key not found: " << key << endreq;
+	continue;
+      }
+      if (!full && mapIter == chanMap.end()) {
         if (debug) msg() << "Key not found: " << key << endreq;
 	continue;
       }
@@ -341,6 +447,8 @@ StatusCode PpmByteStreamSubsetTool::convert(
       pos  = ipair.first;
       posE = ipair.second;
       PpmSubBlock* subBlock = 0;
+      unsigned int cratemod_idx = module*m_channels;
+      cratemod_idx+=crate*m_channels*m_modules;
       for (; pos != posE; ++pos) {
         const int channel = (*pos) % 64;
 	const int block = channel/chanPerSubBlock;
@@ -368,10 +476,6 @@ StatusCode PpmByteStreamSubsetTool::convert(
 	    break;
           }
 	}
-  	std::vector<int> lut;
-	std::vector<int> fadc;
-	std::vector<int> bcidLut;
-	std::vector<int> bcidFadc;
 	subBlock->ppmData(channel, lut, fadc, bcidLut, bcidFadc);
 	int trigLutKeep  = trigLut;
 	int trigFadcKeep = trigFadc;
@@ -422,6 +526,7 @@ StatusCode PpmByteStreamSubsetTool::convert(
 		     std::accumulate(bcidFadc.begin(), bcidFadc.end(), 0);
 
         if (any || error) {
+#ifndef NDEBUG
 	  if (verbose) {
 	    msg(MSG::VERBOSE) << "channel/LUT/FADC/bcidLUT/bcidFADC/error: "
 	                      << channel << "/";
@@ -431,33 +536,36 @@ StatusCode PpmByteStreamSubsetTool::convert(
 	    printVec(bcidFadc);
 	    msg() << MSG::hex << error << MSG::dec << "/";
           }
-	  double eta = 0.;
-	  double phi = 0.;
-	  int layer = 0;
-	  if (!m_ppmMaps->mapping(crate, module, channel, eta, phi, layer)) {
-	    if (verbose && any) {
-	      msg() << " Unexpected non-zero data words" << endreq;
-	    }
-            continue;
+#endif
+          // See that there is no call to m_ppmMaps->mapping here
+          // all is addressed by channel number and crate/module
+          // as prepared in the initialize. Also, no more calls to
+          // findTriggerTower in the loop
+          unsigned int unique_idx = cratemod_idx+channel;
+          LVL1::TriggerTower* tt = ttpool[unique_idx];
+          if ( !tt ) continue;
+#ifndef NDEBUG
+          if (verbose) {
+            // eta/phi are only used here
+            double eta = etamap[unique_idx];
+            double phi = phimap[unique_idx];
+            int layer = layermap[unique_idx];
+            msg() << " eta/phi/layer: " << eta << "/" << phi << "/"
+                  << layer << "/" << endreq;
+            msg(MSG::DEBUG);
           }
-	  if (verbose) {
-	    msg() << " eta/phi/layer: " << eta << "/" << phi << "/"
-	          << layer << "/" << endreq;
-	    msg(MSG::DEBUG);
-          }
-	  LVL1::TriggerTower* tt = findTriggerTower(eta, phi);
-          if ( ! tt) {
-	    // make new tower and add to map
-	    const unsigned int key = m_towerKey->ttKey(phi, eta);
-	    tt = new LVL1::TriggerTower(phi, eta, key);
-            m_ttMap.insert(std::make_pair(key, tt));
-	    ttTemp.push_back(tt);
-          }
-          if (layer == 0) {  // EM
-	    tt->addEM(fadc, lut, bcidFadc, bcidLut, error,
+#endif
+          // tt is filled during unpacking, NOT here.
+	  if ( uniqueness[tt->key()] != m_event ){
+            ttTemp.push_back(tt);
+	    uniqueness[tt->key()] = m_event;
+	  }
+
+          if (layermap[unique_idx]) {  // EM
+	    tt->addHad(fadc, lut, bcidFadc, bcidLut, error,
 	                                         trigLutKeep, trigFadcKeep);
           } else {           // Had
-	    tt->addHad(fadc, lut, bcidFadc, bcidLut, error,
+	    tt->addEM(fadc, lut, bcidFadc, bcidLut, error,
 	                                         trigLutKeep, trigFadcKeep);
           }
         }
@@ -472,10 +580,7 @@ StatusCode PpmByteStreamSubsetTool::convert(
   for (int index = 0; index < size; ++index) {
     if ( !m_zeroSuppress || ttTemp[index]->emEnergy()
                          || ttTemp[index]->hadEnergy() ) {
-      LVL1::TriggerTower* ttIn  = 0;
-      LVL1::TriggerTower* ttOut = 0;
-      ttTemp.swapElement(index, ttIn, ttOut);
-      ttCollection->push_back(ttOut);
+      ttCollection->push_back(ttTemp[index]);
     }
   }
   ttTemp.clear();

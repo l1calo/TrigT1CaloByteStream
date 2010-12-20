@@ -8,6 +8,9 @@
 
 namespace LVL1 {
   class TriggerTower;
+  class JEMEtSums;
+  class JetElement;
+  class JetElementKey;
 }
 
 namespace LVL1BS {
@@ -23,7 +26,11 @@ class ITrigT1CaloDataAccess : virtual public IAlgTool {
                       DataVector<LVL1::TriggerTower>::const_iterator& beg,
                       DataVector<LVL1::TriggerTower>::const_iterator& end,
 		      double etaMin, double etaMax,
-		      double phiMin, double phiMax) = 0;
+		      double phiMin, double phiMax, const bool full) = 0;
+   virtual StatusCode loadCollection(
+                      DataVector<LVL1::JetElement>::const_iterator& beg,
+                      DataVector<LVL1::JetElement>::const_iterator& end)=0;
+
       
 };
 

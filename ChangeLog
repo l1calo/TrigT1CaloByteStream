@@ -1,3 +1,13 @@
+
+2010-12-20 Denis Oliveira Damazio <Denis.Oliveira.Damazio@cern.ch>
+	* Tag TrigT1CaloByteStream-00-08-06
+	* Major changes in TrigT1CaloDataAccess and PpmByteStreamSubsetTool
+		(HLT specific).
+	* TrigT1CaloByteStream : add support for JetElements access,
+		optimization for full TriggerTower unpacking.
+	* PpmByteStreamSubsetTool : optimization for full TriggerTower
+		unpacking. Avoid on-convert-time map access.
+
 2010-03-30  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
         * Tag TrigT1CaloByteStream-00-08-05
         * Efficiency improvements.

@@ -16,6 +16,7 @@
 #include "GaudiKernel/ToolHandle.h"
 
 #include "IPpmByteStreamSubsetTool.h"
+#include "PpmSubBlock.h"
 
 class IInterface;
 class StatusCode;
@@ -29,7 +30,6 @@ namespace LVL1 {
 namespace LVL1BS {
 
 class L1CaloSrcIdMap;
-class PpmSubBlock;
 
 /** Tool to perform ROB fragments to trigger towers conversions.
  *
@@ -53,6 +53,7 @@ class PpmByteStreamSubsetTool : virtual public IPpmByteStreamSubsetTool,
    virtual StatusCode convert(const IROBDataProviderSvc::VROBFRAG& robFrags,
                               DataVector<LVL1::TriggerTower>* ttCollection,
 		              const std::vector<unsigned int> chanIds);
+   virtual void eventNumber(const unsigned int eN ) { m_event=eN;};
 
  private:
    typedef DataVector<LVL1::TriggerTower>                TriggerTowerCollection;
@@ -89,10 +90,34 @@ class PpmByteStreamSubsetTool : virtual public IPpmByteStreamSubsetTool,
    LVL1::TriggerTowerKey* m_towerKey;
    /// Current error block
    PpmSubBlock* m_errorBlock;
-   /// Vector for current PPM sub-blocks
-   DataVector<PpmSubBlock> m_ppmBlocks;
    /// Trigger tower map for conversion from bytestream
    TriggerTowerMap m_ttMap;
+   /// Vector for current PPM sub-blocks. Changed type
+   std::vector<PpmSubBlock*> m_ppmBlocks;
+   /// Pool for current PPM sub-blocks
+   PpmSubBlock* m_ppmBlocksPool[10];
+   // To simplify life, let's prepare maps beforehand
+   // Organized by crate (8), module (16) and channel (64)
+   // eta and phi maps could be avoided. Only used in DEBUG
+   // building of the code
+   double etamap[8192];
+   double phimap[8192];
+   int layermap [8192];
+   unsigned int uniqueness[8192];
+   // The same for new tt addresses (no mem allocation)
+   LVL1::TriggerTower* ttpool[8192];
+   // Cache temporary vector
+   std::vector<LVL1::TriggerTower*> ttTemp;
+   // Cache channel map
+   ChannelMap chanMap;
+   ChannelMap chanMapFull;
+   // Get channel maps for full calo unpack
+   bool m_first;
+   // Caching some variables
+   PpmSubBlock testBlock;
+   // counter of present event
+   unsigned int m_event;
+
 
 };
 
