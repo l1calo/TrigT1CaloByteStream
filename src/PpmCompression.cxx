@@ -254,11 +254,15 @@ bool PpmCompression::unpackV100(PpmSubBlock& subBlock)
   subBlock.setStreamed();
   subBlock.unpackerInit();
   std::vector<uint32_t> compStats(s_formatsV0);
+  std::vector<int> lutData;
+  std::vector<int> lutBcid;
+  std::vector<int> fadcData;
+  std::vector<int> fadcBcid;
   for (int chan = 0; chan < channels; ++chan) {
-    std::vector<int> lutData;
-    std::vector<int> lutBcid;
-    std::vector<int> fadcData;
-    std::vector<int> fadcBcid;
+    lutData.clear();
+    lutBcid.clear();
+    fadcData.clear();
+    fadcBcid.clear();
     int format = 0;
     const int header = subBlock.unpacker(4);
     if (header < 10) {
@@ -356,11 +360,15 @@ bool PpmCompression::unpackV101(PpmSubBlock& subBlock)
   subBlock.setStreamed();
   subBlock.unpackerInit();
   std::vector<uint32_t> compStats(s_formats);
+  std::vector<int> lutData;
+  std::vector<int> lutBcid;
+  std::vector<int> fadcData;
+  std::vector<int> fadcBcid;
   for (int chan = 0; chan < channels; ++chan) {
-    std::vector<int> lutData;
-    std::vector<int> lutBcid;
-    std::vector<int> fadcData;
-    std::vector<int> fadcBcid;
+    lutData.clear();
+    lutBcid.clear();
+    fadcData.clear();
+    fadcBcid.clear();
     int format = 0;
     const int header = subBlock.unpacker(4);
     if (header < 10) {
@@ -506,14 +514,18 @@ bool PpmCompression::unpackV104(PpmSubBlock& subBlock)
   subBlock.setStreamed();
   subBlock.unpackerInit();
   std::vector<uint32_t> compStats(s_formats);
+  std::vector<int> lutData;
+  std::vector<int> lutBcid;
+  std::vector<int> fadcData;
+  std::vector<int> fadcBcid;
   for (int chan = 0; chan < channels; ++chan) {
     if (dataFormat == L1CaloSubBlock::SUPERCOMPRESSED) {
       if ( !subBlock.unpacker(1) ) continue;
     }
-    std::vector<int> lutData;
-    std::vector<int> lutBcid;
-    std::vector<int> fadcData;
-    std::vector<int> fadcBcid;
+    lutData.clear();
+    lutBcid.clear();
+    fadcData.clear();
+    fadcBcid.clear();
     int format = 0;
     const int header = subBlock.unpacker(4);
     if (header < 10) {

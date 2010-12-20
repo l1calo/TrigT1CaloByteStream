@@ -1,3 +1,7 @@
+2010-12-20  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+	* Tag TrigT1CaloByteStream-00-08-07
+        * PpmCompression: Efficiency improvements from Denis Damazio.
+        * Update requirements.
 
 2010-12-20 Denis Oliveira Damazio <Denis.Oliveira.Damazio@cern.ch>
 	* Tag TrigT1CaloByteStream-00-08-06
