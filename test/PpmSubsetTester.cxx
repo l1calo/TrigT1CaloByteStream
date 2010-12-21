@@ -93,7 +93,7 @@ StatusCode PpmSubsetTester::execute()
 
   TriggerTowerCollection::const_iterator beg;
   TriggerTowerCollection::const_iterator end;
-  sc = m_dataAccess->loadCollection(beg, end, etaMin, etaMax, phiMin, phiMax);
+  sc = m_dataAccess->loadCollection(beg, end, etaMin, etaMax, phiMin, phiMax, false);
   if (sc.isFailure()) {
     msg(MSG::ERROR) << "Error accessing data" << endreq;
     return sc;
