@@ -26,7 +26,8 @@ use TrigT1CaloEvent      TrigT1CaloEvent-*      Trigger/TrigT1
 use TrigT1CaloUtils      TrigT1CaloUtils-*      Trigger/TrigT1
 use TrigT1CaloMappingToolInterfaces TrigT1CaloMappingToolInterfaces-* Trigger/TrigT1
 
-# TrigT1Interfaces only needed for test algorithms
+# Only needed for test algorithms
 #use TrigT1Interfaces     TrigT1Interfaces-*     Trigger/TrigT1
+#use StoreGate            StoreGate-*            Control
 
 macro_append DOXYGEN_FILE_PATTERNS    " *.icc"

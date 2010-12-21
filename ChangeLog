@@ -1,5 +1,9 @@
+2010-12-21  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+        * Tag TrigT1CaloByteStream-00-08-08
+        * Update tester for latest interface.
+
 2010-12-20  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
-	* Tag TrigT1CaloByteStream-00-08-07
+        * Tag TrigT1CaloByteStream-00-08-07
         * PpmCompression: Efficiency improvements from Denis Damazio.
         * Update requirements.
 
