@@ -196,7 +196,7 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
   // Clear the event assembler
 
   m_fea->clear();
-  const uint16_t minorVersion = 0x1002;
+  const uint16_t minorVersion = m_srcIdMap->minorVersion();
   m_fea->setRodMinorVersion(minorVersion);
   m_rodStatusMap.clear();
 
@@ -364,7 +364,8 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
                                                 : CmmSubBlock::CRATE;
     for (int slice = 0; slice < timeslicesNew; ++slice) {
       CmmEnergySubBlock* const enBlock = new CmmEnergySubBlock();
-      enBlock->setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
+      const int cmmEnergyVersion = 2; // with Missing-ET-Sig
+      enBlock->setCmmHeader(cmmEnergyVersion, m_dataFormat, slice, hwCrate,
                             summing, CmmSubBlock::CMM_ENERGY,
 			    CmmSubBlock::LEFT, timeslicesNew);
       m_cmmEnergyBlocks.push_back(enBlock);
@@ -396,6 +397,7 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 	    break;
 	  case LVL1::CMMEtSums::MISSING_ET_MAP:
 	  case LVL1::CMMEtSums::SUM_ET_MAP:
+	  case LVL1::CMMEtSums::MISSING_ET_SIG_MAP:
 	    break;
           default:
 	    continue;
@@ -435,6 +437,8 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 	    subBlock->setMissingEtHits(slice, et[slice]); 
           } else if (dataID == LVL1::CMMEtSums::SUM_ET_MAP) {
 	    subBlock->setSumEtHits(slice, et[slice]); 
+	  } else if (dataID == LVL1::CMMEtSums::MISSING_ET_SIG_MAP) {
+	    subBlock->setMissingEtSigHits(slice, et[slice]);
           } else {
 	    subBlock->setSubsums(slice, source,
 	                         ex[slice], ey[slice], et[slice],
@@ -989,6 +993,46 @@ void JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
 	  map->addEx(sumVec, errVec);
 	  map->addEy(sumVec, errVec);
 	  map->addEt(sumVec, errVec);
+        }
+      }
+      if (subBlock.version() > 1) {
+        const unsigned int missEtSig = subBlock.missingEtSigHits(slice);
+        if ( missEtSig || err ) {
+          const int dataID = LVL1::CMMEtSums::MISSING_ET_SIG_MAP;
+          LVL1::CMMEtSums* map = findCmmSums(crate, dataID);
+          if ( ! map ) {
+            std::vector<unsigned int> sigVec(timeslices);
+            std::vector<int> errVec(timeslices);
+	    sigVec[slice] = missEtSig;
+	    errVec[slice] = err;
+	    map = new LVL1::CMMEtSums(swCrate, dataID,
+	                              sigVec, sigVec, sigVec,
+	    			      errVec, errVec, errVec, trigCmm);
+            const int key = crate*100 + dataID;
+	    m_cmmEtMap.insert(std::make_pair(key, map));
+	    m_cmmEtCollection->push_back(map);
+          } else {
+            std::vector<unsigned int> sigVec(map->EtVec());
+            std::vector<int> errVec(map->EtErrorVec());
+	    const int nsl = sigVec.size();
+	    if (timeslices != nsl) {
+	      if (debug) msg() << "Inconsistent number of slices in sub-blocks"
+	                       << endreq;
+              m_rodErr = L1CaloSubBlock::ERROR_SLICES;
+	      return;
+            }
+	    if (sigVec[slice] != 0 || errVec[slice] != 0) {
+	      if (debug) msg() << "Duplicate data for slice "
+	                       << slice << endreq;
+	      m_rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
+	      return;
+            }
+	    sigVec[slice] = missEtSig;
+	    errVec[slice] = err;
+	    map->addEx(sigVec, errVec);
+	    map->addEy(sigVec, errVec);
+	    map->addEt(sigVec, errVec);
+          }
         }
       }
     }

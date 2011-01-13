@@ -541,10 +541,11 @@ void JemTester::printCmmRois(const std::string& source,
                              const LVL1::CMMRoI* const roi) const
 {
   msg() << "CMMRoI(" << source
-        << "):jetEtHits/sumEtHits/missingEtHits/Ex/Ey/Et;error: "
+        << "):jetEtHits/sumEtHits/missingEtHits/missingEtSigHits/Ex/Ey/Et;error: "
         << MSG::hex << roi->jetEtHits() << ";" << roi->jetEtError() << "/"
         << roi->sumEtHits() << ";" << roi->sumEtError() << "/"
         << roi->missingEtHits() << ";" << roi->missingEtError() << "/"
+        << roi->missingEtSigHits() << ";" << roi->missingEtSigError() << "/"
         << MSG::dec << roi->ex() << ";" << roi->exError() << "/"
         << roi->ey() << ";" << roi->eyError() << "/"
         << roi->et() << ";" << roi->etError() << "/" << endreq;

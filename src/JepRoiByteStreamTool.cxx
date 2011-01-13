@@ -145,7 +145,7 @@ StatusCode JepRoiByteStreamTool::convert(
   // Clear the event assembler
 
   m_fea->clear();
-  const uint16_t minorVersion = 0x1002;
+  const uint16_t minorVersion = m_srcIdMap->minorVersion();
   m_fea->setRodMinorVersion(minorVersion);
   m_rodStatusMap.clear();
 
@@ -243,7 +243,8 @@ StatusCode JepRoiByteStreamTool::convert(
       // CMM-Energy
 
       CmmEnergySubBlock enBlock;
-      enBlock.setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
+      const int cmmEnergyVersion = 2; // with Missing-ET-Sig
+      enBlock.setCmmHeader(cmmEnergyVersion, m_dataFormat, slice, hwCrate,
                            CmmSubBlock::SYSTEM, CmmSubBlock::CMM_ENERGY,
 			   CmmSubBlock::LEFT, timeslices);
       int maxDataID = LVL1::CMMEtSums::MAXID;
@@ -262,6 +263,7 @@ StatusCode JepRoiByteStreamTool::convert(
 	      break;
 	    case LVL1::CMMEtSums::MISSING_ET_MAP:
 	    case LVL1::CMMEtSums::SUM_ET_MAP:
+	    case LVL1::CMMEtSums::MISSING_ET_SIG_MAP:
 	      break;
             default:
 	      continue;
@@ -279,6 +281,8 @@ StatusCode JepRoiByteStreamTool::convert(
 	    enBlock.setMissingEtHits(slice, et); 
           } else if (dataID == LVL1::CMMEtSums::SUM_ET_MAP) {
 	    enBlock.setSumEtHits(slice, et); 
+	  } else if (dataID == LVL1::CMMEtSums::MISSING_ET_SIG_MAP) {
+	    enBlock.setMissingEtSigHits(slice, et);
           } else {
 	    enBlock.setSubsums(slice, source, ex, ey, et, exErr, eyErr, etErr);
           }
@@ -358,22 +362,24 @@ StatusCode JepRoiByteStreamTool::convert(
       if ( roi ) {
 	// Make sure word IDs are correct
         const LVL1::CMMRoI roid(roi->jetEtHits(), roi->sumEtHits(),
-	            roi->missingEtHits(), roi->ex(), roi->ey(), roi->et(),
+	            roi->missingEtHits(), roi->missingEtSigHits(),
+		    roi->ex(), roi->ey(), roi->et(),
 		    roi->jetEtError(), roi->sumEtError(),
-		    roi->missingEtError(), roi->exError(), roi->eyError(),
-		    roi->etError());
+		    roi->missingEtError(), roi->missingEtSigError(),
+		    roi->exError(), roi->eyError(), roi->etError());
         if (roid.jetEtHits() || roid.jetEtError()) {
           theROD->push_back(roid.jetEtRoiWord());
         }
-        // CMM-Energy RoIs are not zero-supressed
-        theROD->push_back(roid.energyRoiWord0());
-        theROD->push_back(roid.energyRoiWord1());
-        theROD->push_back(roid.energyRoiWord2());
-      } else {
-        const LVL1::CMMRoI roid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-        theROD->push_back(roid.energyRoiWord0());
-        theROD->push_back(roid.energyRoiWord1());
-        theROD->push_back(roid.energyRoiWord2());
+        // CMM-Energy RoIs are not zero-supressed unless all are zero
+	if (roid.sumEtHits() || roid.missingEtHits() ||
+	    roid.missingEtSigHits() || roid.ex() || roid.ey() || roid.et() ||
+	    roid.sumEtError() || roid.missingEtError() ||
+	    roid.missingEtSigError() || roid.exError() || roid.eyError() ||
+	    roid.etError()) {
+          theROD->push_back(roid.energyRoiWord0());
+          theROD->push_back(roid.energyRoiWord1());
+          theROD->push_back(roid.energyRoiWord2());
+        }
       }
     }
   }
@@ -533,7 +539,7 @@ StatusCode JepRoiByteStreamTool::convertBs(
 		break;
               }
 	      const LVL1::CMMRoI roi(subBlock.jetEtMap(slice),
-	                             0,0,0,0,0,0,0,0,0,0,0);
+	                             0,0,0,0,0,0,0,0,0,0,0,0,0);
 	      m_cmCollection->setRoiWord(roi.jetEtRoiWord());
             }
           } else {
@@ -551,10 +557,11 @@ StatusCode JepRoiByteStreamTool::convertBs(
               }
 	      const LVL1::CMMRoI roi(0, subBlock.sumEtHits(slice),
 	                   subBlock.missingEtHits(slice),
+	                   subBlock.missingEtSigHits(slice),
 			   subBlock.ex(slice, CmmEnergySubBlock::TOTAL),
 			   subBlock.ey(slice, CmmEnergySubBlock::TOTAL),
 			   subBlock.et(slice, CmmEnergySubBlock::TOTAL),
-			   0, 0, 0,
+			   0, 0, 0, 0,
 			   subBlock.exError(slice, CmmEnergySubBlock::TOTAL),
 			   subBlock.eyError(slice, CmmEnergySubBlock::TOTAL),
 			   subBlock.etError(slice, CmmEnergySubBlock::TOTAL));

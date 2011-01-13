@@ -43,6 +43,8 @@ class CmmEnergySubBlock : public CmmSubBlock {
    unsigned int  missingEtHits(int slice) const;
    /// Return Sum-Et Hits map
    unsigned int  sumEtHits(int slice) const;
+   /// Return Missing-ET-Sig Hits map
+   unsigned int  missingEtSigHits(int slice) const;
 
    /// Store energy subsums and errors for given JEM or source ID
    void setSubsums(int slice, int source, unsigned int ex,
@@ -52,6 +54,8 @@ class CmmEnergySubBlock : public CmmSubBlock {
    void setMissingEtHits(int slice, unsigned int map);
    /// Store Sum-Et Hits map
    void setSumEtHits(int slice, unsigned int map);
+   /// Store Missing-ET-Sig Hits map
+   void setMissingEtSigHits(int slice, unsigned int map);
 
    /// Pack data
    bool pack();
@@ -69,6 +73,7 @@ class CmmEnergySubBlock : public CmmSubBlock {
    static const int      s_errorBit        = 15;
    static const int      s_etMissBit       = 16;
    static const int      s_etHitsBit       = 16;
+   static const int      s_etMissSigBit    = 16;
    static const int      s_sourceIdBit     = 25;
    static const int      s_dataWordIdBit   = 30;
    static const int      s_dataWordId      = 0;
@@ -80,7 +85,9 @@ class CmmEnergySubBlock : public CmmSubBlock {
    static const uint32_t s_errorMask       = 0x1;
    static const uint32_t s_remoteErrorMask = 0x3;
    static const uint32_t s_etMissMask      = 0xff;
-   static const uint32_t s_etHitsMask      = 0xf;
+   static const uint32_t s_etHitsMask      = 0xff;
+   static const uint32_t s_etHitsMaskV1    = 0xf;
+   static const uint32_t s_etMissSigMask   = 0xff;
    static const uint32_t s_sumsMask        = 0x7fff;
    static const uint32_t s_sourceIdMask    = 0x1f;
    //  Neutral format

@@ -15,6 +15,7 @@ const int      CmmEnergySubBlock::s_jemErrorBit;
 const int      CmmEnergySubBlock::s_errorBit;
 const int      CmmEnergySubBlock::s_etMissBit;
 const int      CmmEnergySubBlock::s_etHitsBit;
+const int      CmmEnergySubBlock::s_etMissSigBit;
 const int      CmmEnergySubBlock::s_sourceIdBit;
 const int      CmmEnergySubBlock::s_dataWordIdBit;
 const int      CmmEnergySubBlock::s_dataWordId;
@@ -27,6 +28,8 @@ const uint32_t CmmEnergySubBlock::s_errorMask;
 const uint32_t CmmEnergySubBlock::s_remoteErrorMask;
 const uint32_t CmmEnergySubBlock::s_etMissMask;
 const uint32_t CmmEnergySubBlock::s_etHitsMask;
+const uint32_t CmmEnergySubBlock::s_etHitsMaskV1;
+const uint32_t CmmEnergySubBlock::s_etMissSigMask;
 const uint32_t CmmEnergySubBlock::s_sumsMask;
 const uint32_t CmmEnergySubBlock::s_sourceIdMask;
 
@@ -169,7 +172,20 @@ unsigned int CmmEnergySubBlock::sumEtHits(const int slice) const
 {
   unsigned int map = 0;
   if (slice >= 0 && slice < timeslices() && !m_sumsData.empty()) {
-    map = (m_sumsData[index(slice, TOTAL+2)] >> s_etHitsBit) & s_etHitsMask;
+    unsigned int mask = (version() > 1) ? s_etHitsMask : s_etHitsMaskV1;
+    map = (m_sumsData[index(slice, TOTAL+2)] >> s_etHitsBit) & mask;
+  }
+  return map;
+}
+
+// Return Missing-ET-Sig Hits map
+
+unsigned int CmmEnergySubBlock::missingEtSigHits(const int slice) const
+{
+  unsigned int map = 0;
+  if (version() > 1 && slice >= 0 && slice < timeslices()
+                                  && !m_sumsData.empty()) {
+    map = (m_sumsData[index(slice, TOTAL)] >> s_etMissSigBit) & s_etMissSigMask;
   }
   return map;
 }
@@ -245,8 +261,25 @@ void CmmEnergySubBlock::setSumEtHits(const int slice, const unsigned int map)
   if (slice >= 0 && slice < timeslices() && map) {
     resize();
     const int source = TOTAL + 2;
+    const unsigned int mask = (version() > 1) ? s_etHitsMask : s_etHitsMaskV1;
     uint32_t word = m_sumsData[index(slice, source)];
-    word |= (map & s_etHitsMask)      << s_etHitsBit;
+    word |= (map & mask)              << s_etHitsBit;
+    word |= (source & s_sourceIdMask) << s_sourceIdBit;
+    word |=  s_dataWordId             << s_dataWordIdBit;
+    m_sumsData[index(slice, source)] = word;
+  }
+}
+
+// Store Missing-ET-Sig Hits map
+
+void CmmEnergySubBlock::setMissingEtSigHits(const int slice,
+                                            const unsigned int map)
+{
+  if (version() > 1 && slice >= 0 && slice < timeslices() && map) {
+    resize();
+    const int source = TOTAL;
+    uint32_t word = m_sumsData[index(slice, source)];
+    word |= (map & s_etMissSigMask)   << s_etMissSigBit;
     word |= (source & s_sourceIdMask) << s_sourceIdBit;
     word |=  s_dataWordId             << s_dataWordIdBit;
     m_sumsData[index(slice, source)] = word;
@@ -259,7 +292,7 @@ bool CmmEnergySubBlock::pack()
 {
   bool rc = false;
   switch (version()) {
-    case 1:
+    case 2:
       switch (format()) {
         case NEUTRAL:
 	  rc = packNeutral();
@@ -282,6 +315,7 @@ bool CmmEnergySubBlock::unpack()
   bool rc = false;
   switch (version()) {
     case 1:
+    case 2:
       switch (format()) {
         case NEUTRAL:
 	  rc = unpackNeutral();
@@ -343,12 +377,14 @@ bool CmmEnergySubBlock::packNeutral()
         packerNeutral(pin, daqOverflow(), 1);
       } else packerNeutral(pin, 0, 1);
     }
+    int pin = s_bunchCrossingBits - 1;
+    // Missing-ET-Sig Hits Map
+    packerNeutral(pin, missingEtSigHits(slice), s_paddingBits);
     // Total Et
-    int pin = s_bunchCrossingBits;
-    packerNeutral(pin, et(slice, TOTAL), s_paddingBits);
+    packerNeutral(++pin, et(slice, TOTAL), s_paddingBits);
     packerNeutral(++pin, et(slice, TOTAL) >> s_paddingBits, s_paddingBits-1);
     packerNeutral(pin, etError(slice, TOTAL), 1);
-    // Sum-Et Hits Map + padding
+    // Sum-Et Hits Map
     packerNeutral(++pin, sumEtHits(slice), s_paddingBits);
     // Missing-ET Hits Map
     packerNeutral(++pin, missingEtHits(slice), s_paddingBits);
@@ -416,9 +452,11 @@ bool CmmEnergySubBlock::unpackNeutral()
         overflow |= unpackerNeutral(pin, 1);
       } else unpackerNeutral(pin, 1);
     }
+    int pin = s_bunchCrossingBits - 1;
+    // Missing-ET-Sig Hits Map
+    setMissingEtSigHits(slice, unpackerNeutral(pin, s_paddingBits));
     // Total Et
-    int pin = s_bunchCrossingBits;
-    unsigned int etTot = unpackerNeutral(pin, s_paddingBits);
+    unsigned int etTot = unpackerNeutral(++pin, s_paddingBits);
     etTot |= unpackerNeutral(++pin, s_paddingBits-1) << s_paddingBits;
     const int etErrTot = unpackerNeutral(pin, 1);
     // Sum-Et Hits Map + padding

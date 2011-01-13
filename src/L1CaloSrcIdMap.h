@@ -48,6 +48,9 @@ public:
   /// Return sub-detector for given ID
   eformat::SubDetector subDet(uint32_t code);
 
+  /// Return ROD header minor version to use when writing BS
+  uint16_t minorVersion() {return 0x1003;}
+
 };
 
 } // end namespace
