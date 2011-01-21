@@ -1,4 +1,5 @@
 
+#include <numeric>
 #include <utility>
 
 #include "GaudiKernel/MsgStream.h"
@@ -617,8 +618,13 @@ void JemTester::setupEtMap(const EnergySumsCollection* const etCollection)
     EnergySumsCollection::const_iterator pose = etCollection->end();
     for (; pos != pose; ++pos) {
       const LVL1::JEMEtSums* const sums = *pos;
-      const int key = sums->crate()*100 + sums->module();
-      m_etMap.insert(std::make_pair(key, sums));
+      // Sim doesn't zero suppress properly, do it here
+      if (std::accumulate((sums->ExVec()).begin(), (sums->ExVec()).end(), 0) ||
+          std::accumulate((sums->EyVec()).begin(), (sums->EyVec()).end(), 0) ||
+          std::accumulate((sums->EtVec()).begin(), (sums->EtVec()).end(), 0)) {
+        const int key = sums->crate()*100 + sums->module();
+        m_etMap.insert(std::make_pair(key, sums));
+      }
     }
   }
 }
@@ -649,8 +655,18 @@ void JemTester::setupCmmEtMap(const CmmEnergyCollection* const etCollection)
     CmmEnergyCollection::const_iterator pose = etCollection->end();
     for (; pos != pose; ++pos) {
       const LVL1::CMMEtSums* const sums = *pos;
-      const int key = sums->crate()*100 + sums->dataID();
-      m_cmmEtMap.insert(std::make_pair(key, sums));
+      if (std::accumulate((sums->ExVec()).begin(), (sums->ExVec()).end(), 0) ||
+          std::accumulate((sums->EyVec()).begin(), (sums->EyVec()).end(), 0) ||
+          std::accumulate((sums->EtVec()).begin(), (sums->EtVec()).end(), 0) ||
+          std::accumulate((sums->ExErrorVec()).begin(),
+	                                      (sums->ExErrorVec()).end(), 0) ||
+          std::accumulate((sums->EyErrorVec()).begin(),
+	                                      (sums->EyErrorVec()).end(), 0) ||
+          std::accumulate((sums->EtErrorVec()).begin(),
+	                                      (sums->EtErrorVec()).end(), 0)) {
+        const int key = sums->crate()*100 + sums->dataID();
+        m_cmmEtMap.insert(std::make_pair(key, sums));
+      }
     }
   }
 }

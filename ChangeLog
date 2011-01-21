@@ -1,3 +1,7 @@
+2011-01-21  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+        * Tag TrigT1CaloByteStream-00-08-10
+        * Minor mods to JemTester.
+
 2011-01-13  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
         * Tag TrigT1CaloByteStream-00-08-09
         * Updates for MissingEtSig.
