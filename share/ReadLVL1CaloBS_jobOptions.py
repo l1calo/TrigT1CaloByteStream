@@ -4,6 +4,7 @@ include.block("TrigT1CaloByteStream/ReadLVL1CaloBS_jobOptions.py")
 # the following include is needed to load correctly the trigger towers on/off, TT/Cells maps
 include( "CaloConditions/CaloConditions_jobOptions.py" )
 # To setup correctly the LArCablingService when doLAr is off in the top option.
+from RecExConfig.RecFlags import rec
 if not rec.doLArg():
     include( "LArConditionsCommon/LArIdMap_comm_jobOptions.py" )
     include( "LArIdCnv/LArIdCnv_joboptions.py" )
