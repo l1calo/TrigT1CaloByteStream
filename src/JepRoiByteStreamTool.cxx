@@ -193,6 +193,7 @@ StatusCode JepRoiByteStreamTool::convert(
 	m_rodStatusMap.insert(make_pair(rodIdJem, m_rodStatus));
       }
       if (debug) msg() << "JEM Module " << module << endreq;
+      if (!theROD) break; // for coverity, shouldn't happen
 
       // Create a sub-block (Neutral format only)
 
@@ -229,6 +230,7 @@ StatusCode JepRoiByteStreamTool::convert(
 	m_subBlock->write(theROD);
       }
     }
+    if (!theROD) break; // for coverity, shouldn't happen
 
     // Append CMM RoIs to last S-Link of the system crate
 
@@ -247,7 +249,7 @@ StatusCode JepRoiByteStreamTool::convert(
       enBlock.setCmmHeader(cmmEnergyVersion, m_dataFormat, slice, hwCrate,
                            CmmSubBlock::SYSTEM, CmmSubBlock::CMM_ENERGY,
 			   CmmSubBlock::LEFT, timeslices);
-      int maxDataID = LVL1::CMMEtSums::MAXID;
+      int maxDataID = static_cast<int>(LVL1::CMMEtSums::MAXID);
       for (int dataID = 0; dataID < maxDataID; ++dataID) {
         int source = dataID;
         if (dataID >= m_modules) {
@@ -304,7 +306,7 @@ StatusCode JepRoiByteStreamTool::convert(
       jetBlock.setCmmHeader(m_version, m_dataFormat, slice, hwCrate,
                             CmmSubBlock::SYSTEM, CmmSubBlock::CMM_JET,
 			    CmmSubBlock::RIGHT, timeslices);
-      maxDataID = LVL1::CMMJetHits::MAXID;
+      maxDataID = static_cast<int>(LVL1::CMMJetHits::MAXID);
       for (int dataID = 0; dataID < maxDataID; ++dataID) {
         int source = dataID;
         if (dataID >= m_modules) {

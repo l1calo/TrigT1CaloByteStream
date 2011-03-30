@@ -311,6 +311,9 @@ StatusCode PpmByteStreamSubsetTool::convert(
       testBlock.clear();
 
       payload = testBlock.read(payload, payloadEnd);
+      if (payload == payloadEnd) {
+        if (debug) msg() << "Keep coverity happy" << endreq;
+      }
       chanPerSubBlock = testBlock.channelsPerSubBlock();
       if (chanPerSubBlock == 0) {
         if (debug) msg() << "Unsupported version/data format: "
@@ -476,6 +479,10 @@ StatusCode PpmByteStreamSubsetTool::convert(
 	    break;
           }
 	}
+	if (!subBlock) {
+	  if (debug) msg() << "Logic error" << endreq;
+	  break;
+        }
 	subBlock->ppmData(channel, lut, fadc, bcidLut, bcidFadc);
 	int trigLutKeep  = trigLut;
 	int trigFadcKeep = trigFadc;

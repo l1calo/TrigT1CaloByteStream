@@ -265,6 +265,9 @@ StatusCode PpmByteStreamTool::convert(
       }
       PpmSubBlock testBlock;
       payload = testBlock.read(payload, payloadEnd);
+      if (payload == payloadEnd) {
+        if (debug) msg() << "Keep coverity happy" << endreq;
+      }
       chanPerSubBlock = testBlock.channelsPerSubBlock();
       if (chanPerSubBlock == 0) {
         m_errorTool->rodError(robid, testBlock.unpackErrorCode());

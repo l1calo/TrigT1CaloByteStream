@@ -1,3 +1,7 @@
+2011-03-30  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+        * Tag TrigT1CaloByteStream-00-08-12
+        * Coverity fixes.
+
 2011-02-08  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
         * Tag TrigT1CaloByteStream-00-08-11
         * jobOption fix for AthenaMT.

@@ -379,7 +379,7 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 
     // CMM-Energy
 
-    int maxDataID = LVL1::CMMEtSums::MAXID;
+    int maxDataID = static_cast<int>(LVL1::CMMEtSums::MAXID);
     for (int dataID = 0; dataID < maxDataID; ++dataID) {
       int source = dataID;
       if (dataID >= m_modules) {
@@ -464,7 +464,7 @@ StatusCode JepByteStreamTool::convert(const LVL1::JEPBSCollection* const jep,
 
     // CMM-Jet
 
-    maxDataID = LVL1::CMMJetHits::MAXID;
+    maxDataID = static_cast<int>(LVL1::CMMJetHits::MAXID);
     for (int dataID = 0; dataID < maxDataID; ++dataID) {
       int source = dataID;
       if (dataID >= m_modules) {
@@ -806,7 +806,7 @@ void JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
   const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
   const int crate    = hwCrate - m_crateOffsetHw;
   const int swCrate  = crate   + m_crateOffsetSw;
-  const int maxSid   = CmmEnergySubBlock::MAX_SOURCE_ID;
+  const int maxSid   = static_cast<int>(CmmEnergySubBlock::MAX_SOURCE_ID);
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
@@ -1090,7 +1090,7 @@ void JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock, int trigCmm)
   const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
   const int crate    = hwCrate - m_crateOffsetHw;
   const int swCrate  = crate   + m_crateOffsetSw;
-  const int maxSid   = CmmJetSubBlock::MAX_SOURCE_ID;
+  const int maxSid   = static_cast<int>(CmmJetSubBlock::MAX_SOURCE_ID);
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
