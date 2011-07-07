@@ -146,7 +146,7 @@ StatusCode PpmByteStreamSubsetTool::finalize()
 StatusCode PpmByteStreamSubsetTool::convert(
                             const IROBDataProviderSvc::VROBFRAG& robFrags,
                             DataVector<LVL1::TriggerTower>* const ttCollection,
-			    const std::vector<unsigned int> chanIds)
+			    const std::vector<unsigned int>& chanIds)
 {
   std::vector<int> lut;
   std::vector<int> fadc;
@@ -591,6 +591,8 @@ StatusCode PpmByteStreamSubsetTool::convert(
     }
   }
   ttTemp.clear();
+  for(int i=0;i<8192;i++)
+	   uniqueness[i]=0xffffffff;
 
   return StatusCode::SUCCESS;
 }

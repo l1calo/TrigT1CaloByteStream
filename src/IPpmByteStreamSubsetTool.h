@@ -24,7 +24,7 @@ class IPpmByteStreamSubsetTool : virtual public IAlgTool {
 
    virtual StatusCode convert(const IROBDataProviderSvc::VROBFRAG& robFrags,
                               DataVector<LVL1::TriggerTower>* ttCollection,
-			      const std::vector<unsigned int> chanIds) = 0;
+			      const std::vector<unsigned int>& chanIds) = 0;
    virtual void eventNumber(const unsigned int eN ) = 0;
       
 };

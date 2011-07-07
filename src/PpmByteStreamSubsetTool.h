@@ -52,7 +52,7 @@ class PpmByteStreamSubsetTool : virtual public IPpmByteStreamSubsetTool,
    /// Convert ROB fragments to trigger towers
    virtual StatusCode convert(const IROBDataProviderSvc::VROBFRAG& robFrags,
                               DataVector<LVL1::TriggerTower>* ttCollection,
-		              const std::vector<unsigned int> chanIds);
+		              const std::vector<unsigned int>& chanIds);
    virtual void eventNumber(const unsigned int eN ) { m_event=eN;};
 
  private:
