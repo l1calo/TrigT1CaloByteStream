@@ -159,10 +159,13 @@ StatusCode TrigT1CaloDataAccess::loadCollection(
   // Get data
   m_robFrags.clear();
 
-  if ( full )
+  if ( full ){
+  m_robDataProvider->addROBData(m_robs_full);
   m_robDataProvider->getROBData(m_robs_full, m_robFrags);
-  else
+  }else{
+  m_robDataProvider->addROBData(m_robs);
   m_robDataProvider->getROBData(m_robs, m_robFrags);
+  }
 
   // Convert to TriggerTowers
   m_ttCol->clear();
@@ -190,6 +193,7 @@ StatusCode TrigT1CaloDataAccess::loadCollection(
   if ( m_present_event != m_lC_Jet ){
   // Get data
   m_robFrags.clear();
+  m_robDataProvider->addROBData(m_robs_full_je);
   m_robDataProvider->getROBData(m_robs_full_je, m_robFrags);
 
   m_jetCol->clear();

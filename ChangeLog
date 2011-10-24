@@ -1,4 +1,7 @@
 
+2011-10-25 Denis Oliveira Damazio <Denis.Oliveira.Damazio@cern.ch>
+	* Little fix for online operation.
+
 2011-07-07 Denis Oliveira Damazio <Denis.Oliveira.Damazio@cern.ch>
 	* Some fixes for the PpmByteStreamSubSet tool.
 
