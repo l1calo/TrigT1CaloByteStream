@@ -12,11 +12,13 @@
 #include "ByteStreamData/RawEvent.h"
 #include "DataModel/DataVector.h"
 #include "eformat/SourceIdentifier.h"
+#include "GaudiKernel/ServiceHandle.h"
 #include "GaudiKernel/ToolHandle.h"
 
 class IInterface;
 class InterfaceID;
 class StatusCode;
+class SegMemSvc;
 
 template <class T> class FullEventAssembler;
 
@@ -67,9 +69,11 @@ class PpmByteStreamTool : public AthAlgTool {
  private:
 
    typedef DataVector<LVL1::TriggerTower>                TriggerTowerCollection;
-   typedef std::map<unsigned int, LVL1::TriggerTower*>   TriggerTowerMap;
+   typedef std::vector<LVL1::TriggerTower*>              TriggerTowerVector;
+   typedef std::map<unsigned int, int>                   TriggerTowerMap;
    typedef std::map<unsigned int, const LVL1::TriggerTower*>
                                                          TriggerTowerMapConst;
+   typedef std::vector<uint32_t>                         ChannelBitVector;
    typedef IROBDataProviderSvc::VROBFRAG::const_iterator ROBIterator;
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      ROBPointer;
    typedef OFFLINE_FRAGMENTS_NAMESPACE::PointerType      RODPointer;
@@ -82,10 +86,6 @@ class PpmByteStreamTool : public AthAlgTool {
    /// Find a trigger tower using separate layer maps
    const LVL1::TriggerTower* findLayerTriggerTower(double eta, double phi,
                                                                int layer);
-
-   /// Find a trigger tower given eta, phi
-   LVL1::TriggerTower* findTriggerTower(unsigned int key);
-
    /// Set up separate Em and Had trigger tower maps
    void setupTTMaps(const TriggerTowerCollection* ttCollection);
 
@@ -100,6 +100,8 @@ class PpmByteStreamTool : public AthAlgTool {
    ToolHandle<LVL1::IL1CaloMappingTool> m_ppmMaps;
    /// Error collection tool
    ToolHandle<LVL1BS::L1CaloErrorByteStreamTool> m_errorTool;
+   /// Memory pool service
+   ServiceHandle<SegMemSvc> m_sms;
 
    /// Sub_block header version
    int m_version;
@@ -109,12 +111,6 @@ class PpmByteStreamTool : public AthAlgTool {
    int m_compVers;
    /// Compression statistics print flag
    int m_printCompStats;
-   /// Number of channels per module (may not all be used)
-   int m_channels;
-   /// Number of crates
-   int m_crates;
-   /// Number of modules per crate (may not all exist)
-   int m_modules;
    /// Number of slinks per crate when writing out bytestream
    int m_slinks;
    /// Default number of LUT slices in simulation
@@ -133,6 +129,8 @@ class PpmByteStreamTool : public AthAlgTool {
    int m_fadcThreshold;
    /// Zero suppression on input
    int m_zeroSuppress;
+   /// Data channel flag
+   bool m_dataChannels;
    /// Spare channel flag
    bool m_spareChannels;
    /// Tile Muon channel flag
@@ -165,6 +163,25 @@ class PpmByteStreamTool : public AthAlgTool {
    std::map<uint32_t, std::vector<uint32_t>* > m_rodStatusMap;
    /// Event assembler
    FullEventAssembler<L1CaloSrcIdMap>* m_fea;
+   /// TriggerTower pool vectors
+   TriggerTowerVector m_ttData;
+   TriggerTowerVector m_ttSpare;
+   TriggerTowerVector m_ttMuon;
+   std::vector<int> m_ttPos;
+   /// Mapping vectors
+   ChannelBitVector m_chanLayer;
+   ChannelBitVector m_dataChan;
+   ChannelBitVector m_spareChan;
+   ChannelBitVector m_muonChan;
+   ChannelBitVector m_dataMod;
+   ChannelBitVector m_spareMod;
+   ChannelBitVector m_muonMod;
+   ChannelBitVector m_foundChan;
+
+   static const int s_crates   = 8;
+   static const int s_modules  = 16;
+   static const int s_channels = 64;
+   static const int s_dataSize = 3584;
 
 };
 

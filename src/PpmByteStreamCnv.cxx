@@ -125,7 +125,7 @@ StatusCode PpmByteStreamCnv::createObj( IOpaqueAddress* pAddr,
 
   // size check
   DataVector<LVL1::TriggerTower>* const ttCollection =
-                                           new DataVector<LVL1::TriggerTower>;
+                      new DataVector<LVL1::TriggerTower>(SG::VIEW_ELEMENTS);
   if (m_debug) {
     m_log << MSG::DEBUG << " Number of ROB fragments is " << robFrags.size()
           << endreq;

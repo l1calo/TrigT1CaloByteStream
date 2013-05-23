@@ -6,6 +6,7 @@
 #include "GaudiKernel/IInterface.h"
 #include "GaudiKernel/MsgStream.h"
 #include "GaudiKernel/StatusCode.h"
+#include "StoreGate/SegMemSvc.h"
 
 #include "ByteStreamCnvSvcBase/FullEventAssembler.h"
 
@@ -26,6 +27,11 @@
 
 namespace LVL1BS {
 
+const int PpmByteStreamTool::s_crates;
+const int PpmByteStreamTool::s_modules;
+const int PpmByteStreamTool::s_channels;
+const int PpmByteStreamTool::s_dataSize;
+
 // Interface ID
 
 static const InterfaceID IID_IPpmByteStreamTool("PpmByteStreamTool", 1, 1);
@@ -43,8 +49,9 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
   : AthAlgTool(type, name, parent),
     m_ppmMaps("LVL1::PpmMappingTool/PpmMappingTool"),
     m_errorTool("LVL1BS::L1CaloErrorByteStreamTool/L1CaloErrorByteStreamTool"),
-    m_version(1), m_compVers(4), m_channels(64), m_crates(8),
-    m_modules(16), m_spareChannels(false), m_muonChannels(false),
+    m_sms("SegMemSvc/SegMemSvc", name),
+    m_version(1), m_compVers(4),
+    m_dataChannels(true), m_spareChannels(false), m_muonChannels(false),
     m_subDetector(eformat::TDAQ_CALO_PREPROC),
     m_srcIdMap(0), m_towerKey(0), m_errorBlock(0), m_rodStatus(0), m_fea(0)
 {
@@ -113,6 +120,12 @@ StatusCode PpmByteStreamTool::initialize()
     return sc;
   } else msg(MSG::INFO) << "Retrieved tool " << m_errorTool << endreq;
 
+  sc = m_sms.retrieve();
+  if (sc.isFailure()) {
+    msg(MSG::ERROR) << "Failed to retrieve service " << m_sms << endreq;
+    return sc;
+  } else msg(MSG::INFO) << "Retrieved service " << m_sms << endreq;
+
   m_srcIdMap  = new L1CaloSrcIdMap();
   m_towerKey  = new LVL1::TriggerTowerKey();
   m_rodStatus = new std::vector<uint32_t>(2);
@@ -147,10 +160,121 @@ StatusCode PpmByteStreamTool::convert(
   const bool verbose = msgLvl(MSG::VERBOSE);
   if (debug) msg(MSG::DEBUG);
 
-  // Clear trigger tower map
+  // Set up TriggerTower pool and mappings
+  // (NB. This assumes mappings won't change during the course of a job)
+  const int maxChannels = s_crates * s_modules * s_channels;
+  const int chanBitVecSize = maxChannels/32;
+  if (m_ttData.empty()) {
+    const int spareSize = maxChannels - 2*s_dataSize;
+    const int muonSize = 2*s_channels;
+    const int modBitVecSize = (s_crates * s_modules)/32;
+    m_ttData.reserve(s_dataSize);
+    m_ttSpare.reserve(spareSize);
+    m_ttMuon.reserve(muonSize);
+    m_ttPos.resize(maxChannels);
+    m_chanLayer.resize(chanBitVecSize);
+    m_dataChan.resize(chanBitVecSize);
+    m_spareChan.resize(chanBitVecSize);
+    m_muonChan.resize(chanBitVecSize);
+    m_dataMod.resize(modBitVecSize);
+    m_spareMod.resize(modBitVecSize);
+    m_muonMod.resize(modBitVecSize);
+    TriggerTowerMap ttMap;
+    TriggerTowerMap::iterator itt;
+    std::vector<int> dummyS;
+    std::vector<int> dummyL(1);
+    std::vector<int> dummyF(5);
+    int dataCount  = 0;
+    int spareCount = 0;
+    for (int crate = 0; crate < s_crates; ++crate) {
+      for (int module = 0; module < s_modules; ++module) {
+	const int index2 = (crate<<4) + module;
+	const int word2  = index2/32;
+	const int bit2   = index2%32;
+        for (int channel = 0; channel < s_channels; ++channel) {
+	  const int index = (crate<<10) + (module<<6) + channel;
+	  const int word  = index/32;
+	  const int bit   = index%32;
+	  double eta = 0.;
+	  double phi = 0.;
+	  int layer = 0;
+	  unsigned int key = 0;
+	  if (m_ppmMaps->mapping(crate, module, channel, eta, phi, layer)) {
+	    // Data channels
+	    key = m_towerKey->ttKey(phi, eta);
+	    itt = ttMap.find(key);
+	    if (itt == ttMap.end()) {
+	      LVL1::TriggerTower* tt =
+	          new (m_sms->allocate<LVL1::TriggerTower>(SegMemSvc::JOB))
+		          LVL1::TriggerTower(phi, eta, key,
+			  dummyF, dummyL, dummyF, dummyL, 0, 0, 0,
+			  dummyF, dummyL, dummyF, dummyL, 0, 0, 0);
+	      m_ttData.push_back(tt);
+	      const int count = dataCount++;
+	      m_ttPos[index] = count;
+	      ttMap.insert(std::make_pair(key,count));
+            } else {
+	      m_ttPos[index] = itt->second;
+            }
+	    m_chanLayer[word] |= (layer<<bit);
+	    m_dataChan[word]  |= (1<<bit);
+	    m_dataMod[word2]  |= (1<<bit2);
+          } else {
+	    // Spare channels
+	    const int pin  = channel%16;
+	    const int asic = channel/16;
+	    eta = 16*crate + module;
+	    phi = 4*pin + asic;
+	    layer = 0;
+	    const int type = 1;
+	    key = (crate<<24) | (type<<20) | (module<<16) | (pin<<8) | asic; // CoolID
+	    LVL1::TriggerTower* tt =
+	        new (m_sms->allocate<LVL1::TriggerTower>(SegMemSvc::JOB))
+		          LVL1::TriggerTower(phi, eta, key,
+			  dummyF, dummyL, dummyF, dummyL, 0, 0, 0,
+			  dummyS, dummyS, dummyS, dummyS, 0, 0, 0);
+	    m_ttSpare.push_back(tt);
+	    m_ttPos[index] = spareCount++;
+	    m_chanLayer[word] |= (layer<<bit);
+	    m_spareChan[word] |= (1<<bit);
+	    m_spareMod[word2] |= (1<<bit2);
+            if ((crate == 2 || crate == 3) && (module == 0)) {
+	      m_ttMuon.push_back(tt);
+	      m_muonChan[word] |= (1<<bit);
+	      m_muonMod[word2] |= (1<<bit2);
+	    }
+          }
+        }
+      }
+    }
+  }
 
-  m_ttMap.clear();
-  TriggerTowerCollection ttTemp;
+  // Set up according to the collection we want
+
+  TriggerTowerVector& ttCol((m_dataChannels) ? m_ttData
+                                             : (m_spareChannels)
+                                                ? m_ttSpare
+			  		        : m_ttMuon);
+  TriggerTowerVector& ttColRef((m_dataChannels) ? m_ttData
+                                                : m_ttSpare);
+  ChannelBitVector& colChan((m_dataChannels) ? m_dataChan
+                                             : (m_spareChannels)
+			   			? m_spareChan
+						: m_muonChan);
+  ChannelBitVector& colMod((m_dataChannels) ? m_dataMod
+                                            : (m_spareChannels)
+					       ? m_spareMod
+					       : m_muonMod);
+  const int colSize = (m_dataChannels) ? 2*ttCol.size()
+                                       : ttCol.size();
+  m_foundChan.assign(chanBitVecSize, 0);
+  int ttCount = 0;
+
+  // Vectors to unpack into
+  std::vector<int> lut;
+  std::vector<int> fadc;
+  std::vector<int> bcidLut;
+  std::vector<int> bcidFadc;
 
   // Loop over ROB fragments
 
@@ -205,7 +329,7 @@ StatusCode PpmByteStreamTool::convert(
         m_srcIdMap->subDet(sourceID)   != m_subDetector ||
 	m_srcIdMap->daqOrRoi(sourceID) != 0             ||
 	m_srcIdMap->slink(sourceID)    >= m_slinks      ||
-	m_srcIdMap->crate(sourceID)    >= m_crates) {
+	m_srcIdMap->crate(sourceID)    >= s_crates) {
       m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_ROD_ID);
       if (debug) {
         msg() << "Wrong source identifier in data: ROD "
@@ -256,6 +380,9 @@ StatusCode PpmByteStreamTool::convert(
     // Find the number of channels per sub-block
 
     int chanPerSubBlock = 0;
+    bool firstBlock = false;
+    uint32_t firstWord = 0;
+    RODPointer payloadFirst;
     if (payload != payloadEnd) {
       if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER
                                    || CmmSubBlock::cmmBlock(*payload)) {
@@ -263,17 +390,20 @@ StatusCode PpmByteStreamTool::convert(
         if (debug) msg() << "Missing Sub-block header" << endreq;
 	continue;
       }
-      PpmSubBlock testBlock;
-      payload = testBlock.read(payload, payloadEnd);
-      if (payload == payloadEnd) {
-        if (debug) msg() << "Keep coverity happy" << endreq;
+      firstBlock = true;
+      firstWord = *payload;
+      if (m_ppmBlocks.empty()) {
+        m_ppmBlocks.push_back(new PpmSubBlock());
       }
-      chanPerSubBlock = testBlock.channelsPerSubBlock();
+      PpmSubBlock* const subBlock = m_ppmBlocks[0];
+      subBlock->clear();
+      payloadFirst = subBlock->read(payload, payloadEnd);
+      chanPerSubBlock = subBlock->channelsPerSubBlock();
       if (chanPerSubBlock == 0) {
-        m_errorTool->rodError(robid, testBlock.unpackErrorCode());
+        m_errorTool->rodError(robid, subBlock->unpackErrorCode());
         if (debug) msg() << "Unsupported version/data format: "
-                         << testBlock.version() << "/"
-                         << testBlock.format()  << endreq;
+                         << subBlock->version() << "/"
+                         << subBlock->format()  << endreq;
 	continue;
       }
       if (debug) msg() << "Channels per sub-block: "
@@ -282,7 +412,13 @@ StatusCode PpmByteStreamTool::convert(
       if (debug) msg() << "ROB fragment contains user header only" << endreq;
       continue;
     }
-    const int numSubBlocks = m_channels/chanPerSubBlock;
+    const int numSubBlocks = s_channels/chanPerSubBlock;
+    const int size = m_ppmBlocks.size();
+    if (numSubBlocks > size) {
+      for (int i = size; i < numSubBlocks; ++i) {
+        m_ppmBlocks.push_back(new PpmSubBlock());
+      }
+    }
 
     // Loop over PPMs
 
@@ -291,32 +427,39 @@ StatusCode PpmByteStreamTool::convert(
     unsigned int rodErr = L1CaloSubBlock::ERROR_NONE;
     while (payload != payloadEnd) {
 
-      // Get all sub-blocks for one PPM
+      // Get all sub-blocks for one PPM (first already read in above)
 
       int crate = 0;
       int module = 0;
-      m_ppmBlocks.clear();
+      int nPpmBlocks = 0;
       for (int block = 0; block < numSubBlocks; ++block) {
-        if (L1CaloSubBlock::wordType(*payload) != L1CaloSubBlock::HEADER
-                                   || CmmSubBlock::cmmBlock(*payload)
-	                           || PpmSubBlock::errorBlock(*payload)) {
+	const uint32_t word = (firstBlock) ? firstWord : *payload;
+        if (L1CaloSubBlock::wordType(word) != L1CaloSubBlock::HEADER
+                                   || CmmSubBlock::cmmBlock(word)
+	                           || PpmSubBlock::errorBlock(word)) {
           if (debug) msg() << "Unexpected data sequence" << endreq;
 	  rodErr = L1CaloSubBlock::ERROR_MISSING_HEADER;
 	  break;
         }
-        if (chanPerSubBlock != m_channels && 
-	    L1CaloSubBlock::seqno(*payload) != block * chanPerSubBlock) {
+        if (chanPerSubBlock != s_channels && 
+	    L1CaloSubBlock::seqno(word) != block * chanPerSubBlock) {
 	  if (debug) {
             msg() << "Unexpected channel sequence number: "
-	          << L1CaloSubBlock::seqno(*payload) << " expected " 
+	          << L1CaloSubBlock::seqno(word) << " expected " 
 	          << block * chanPerSubBlock << endreq;
 	  }
 	  rodErr = L1CaloSubBlock::ERROR_MISSING_SUBBLOCK;
 	  break;
         }
-        PpmSubBlock* const subBlock = new PpmSubBlock();
-        m_ppmBlocks.push_back(subBlock);
-        payload = subBlock->read(payload, payloadEnd);
+        PpmSubBlock* const subBlock = m_ppmBlocks[block];
+	nPpmBlocks++;
+	if (firstBlock) {
+          payload = payloadFirst;
+          firstBlock = false;
+        } else {
+          subBlock->clear();
+          payload = subBlock->read(payload, payloadEnd);
+        }
         if (block == 0) {
           crate = subBlock->crate();
 	  module = subBlock->module();
@@ -354,14 +497,15 @@ StatusCode PpmByteStreamTool::convert(
 
       // Is there an error block?
 
-      delete m_errorBlock;
-      m_errorBlock = 0;
+      bool isErrBlock = false;
       if (payload != payloadEnd) {
         if (L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::HEADER
                                     && !CmmSubBlock::cmmBlock(*payload)
 	                            && PpmSubBlock::errorBlock(*payload)) {
 	  if (debug) msg() << "Error block found" << endreq;
-	  m_errorBlock = new PpmSubBlock();
+	  if (!m_errorBlock) m_errorBlock = new PpmSubBlock();
+	  else m_errorBlock->clear();
+	  isErrBlock = true;
 	  payload = m_errorBlock->read(payload, payloadEnd);
           if (m_errorBlock->crate() != crate) {
 	    if (debug) msg() << "Inconsistent crate number in error block"
@@ -386,10 +530,16 @@ StatusCode PpmByteStreamTool::convert(
         }
       }
 
+      // Don't bother unpacking modules that aren't used for required collection
+
+      const int index2 = (crate<<4) + module;
+      const int word2  = index2/32;
+      const int bit2   = index2%32;
+      if (!((colMod[word2]>>bit2)&1)) continue;
+
       // Loop over sub-blocks and fill trigger towers
 
-      const int actualSubBlocks = m_ppmBlocks.size();
-      for (int block = 0; block < actualSubBlocks; ++block) {
+      for (int block = 0; block < nPpmBlocks; ++block) {
         PpmSubBlock* const subBlock = m_ppmBlocks[block];
 	subBlock->setLutOffset(trigLut);
 	subBlock->setFadcOffset(trigFadc);
@@ -412,10 +562,21 @@ StatusCode PpmByteStreamTool::convert(
 	if (m_printCompStats) addCompStats(subBlock->compStats());
         for (int chan = 0; chan < chanPerSubBlock; ++chan) {
           const int channel = block*chanPerSubBlock + chan;
-  	  std::vector<int> lut;
-	  std::vector<int> fadc;
-	  std::vector<int> bcidLut;
-	  std::vector<int> bcidFadc;
+	  const int index = (crate<<10) + (module<<6) + channel;
+	  const int word  = index/32;
+	  const int bit   = index%32;
+	  if (!((colChan[word]>>bit)&1)) continue; // skip unwanted channels
+	  if (((m_foundChan[word]>>bit)&1)) {
+	    if (debug) msg() << "Duplicate data for crate/module/channel: "
+	                     << crate << "/" << module << "/" << channel
+			     << endreq;
+	    rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
+	    break;
+          }
+	  lut.clear();
+	  fadc.clear();
+	  bcidLut.clear();
+	  bcidFadc.clear();
 	  subBlock->ppmData(channel, lut, fadc, bcidLut, bcidFadc);
 	  if (lut.size() < size_t(trigLut + 1)) {
 	    if (debug) {
@@ -436,7 +597,7 @@ StatusCode PpmByteStreamTool::convert(
 	    break;
           }
 	  LVL1::DataError errorBits(0);
-	  if (m_errorBlock) {
+	  if (isErrBlock) {
 	    errorBits.set(LVL1::DataError::PPMErrorWord,
 	                             m_errorBlock->ppmError(channel));
 	    errorBits.set(LVL1::DataError::SubStatusWord,
@@ -445,7 +606,7 @@ StatusCode PpmByteStreamTool::convert(
 	    errorBits.set(LVL1::DataError::PPMErrorWord,
 	                             subBlock->ppmError(channel));
 	    const PpmSubBlock* const lastBlock =
-	                                      m_ppmBlocks[actualSubBlocks - 1];
+	                                      m_ppmBlocks[nPpmBlocks - 1];
 	    errorBits.set(LVL1::DataError::SubStatusWord,
 	                             lastBlock->subStatus());
           }
@@ -456,95 +617,25 @@ StatusCode PpmByteStreamTool::convert(
 	  }
 	  const int error = errorBits.error();
 
-	  // Only save non-zero data
+	  // Save to TriggerTower
 
-          const bool any =
-	             std::accumulate(lut.begin(),      lut.end(),      0) ||
-	             std::accumulate(fadc.begin(),     fadc.end(),     0) ||
-		     std::accumulate(bcidLut.begin(),  bcidLut.end(),  0) ||
-		     std::accumulate(bcidFadc.begin(), bcidFadc.end(), 0);
-
-          if (any || error) {
-	    if (verbose) {
-	      msg(MSG::VERBOSE) << "channel/LUT/FADC/bcidLUT/bcidFADC/error: "
-		                << channel << "/";
-	      printVec(lut);
-	      printVec(fadc);
-	      printVec(bcidLut);
-	      printVec(bcidFadc);
-	      msg() << MSG::hex << error << MSG::dec << "/";
-            }
-	    double eta = 0.;
-	    double phi = 0.;
-	    int layer = 0;
-	    unsigned int key = 0;
-	    if (!m_ppmMaps->mapping(crate, module, channel, eta, phi, layer)) {
-	      if (m_spareChannels || (m_muonChannels && (crate == 2 || crate == 3)
-	                                             && (module == 0))) {
-	        const int pin  = channel%16;
-		const int asic = channel/16;
-		eta = 16*crate + module;
-		phi = 4*pin + asic;
-		layer = 0;
-		const int type = 1;
-		key = (crate<<24) | (type<<20) | (module<<16) | (pin<<8) | asic;
-	      } else continue;
-            } else {
-	      if (m_spareChannels || m_muonChannels) continue;
-	      key = m_towerKey->ttKey(phi, eta);
-	    }
-	    if (verbose) {
-	      msg() << " eta/phi/layer: " << eta << "/" << phi << "/" << layer
-		    << "/" << endreq;
-	      msg(MSG::DEBUG);
-            }
-	    LVL1::TriggerTower* tt = findTriggerTower(key);
-            if ( ! tt) {
-	      // make new tower and add to map
-	      tt = new LVL1::TriggerTower(phi, eta, key);
-              m_ttMap.insert(std::make_pair(key, tt));
-	      ttTemp.push_back(tt);
-            } else {
-	      // Check for duplicate data
-	      if (layer == 0) {
-	        const std::vector<int>& emLut(tt->emLUT());
-		const std::vector<int>& emFadc(tt->emADC());
-		const std::vector<int>& emBcidLut(tt->emBCIDvec());
-		const std::vector<int>& emBcidFadc(tt->emBCIDext());
-		const int emError(tt->emError());
-		if (std::accumulate(emLut.begin(),      emLut.end(),      0) ||
-		    std::accumulate(emFadc.begin(),     emFadc.end(),     0) ||
-		    std::accumulate(emBcidLut.begin(),  emBcidLut.end(),  0) ||
-		    std::accumulate(emBcidFadc.begin(), emBcidFadc.end(), 0) ||
-		    emError) {
-                  if (debug) msg() << "Duplicate EM data at eta/phi "
-		                   << eta << "/" << phi << endreq;
-                  rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
-		  break;
-                }
-              } else {
-	        const std::vector<int>& hadLut(tt->hadLUT());
-		const std::vector<int>& hadFadc(tt->hadADC());
-		const std::vector<int>& hadBcidLut(tt->hadBCIDvec());
-		const std::vector<int>& hadBcidFadc(tt->hadBCIDext());
-		const int hadError(tt->hadError());
-		if (std::accumulate(hadLut.begin(),      hadLut.end(),      0) ||
-		    std::accumulate(hadFadc.begin(),     hadFadc.end(),     0) ||
-		    std::accumulate(hadBcidLut.begin(),  hadBcidLut.end(),  0) ||
-		    std::accumulate(hadBcidFadc.begin(), hadBcidFadc.end(), 0) ||
-		    hadError) {
-                  if (debug) msg() << "Duplicate HAD data at eta/phi "
-		                   << eta << "/" << phi << endreq;
-                  rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
-		  break;
-                }
-	      }
-	    }
-            if (layer == 0) {  // EM
-	      tt->addEM(fadc, lut, bcidFadc, bcidLut, error, trigLut, trigFadc);
-            } else {           // Had
-	      tt->addHad(fadc, lut, bcidFadc, bcidLut, error, trigLut, trigFadc);
-            }
+	  if (verbose) {
+	    msg(MSG::VERBOSE) << "channel/LUT/FADC/bcidLUT/bcidFADC/error: "
+	                      << channel << "/";
+	    printVec(lut);
+	    printVec(fadc);
+	    printVec(bcidLut);
+	    printVec(bcidFadc);
+	    msg() << MSG::hex << error << MSG::dec << "/";
+          }
+	  m_foundChan[word] |= (1<<bit);
+	  ++ttCount;
+	  LVL1::TriggerTower* tt = ttColRef[m_ttPos[index]];
+	  const int layer = ((m_chanLayer[word]>>bit)&1);
+          if (layer == 0) {  // EM
+	    tt->addEM(fadc, lut, bcidFadc, bcidLut, error, trigLut, trigFadc);
+          } else {           // Had
+	    tt->addHad(fadc, lut, bcidFadc, bcidLut, error, trigLut, trigFadc);
           }
         }
         if (rodErr != L1CaloSubBlock::ERROR_NONE) break;
@@ -555,19 +646,42 @@ StatusCode PpmByteStreamTool::convert(
                                           m_errorTool->rodError(robid, rodErr);
   }
 
-  // Swap wanted trigger towers into StoreGate container
+  // Reset any missing channels (should be rare)
 
-  const int size = ttTemp.size();
-  for (int index = 0; index < size; ++index) {
-    if ( !m_zeroSuppress || ttTemp[index]->emEnergy()
-                         || ttTemp[index]->hadEnergy() ) {
-      LVL1::TriggerTower* ttIn  = 0;
-      LVL1::TriggerTower* ttOut = 0;
-      ttTemp.swapElement(index, ttIn, ttOut);
-      ttCollection->push_back(ttOut);
+  if (ttCount != colSize) {
+    if (debug) {
+      msg() << "Found " << ttCount << " channels, expected " << colSize << endreq;
+    }
+    std::vector<int> dummy(1);
+    for (int word = 0; word < chanBitVecSize; ++word) {
+      if (m_foundChan[word] != colChan[word]) {
+        for (int bit = 0; bit < 32; ++bit) {
+	  if (((m_foundChan[word]>>bit)&1) != ((colChan[word]>>bit)&1)) {
+	    const int index = word*32 + bit;
+	    LVL1::TriggerTower* tt = ttColRef[m_ttPos[index]];
+	    const int layer = ((m_chanLayer[word]>>bit)&1);
+	    if (layer == 0) {            // EM
+	      tt->addEM(dummy, dummy, dummy, dummy, 0, 0, 0);
+            } else if (m_dataChannels) { // Had
+	      tt->addHad(dummy, dummy, dummy, dummy, 0, 0, 0);
+            }
+          }
+        }
+      }
     }
   }
-  ttTemp.clear();
+
+  // And copy into output collection
+
+  if (m_zeroSuppress) {
+    TriggerTowerVector::iterator itr  = ttCol.begin();
+    TriggerTowerVector::iterator itrE = ttCol.end();
+    if ((*itr)->emEnergy() || (m_dataChannels && (*itr)->hadEnergy())) {
+      ttCollection->push_back(*itr);
+    }
+  } else {
+    ttCollection->assign(ttCol.begin(), ttCol.end());
+  }
 
   return StatusCode::SUCCESS;
 }
@@ -616,9 +730,9 @@ StatusCode PpmByteStreamTool::convert(
   int slicesFadcNew = 1;
   int trigLutNew    = 0;
   int trigFadcNew   = 0;
-  const int modulesPerSlink = m_modules / m_slinks;
-  for (int crate=0; crate < m_crates; ++crate) {
-    for (int module=0; module < m_modules; ++module) {
+  const int modulesPerSlink = s_modules / m_slinks;
+  for (int crate=0; crate < s_crates; ++crate) {
+    for (int module=0; module < s_modules; ++module) {
 
       // Pack required number of modules per slink
 
@@ -671,7 +785,7 @@ StatusCode PpmByteStreamTool::convert(
       // sub-blocks
 
       bool upstreamError = false;
-      for (int channel=0; channel < m_channels; ++channel) {
+      for (int channel=0; channel < s_channels; ++channel) {
 	const int chan = channel % chanPerSubBlock;
         if (channel == 0 && m_dataFormat == L1CaloSubBlock::UNCOMPRESSED) {
           errorBlock.clear();
@@ -735,7 +849,7 @@ StatusCode PpmByteStreamTool::convert(
 	    return StatusCode::FAILURE;
 	  }
 	  if (m_printCompStats) addCompStats(subBlock.compStats());
-	  if (channel != m_channels - 1) {
+	  if (channel != s_channels - 1) {
 	    // Only put errors in last sub-block
 	    subBlock.setStatus(0, false, false, false, false,
 	                                 false, false, false);
@@ -845,18 +959,6 @@ const LVL1::TriggerTower* PpmByteStreamTool::findLayerTriggerTower(
   return tt;
 }
 
-// Find a trigger tower given eta, phi
-
-LVL1::TriggerTower* PpmByteStreamTool::findTriggerTower(
-                                                     const unsigned int key)
-{
-  LVL1::TriggerTower* tt = 0;
-  TriggerTowerMap::const_iterator mapIter;
-  mapIter = m_ttMap.find(key);
-  if (mapIter != m_ttMap.end()) tt = mapIter->second;
-  return tt;
-}
-
 // Set up trigger tower maps
 
 void PpmByteStreamTool::setupTTMaps(const TriggerTowerCollection*
@@ -902,7 +1004,7 @@ bool PpmByteStreamTool::slinkSlices(const int crate, const int module,
   int trigL  =  m_dfltSlicesLut/2;
   int trigF  =  m_dfltSlicesFadc/2;
   for (int mod = module; mod < module + modulesPerSlink; ++mod) {
-    for (int chan = 0; chan < m_channels; ++chan) {
+    for (int chan = 0; chan < s_channels; ++chan) {
       double eta = 0.;
       double phi = 0.;
       int layer = 0;
@@ -963,9 +1065,10 @@ const std::vector<uint32_t>& PpmByteStreamTool::sourceIDs(
   const std::string::size_type pos2 = sgKey.find(flag2);
   m_muonChannels =
     (pos2 != std::string::npos && pos2 == (sgKey.length() - flag2.length()));
+  m_dataChannels = (!m_spareChannels && !m_muonChannels);
   if (m_sourceIDs.empty()) {
     const int maxlinks = m_srcIdMap->maxSlinks();
-    for (int crate = 0; crate < m_crates; ++crate) {
+    for (int crate = 0; crate < s_crates; ++crate) {
       for (int slink = 0; slink < maxlinks; ++slink) {
         const int daqOrRoi = 0;
         const uint32_t rodId = m_srcIdMap->getRodID(crate, slink, daqOrRoi,
@@ -974,7 +1077,7 @@ const std::vector<uint32_t>& PpmByteStreamTool::sourceIDs(
         m_sourceIDs.push_back(robId);
 	if (crate > 1 && crate < 6) {
 	  m_sourceIDsSpare.push_back(robId);
-	  if (crate < 4) m_sourceIDsMuon.push_back(robId);
+	  if (crate < 4 && slink == 0) m_sourceIDsMuon.push_back(robId);
         }
       }
     }

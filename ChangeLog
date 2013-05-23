@@ -1,3 +1,6 @@
+2013-05-23  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
+        * Tag TrigT1CaloByteStream-00-08-15
+        * Updates to PpmByteStreamTool to reduce cpu time.
 
 2011-10-25 Denis Oliveira Damazio <Denis.Oliveira.Damazio@cern.ch>
 	* Little fix for online operation.
