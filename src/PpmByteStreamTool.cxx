@@ -676,8 +676,10 @@ StatusCode PpmByteStreamTool::convert(
   if (m_zeroSuppress) {
     TriggerTowerVector::iterator itr  = ttCol.begin();
     TriggerTowerVector::iterator itrE = ttCol.end();
-    if ((*itr)->emEnergy() || (m_dataChannels && (*itr)->hadEnergy())) {
-      ttCollection->push_back(*itr);
+    for (; itr != itrE; ++itr) {
+      if ((*itr)->emEnergy() || (m_dataChannels && (*itr)->hadEnergy())) {
+        ttCollection->push_back(*itr);
+      }
     }
   } else {
     ttCollection->assign(ttCol.begin(), ttCol.end());
