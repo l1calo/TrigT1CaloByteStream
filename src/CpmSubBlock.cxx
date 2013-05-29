@@ -39,6 +39,7 @@ const int      CpmSubBlock::s_glinkBitsPerSlice;
 
 CpmSubBlock::CpmSubBlock() : m_channels(80)
 {
+  m_chanPresent.assign(m_channels, 0);
 }
 
 CpmSubBlock::~CpmSubBlock()
@@ -52,6 +53,7 @@ void CpmSubBlock::clear()
   L1CaloSubBlock::clear();
   m_ttData.clear();
   m_hitData.clear();
+  m_chanPresent.assign(m_channels, 0);
 }
 
 // Store CPM header
@@ -97,6 +99,7 @@ void CpmSubBlock::fillTowerData(const int slice, const int channel,
       dat = had;
       err = hadErr;
     }
+    m_chanPresent[channel] = 1;
   }
 }
 
@@ -422,8 +425,14 @@ bool CpmSubBlock::unpackUncompressed()
     // Trigger tower data
     if (id == s_ttWordId) {
       const int ix = (word >> s_pairBit) & s_pairPinMask;
-      if (ix < m_channels && m_ttData[ix] == 0) m_ttData[ix] = word;
-      else err = true;
+      if (ix < m_channels && m_ttData[ix] == 0) {
+        m_ttData[ix] = word;
+	const int pin  = ix/4;
+	const int pair = ix%4;
+	const int channel = s_wordsPerPin*(pin/2) + 2*pair;
+	m_chanPresent[channel]   = 1;
+	m_chanPresent[channel+1] = 1;
+      } else err = true;
     // Hits
     } else {
       const int indicator = (word >> s_indicatorBit) & 0x1;

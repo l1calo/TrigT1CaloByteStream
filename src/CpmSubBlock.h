@@ -48,6 +48,8 @@ class CpmSubBlock : public L1CaloSubBlock {
    unsigned int hits1(int slice)         const;
    /// Return number of timeslices
    int  timeslices()                     const;
+   /// Return true if there is tower data for given channel
+   bool anyTowerData(int channel)        const;
 
    /// Pack data
    bool pack();
@@ -113,6 +115,8 @@ class CpmSubBlock : public L1CaloSubBlock {
    std::vector<uint32_t> m_ttData;
    /// Hit counts
    std::vector<uint32_t> m_hitData;
+   /// Channel present flags vector
+   std::vector<int> m_chanPresent;
    /// Number of Trigger tower channels per module
    int m_channels;
 
@@ -121,6 +125,11 @@ class CpmSubBlock : public L1CaloSubBlock {
 inline int CpmSubBlock::dataId(const uint32_t word) const
 {
   return (word >> s_dataIdBit) & s_dataIdMask;
+}
+
+inline bool CpmSubBlock::anyTowerData(const int channel) const
+{
+  return m_chanPresent[channel];
 }
 
 } // end namespace

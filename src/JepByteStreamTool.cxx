@@ -53,7 +53,9 @@ JepByteStreamTool::JepByteStreamTool(const std::string& type,
     m_errorTool("LVL1BS::L1CaloErrorByteStreamTool/L1CaloErrorByteStreamTool"),
     m_channels(44), m_crates(2), m_modules(16), m_coreOverlap(0),
     m_subDetector(eformat::TDAQ_CALO_JET_PROC_DAQ),
-    m_srcIdMap(0), m_elementKey(0), m_rodStatus(0), m_fea(0)
+    m_srcIdMap(0), m_elementKey(0),
+    m_jemSubBlock(0), m_cmmEnergySubBlock(0), m_cmmJetSubBlock(0),
+    m_rodStatus(0), m_fea(0)
 {
   declareInterface<JepByteStreamTool>(this);
 
@@ -112,10 +114,13 @@ StatusCode JepByteStreamTool::initialize()
     return sc;
   } else msg(MSG::INFO) << "Retrieved tool " << m_errorTool << endreq;
 
-  m_srcIdMap    = new L1CaloSrcIdMap();
-  m_elementKey  = new LVL1::JetElementKey();
-  m_rodStatus   = new std::vector<uint32_t>(2);
-  m_fea         = new FullEventAssembler<L1CaloSrcIdMap>();
+  m_srcIdMap          = new L1CaloSrcIdMap();
+  m_elementKey        = new LVL1::JetElementKey();
+  m_jemSubBlock       = new JemSubBlock();
+  m_cmmEnergySubBlock = new CmmEnergySubBlock();
+  m_cmmJetSubBlock    = new CmmJetSubBlock();
+  m_rodStatus         = new std::vector<uint32_t>(2);
+  m_fea               = new FullEventAssembler<L1CaloSrcIdMap>();
   return StatusCode::SUCCESS;
 }
 
@@ -125,6 +130,9 @@ StatusCode JepByteStreamTool::finalize()
 {
   delete m_fea;
   delete m_rodStatus;
+  delete m_cmmJetSubBlock;
+  delete m_cmmEnergySubBlock;
+  delete m_jemSubBlock;
   delete m_elementKey;
   delete m_srcIdMap;
   return StatusCode::SUCCESS;
@@ -693,32 +701,32 @@ StatusCode JepByteStreamTool::convertBs(
       if (CmmSubBlock::cmmBlock(*payload)) {
         // CMMs
 	if (CmmSubBlock::cmmType(*payload) == CmmSubBlock::CMM_JET) {
-          CmmJetSubBlock subBlock;
-          payload = subBlock.read(payload, payloadEnd);
-	  if (subBlock.crate() != rodCrate) {
+	  m_cmmJetSubBlock->clear();
+          payload = m_cmmJetSubBlock->read(payload, payloadEnd);
+	  if (m_cmmJetSubBlock->crate() != rodCrate) {
 	    if (debug) msg() << "Inconsistent crate number in ROD source ID"
 	                     << endreq;
 	    m_rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
 	    break;
           }
 	  if (collection == CMM_HITS) {
-	    decodeCmmJet(subBlock, trigCmm);
+	    decodeCmmJet(m_cmmJetSubBlock, trigCmm);
 	    if (m_rodErr != L1CaloSubBlock::ERROR_NONE) {
 	      if (debug) msg() << "decodeCmmJet failed" << endreq;
 	      break;
 	    }
           }
         } else if (CmmSubBlock::cmmType(*payload) == CmmSubBlock::CMM_ENERGY) {
-	  CmmEnergySubBlock subBlock;
-	  payload = subBlock.read(payload, payloadEnd);
-	  if (subBlock.crate() != rodCrate) {
+	  m_cmmEnergySubBlock->clear();
+	  payload = m_cmmEnergySubBlock->read(payload, payloadEnd);
+	  if (m_cmmEnergySubBlock->crate() != rodCrate) {
 	    if (debug) msg() << "Inconsistent crate number in ROD source ID"
 	                     << endreq;
 	    m_rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
 	    break;
           }
 	  if (collection == CMM_SUMS) {
-	    decodeCmmEnergy(subBlock, trigCmm);
+	    decodeCmmEnergy(m_cmmEnergySubBlock, trigCmm);
 	    if (m_rodErr != L1CaloSubBlock::ERROR_NONE) {
 	      if (debug) msg() << "decodeCmmEnergy failed" << endreq;
 	      break;
@@ -731,9 +739,9 @@ StatusCode JepByteStreamTool::convertBs(
         }
       } else {
         // JEM
-        JemSubBlock subBlock;
-        payload = subBlock.read(payload, payloadEnd);
-	if (subBlock.crate() != rodCrate) {
+	m_jemSubBlock->clear();
+        payload = m_jemSubBlock->read(payload, payloadEnd);
+	if (m_jemSubBlock->crate() != rodCrate) {
 	  if (debug) msg() << "Inconsistent crate number in ROD source ID"
 	                   << endreq;
 	  m_rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
@@ -741,7 +749,7 @@ StatusCode JepByteStreamTool::convertBs(
         }
 	if (collection == JET_ELEMENTS || collection == JET_HITS ||
 	                                  collection == ENERGY_SUMS) {
-	  decodeJem(subBlock, trigJem, collection);
+	  decodeJem(m_jemSubBlock, trigJem, collection);
 	  if (m_rodErr != L1CaloSubBlock::ERROR_NONE) {
 	    if (debug) msg() << "decodeJem failed" << endreq;
 	    break;
@@ -758,18 +766,18 @@ StatusCode JepByteStreamTool::convertBs(
 
 // Unpack CMM-Energy sub-block
 
-void JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
+void JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock* subBlock,
                                                                  int trigCmm)
 {
   const bool debug = msgLvl(MSG::DEBUG);
   if (debug) msg(MSG::DEBUG);
 
-  const int hwCrate    = subBlock.crate();
-  const int module     = subBlock.cmmPosition();
-  const int firmware   = subBlock.cmmFirmware();
-  const int summing    = subBlock.cmmSumming();
-  const int timeslices = subBlock.timeslices();
-  const int sliceNum   = subBlock.slice();
+  const int hwCrate    = subBlock->crate();
+  const int module     = subBlock->cmmPosition();
+  const int firmware   = subBlock->cmmFirmware();
+  const int summing    = subBlock->cmmSumming();
+  const int timeslices = subBlock->timeslices();
+  const int sliceNum   = subBlock->slice();
   if (debug) {
     msg() << "CMM-Energy: Crate " << hwCrate
           << "  Module "          << module
@@ -792,21 +800,24 @@ void JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
     return;
   }
   // Unpack sub-block
-  if (subBlock.dataWords() && !subBlock.unpack()) {
+  if (subBlock->dataWords() && !subBlock->unpack()) {
     if (debug) {
-      std::string errMsg(subBlock.unpackErrorMsg());
+      std::string errMsg(subBlock->unpackErrorMsg());
       msg() << "CMM-Energy sub-block unpacking failed: " << errMsg << endreq;
     }
-    m_rodErr = subBlock.unpackErrorCode();
+    m_rodErr = subBlock->unpackErrorCode();
     return;
   }
 
   // Retrieve required data
 
-  const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
+  const bool neutralFormat = subBlock->format() == L1CaloSubBlock::NEUTRAL;
   const int crate    = hwCrate - m_crateOffsetHw;
   const int swCrate  = crate   + m_crateOffsetSw;
   const int maxSid   = static_cast<int>(CmmEnergySubBlock::MAX_SOURCE_ID);
+  LVL1::DataError derr;
+  derr.set(LVL1::DataError::SubStatusWord, subBlock->subStatus());
+  const int ssError = derr.error();
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
@@ -832,15 +843,15 @@ void JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
 	    continue;
         }
       }
-      const unsigned int ex = subBlock.ex(slice, source);
-      const unsigned int ey = subBlock.ey(slice, source);
-      const unsigned int et = subBlock.et(slice, source);
-      int exErr = subBlock.exError(slice, source);
-      int eyErr = subBlock.eyError(slice, source);
-      int etErr = subBlock.etError(slice, source);
-      LVL1::DataError exErrBits;
-      LVL1::DataError eyErrBits;
-      LVL1::DataError etErrBits;
+      const unsigned int ex = subBlock->ex(slice, source);
+      const unsigned int ey = subBlock->ey(slice, source);
+      const unsigned int et = subBlock->et(slice, source);
+      int exErr = subBlock->exError(slice, source);
+      int eyErr = subBlock->eyError(slice, source);
+      int etErr = subBlock->etError(slice, source);
+      LVL1::DataError exErrBits(ssError);
+      LVL1::DataError eyErrBits(ssError);
+      LVL1::DataError etErrBits(ssError);
       if (dataID == LVL1::CMMEtSums::LOCAL ||
           dataID == LVL1::CMMEtSums::REMOTE ||
 	  dataID == LVL1::CMMEtSums::TOTAL) {
@@ -855,62 +866,59 @@ void JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
         eyErrBits.set(LVL1::DataError::Parity, eyErr);
         etErrBits.set(LVL1::DataError::Parity, etErr);
       }
-      exErrBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
-      eyErrBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
-      etErrBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
       exErr = exErrBits.error();
       eyErr = eyErrBits.error();
       etErr = etErrBits.error();
       if (ex || ey || et || exErr || eyErr || etErr) {
         LVL1::CMMEtSums* sums = findCmmSums(crate, dataID);
 	if ( ! sums ) {   // create new CMM energy sums
-	  std::vector<unsigned int> exVec(timeslices);
-	  std::vector<unsigned int> eyVec(timeslices);
-	  std::vector<unsigned int> etVec(timeslices);
-	  std::vector<int> exErrVec(timeslices);
-	  std::vector<int> eyErrVec(timeslices);
-	  std::vector<int> etErrVec(timeslices);
-	  exVec[slice] = ex;
-	  eyVec[slice] = ey;
-	  etVec[slice] = et;
-	  exErrVec[slice] = exErr;
-	  eyErrVec[slice] = eyErr;
-	  etErrVec[slice] = etErr;
-	  sums = new LVL1::CMMEtSums(swCrate, dataID, etVec, exVec, eyVec,
-				     etErrVec, exErrVec, eyErrVec, trigCmm);
+	  m_exVec.assign(timeslices, 0);
+	  m_eyVec.assign(timeslices, 0);
+	  m_etVec.assign(timeslices, 0);
+	  m_exErrVec.assign(timeslices, 0);
+	  m_eyErrVec.assign(timeslices, 0);
+	  m_etErrVec.assign(timeslices, 0);
+	  m_exVec[slice] = ex;
+	  m_eyVec[slice] = ey;
+	  m_etVec[slice] = et;
+	  m_exErrVec[slice] = exErr;
+	  m_eyErrVec[slice] = eyErr;
+	  m_etErrVec[slice] = etErr;
+	  sums = new LVL1::CMMEtSums(swCrate, dataID, m_etVec, m_exVec, m_eyVec,
+				     m_etErrVec, m_exErrVec, m_eyErrVec, trigCmm);
           const int key = crate*100 + dataID;
 	  m_cmmEtMap.insert(std::make_pair(key, sums));
 	  m_cmmEtCollection->push_back(sums);
         } else {
-	  std::vector<unsigned int> exVec(sums->ExVec());
-	  std::vector<unsigned int> eyVec(sums->EyVec());
-	  std::vector<unsigned int> etVec(sums->EtVec());
-	  std::vector<int> exErrVec(sums->ExErrorVec());
-	  std::vector<int> eyErrVec(sums->EyErrorVec());
-	  std::vector<int> etErrVec(sums->EtErrorVec());
-	  const int nsl = exVec.size();
+	  m_exVec = sums->ExVec();
+	  m_eyVec = sums->EyVec();
+	  m_etVec = sums->EtVec();
+	  m_exErrVec = sums->ExErrorVec();
+	  m_eyErrVec = sums->EyErrorVec();
+	  m_etErrVec = sums->EtErrorVec();
+	  const int nsl = m_exVec.size();
 	  if (timeslices != nsl) {
 	    if (debug) msg() << "Inconsistent number of slices in sub-blocks"
 	                     << endreq;
             m_rodErr = L1CaloSubBlock::ERROR_SLICES;
 	    return;
           }
-	  if (exVec[slice] != 0 || eyVec[slice] != 0 || etVec[slice] != 0 ||
-	      exErrVec[slice] != 0 || eyErrVec[slice] != 0 ||
-              etErrVec[slice] != 0) {
+	  if (m_exVec[slice] != 0 || m_eyVec[slice] != 0 || m_etVec[slice] != 0 ||
+	      m_exErrVec[slice] != 0 || m_eyErrVec[slice] != 0 ||
+              m_etErrVec[slice] != 0) {
             if (debug) msg() << "Duplicate data for slice " << slice << endreq;
 	    m_rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
 	    return;
           }
-	  exVec[slice] = ex;
-	  eyVec[slice] = ey;
-	  etVec[slice] = et;
-	  exErrVec[slice] = exErr;
-	  eyErrVec[slice] = eyErr;
-	  etErrVec[slice] = etErr;
-	  sums->addEx(exVec, exErrVec);
-	  sums->addEy(eyVec, eyErrVec);
-	  sums->addEt(etVec, etErrVec);
+	  m_exVec[slice] = ex;
+	  m_eyVec[slice] = ey;
+	  m_etVec[slice] = et;
+	  m_exErrVec[slice] = exErr;
+	  m_eyErrVec[slice] = eyErr;
+	  m_etErrVec[slice] = etErr;
+	  sums->addEx(m_exVec, m_exErrVec);
+	  sums->addEy(m_eyVec, m_eyErrVec);
+	  sums->addEt(m_etVec, m_etErrVec);
         }
       }
     }
@@ -918,120 +926,117 @@ void JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
     // Hit maps - store as Et
 
     if (summing == CmmSubBlock::SYSTEM) {
-      LVL1::DataError errBits;
-      errBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
-      const int err = errBits.error();
-      const unsigned int missEt = subBlock.missingEtHits(slice);
-      if ( missEt || err ) {
+      const unsigned int missEt = subBlock->missingEtHits(slice);
+      if ( missEt || ssError ) {
         const int dataID = LVL1::CMMEtSums::MISSING_ET_MAP;
         LVL1::CMMEtSums* map = findCmmSums(crate, dataID);
         if ( ! map ) {
-          std::vector<unsigned int> missVec(timeslices);
-          std::vector<int> errVec(timeslices);
-	  missVec[slice] = missEt;
-	  errVec[slice]  = err;
+	  m_etVec.assign(timeslices, 0);
+	  m_etErrVec.assign(timeslices, 0);
+	  m_etVec[slice]    = missEt;
+	  m_etErrVec[slice] = ssError;
 	  map = new LVL1::CMMEtSums(swCrate, dataID,
-	                            missVec, missVec, missVec,
-	  			    errVec, errVec, errVec, trigCmm);
+	                            m_etVec, m_etVec, m_etVec,
+	  			    m_etErrVec, m_etErrVec, m_etErrVec, trigCmm);
           const int key = crate*100 + dataID;
 	  m_cmmEtMap.insert(std::make_pair(key, map));
 	  m_cmmEtCollection->push_back(map);
         } else {
-          std::vector<unsigned int> missVec(map->EtVec());
-          std::vector<int> errVec(map->EtErrorVec());
-	  const int nsl = missVec.size();
+          m_etVec    = map->EtVec();
+          m_etErrVec = map->EtErrorVec();
+	  const int nsl = m_etVec.size();
 	  if (timeslices != nsl) {
 	    if (debug) msg() << "Inconsistent number of slices in sub-blocks"
 	                     << endreq;
             m_rodErr = L1CaloSubBlock::ERROR_SLICES;
 	    return;
           }
-	  if (missVec[slice] != 0 || errVec[slice] != 0) {
+	  if (m_etVec[slice] != 0 || m_etErrVec[slice] != 0) {
 	    if (debug) msg() << "Duplicate data for slice " << slice << endreq;
 	    m_rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
 	    return;
           }
-	  missVec[slice] = missEt;
-	  errVec[slice]  = err;
-	  map->addEx(missVec, errVec);
-	  map->addEy(missVec, errVec);
-	  map->addEt(missVec, errVec);
+	  m_etVec[slice]     = missEt;
+	  m_etErrVec[slice]  = ssError;
+	  map->addEx(m_etVec, m_etErrVec);
+	  map->addEy(m_etVec, m_etErrVec);
+	  map->addEt(m_etVec, m_etErrVec);
         }
       }
-      const unsigned int sumEt = subBlock.sumEtHits(slice);
-      if ( sumEt || err ) {
+      const unsigned int sumEt = subBlock->sumEtHits(slice);
+      if ( sumEt || ssError ) {
         const int dataID = LVL1::CMMEtSums::SUM_ET_MAP;
         LVL1::CMMEtSums* map = findCmmSums(crate, dataID);
         if ( ! map ) {
-          std::vector<unsigned int> sumVec(timeslices);
-          std::vector<int> errVec(timeslices);
-	  sumVec[slice] = sumEt;
-	  errVec[slice] = err;
+          m_etVec.assign(timeslices, 0);
+          m_etErrVec.assign(timeslices, 0);
+	  m_etVec[slice]    = sumEt;
+	  m_etErrVec[slice] = ssError;
 	  map = new LVL1::CMMEtSums(swCrate, dataID,
-	                            sumVec, sumVec, sumVec,
-				    errVec, errVec, errVec, trigCmm);
+	                            m_etVec, m_etVec, m_etVec,
+				    m_etErrVec, m_etErrVec, m_etErrVec, trigCmm);
           const int key = crate*100 + dataID;
 	  m_cmmEtMap.insert(std::make_pair(key, map));
 	  m_cmmEtCollection->push_back(map);
         } else {
-          std::vector<unsigned int> sumVec(map->EtVec());
-          std::vector<int> errVec(map->EtErrorVec());
-	  const int nsl = sumVec.size();
+          m_etVec    = map->EtVec();
+          m_etErrVec = map->EtErrorVec();
+	  const int nsl = m_etVec.size();
 	  if (timeslices != nsl) {
 	    if (debug) msg() << "Inconsistent number of slices in sub-blocks"
 	                     << endreq;
             m_rodErr = L1CaloSubBlock::ERROR_SLICES;
 	    return;
           }
-	  if (sumVec[slice] != 0 || errVec[slice] != 0) {
+	  if (m_etVec[slice] != 0 || m_etErrVec[slice] != 0) {
 	    if (debug) msg() << "Duplicate data for slice " << slice << endreq;
 	    m_rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
 	    return;
           }
-	  sumVec[slice] = sumEt;
-	  errVec[slice] = err;
-	  map->addEx(sumVec, errVec);
-	  map->addEy(sumVec, errVec);
-	  map->addEt(sumVec, errVec);
+	  m_etVec[slice]    = sumEt;
+	  m_etErrVec[slice] = ssError;
+	  map->addEx(m_etVec, m_etErrVec);
+	  map->addEy(m_etVec, m_etErrVec);
+	  map->addEt(m_etVec, m_etErrVec);
         }
       }
-      if (subBlock.version() > 1) {
-        const unsigned int missEtSig = subBlock.missingEtSigHits(slice);
-        if ( missEtSig || err ) {
+      if (subBlock->version() > 1) {
+        const unsigned int missEtSig = subBlock->missingEtSigHits(slice);
+        if ( missEtSig || ssError ) {
           const int dataID = LVL1::CMMEtSums::MISSING_ET_SIG_MAP;
           LVL1::CMMEtSums* map = findCmmSums(crate, dataID);
           if ( ! map ) {
-            std::vector<unsigned int> sigVec(timeslices);
-            std::vector<int> errVec(timeslices);
-	    sigVec[slice] = missEtSig;
-	    errVec[slice] = err;
+            m_etVec.assign(timeslices, 0);
+            m_etErrVec.assign(timeslices, 0);
+	    m_etVec[slice]    = missEtSig;
+	    m_etErrVec[slice] = ssError;
 	    map = new LVL1::CMMEtSums(swCrate, dataID,
-	                              sigVec, sigVec, sigVec,
-	    			      errVec, errVec, errVec, trigCmm);
+	                              m_etVec, m_etVec, m_etVec,
+	    			      m_etErrVec, m_etErrVec, m_etErrVec, trigCmm);
             const int key = crate*100 + dataID;
 	    m_cmmEtMap.insert(std::make_pair(key, map));
 	    m_cmmEtCollection->push_back(map);
           } else {
-            std::vector<unsigned int> sigVec(map->EtVec());
-            std::vector<int> errVec(map->EtErrorVec());
-	    const int nsl = sigVec.size();
+            m_etVec    = map->EtVec();
+            m_etErrVec = map->EtErrorVec();
+	    const int nsl = m_etVec.size();
 	    if (timeslices != nsl) {
 	      if (debug) msg() << "Inconsistent number of slices in sub-blocks"
 	                       << endreq;
               m_rodErr = L1CaloSubBlock::ERROR_SLICES;
 	      return;
             }
-	    if (sigVec[slice] != 0 || errVec[slice] != 0) {
+	    if (m_etVec[slice] != 0 || m_etErrVec[slice] != 0) {
 	      if (debug) msg() << "Duplicate data for slice "
 	                       << slice << endreq;
 	      m_rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
 	      return;
             }
-	    sigVec[slice] = missEtSig;
-	    errVec[slice] = err;
-	    map->addEx(sigVec, errVec);
-	    map->addEy(sigVec, errVec);
-	    map->addEt(sigVec, errVec);
+	    m_etVec[slice]    = missEtSig;
+	    m_etErrVec[slice] = ssError;
+	    map->addEx(m_etVec, m_etErrVec);
+	    map->addEy(m_etVec, m_etErrVec);
+	    map->addEt(m_etVec, m_etErrVec);
           }
         }
       }
@@ -1043,17 +1048,17 @@ void JepByteStreamTool::decodeCmmEnergy(CmmEnergySubBlock& subBlock,
 
 // Unpack CMM-Jet sub-block
 
-void JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock, int trigCmm)
+void JepByteStreamTool::decodeCmmJet(CmmJetSubBlock* subBlock, int trigCmm)
 {
   const bool debug = msgLvl(MSG::DEBUG);
   if (debug) msg(MSG::DEBUG);
 
-  const int hwCrate    = subBlock.crate();
-  const int module     = subBlock.cmmPosition();
-  const int firmware   = subBlock.cmmFirmware();
-  const int summing    = subBlock.cmmSumming();
-  const int timeslices = subBlock.timeslices();
-  const int sliceNum   = subBlock.slice();
+  const int hwCrate    = subBlock->crate();
+  const int module     = subBlock->cmmPosition();
+  const int firmware   = subBlock->cmmFirmware();
+  const int summing    = subBlock->cmmSumming();
+  const int timeslices = subBlock->timeslices();
+  const int sliceNum   = subBlock->slice();
   if (debug) {
     msg() << "CMM-Jet: Crate " << hwCrate
           << "  Module "       << module
@@ -1076,21 +1081,24 @@ void JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock, int trigCmm)
     return;
   }
   // Unpack sub-block
-  if (subBlock.dataWords() && !subBlock.unpack()) {
+  if (subBlock->dataWords() && !subBlock->unpack()) {
     if (debug) {
-      std::string errMsg(subBlock.unpackErrorMsg());
+      std::string errMsg(subBlock->unpackErrorMsg());
       msg() << "CMM-Jet sub-block unpacking failed: " << errMsg << endreq;
     }
-    m_rodErr = subBlock.unpackErrorCode();
+    m_rodErr = subBlock->unpackErrorCode();
     return;
   }
 
   // Retrieve required data
 
-  const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
+  const bool neutralFormat = subBlock->format() == L1CaloSubBlock::NEUTRAL;
   const int crate    = hwCrate - m_crateOffsetHw;
   const int swCrate  = crate   + m_crateOffsetSw;
   const int maxSid   = static_cast<int>(CmmJetSubBlock::MAX_SOURCE_ID);
+  LVL1::DataError derr;
+  derr.set(LVL1::DataError::SubStatusWord, subBlock->subStatus());
+  const int ssError = derr.error();
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
@@ -1126,41 +1134,40 @@ void JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock, int trigCmm)
 	    continue;
         }
       }
-      const unsigned int hits = subBlock.jetHits(slice, source);
-      LVL1::DataError errBits;
+      const unsigned int hits = subBlock->jetHits(slice, source);
+      LVL1::DataError errBits(ssError);
       errBits.set(LVL1::DataError::Parity,
-                        subBlock.jetHitsError(slice, source));
-      errBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
+                        subBlock->jetHitsError(slice, source));
       const int err = errBits.error();
       if (hits || err) {
         LVL1::CMMJetHits* jh = findCmmHits(crate, dataID);
 	if ( ! jh ) {   // create new CMM hits
-	  std::vector<unsigned int> hitsVec(timeslices);
-	  std::vector<int> errVec(timeslices);
-	  hitsVec[slice] = hits;
-	  errVec[slice]  = err;
-	  jh = new LVL1::CMMJetHits(swCrate, dataID, hitsVec, errVec, trigCmm);
+	  m_hitsVec.assign(timeslices, 0);
+	  m_errVec.assign(timeslices, 0);
+	  m_hitsVec[slice] = hits;
+	  m_errVec[slice]  = err;
+	  jh = new LVL1::CMMJetHits(swCrate, dataID, m_hitsVec, m_errVec, trigCmm);
           const int key = crate*100 + dataID;
 	  m_cmmHitsMap.insert(std::make_pair(key, jh));
 	  m_cmmHitCollection->push_back(jh);
         } else {
-	  std::vector<unsigned int> hitsVec(jh->HitsVec());
-	  std::vector<int> errVec(jh->ErrorVec());
-	  const int nsl = hitsVec.size();
+	  m_hitsVec = jh->HitsVec();
+	  m_errVec  = jh->ErrorVec();
+	  const int nsl = m_hitsVec.size();
 	  if (timeslices != nsl) {
 	    if (debug) msg() << "Inconsistent number of slices in sub-blocks"
 	                     << endreq;
             m_rodErr = L1CaloSubBlock::ERROR_SLICES;
 	    return;
           }
-	  if (hitsVec[slice] != 0 || errVec[slice] != 0) {
+	  if (m_hitsVec[slice] != 0 || m_errVec[slice] != 0) {
 	    if (debug) msg() << "Duplicate data for slice " << slice << endreq;
 	    m_rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
 	    return;
           }
-	  hitsVec[slice] = hits;
-	  errVec[slice]  = err;
-	  jh->addHits(hitsVec, errVec);
+	  m_hitsVec[slice] = hits;
+	  m_errVec[slice]  = err;
+	  jh->addHits(m_hitsVec, m_errVec);
         }
       }
     }
@@ -1168,40 +1175,37 @@ void JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock, int trigCmm)
     // Hit map - store as hits
 
     if (summing == CmmSubBlock::SYSTEM) {
-      LVL1::DataError errBits;
-      errBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
-      const int err = errBits.error();
-      const unsigned int etMap = subBlock.jetEtMap(slice);
-      if ( etMap || err ) {
+      const unsigned int etMap = subBlock->jetEtMap(slice);
+      if ( etMap || ssError ) {
         const int dataID = LVL1::CMMJetHits::ET_MAP;
         LVL1::CMMJetHits* map = findCmmHits(crate, dataID);
         if ( ! map ) {
-          std::vector<unsigned int> mapVec(timeslices);
-          std::vector<int> errVec(timeslices);
-	  mapVec[slice] = etMap;
-	  errVec[slice] = err;
-	  map = new LVL1::CMMJetHits(swCrate, dataID, mapVec, errVec, trigCmm);
+          m_hitsVec.assign(timeslices, 0);
+          m_errVec.assign(timeslices, 0);
+	  m_hitsVec[slice] = etMap;
+	  m_errVec[slice]  = ssError;
+	  map = new LVL1::CMMJetHits(swCrate, dataID, m_hitsVec, m_errVec, trigCmm);
           const int key = crate*100 + dataID;
 	  m_cmmHitsMap.insert(std::make_pair(key, map));
 	  m_cmmHitCollection->push_back(map);
         } else {
-          std::vector<unsigned int> mapVec(map->HitsVec());
-          std::vector<int> errVec(map->ErrorVec());
-	  const int nsl = mapVec.size();
+          m_hitsVec = map->HitsVec();
+          m_errVec  = map->ErrorVec();
+	  const int nsl = m_hitsVec.size();
 	  if (timeslices != nsl) {
 	    if (debug) msg() << "Inconsistent number of slices in sub-blocks"
 	                     << endreq;
             m_rodErr = L1CaloSubBlock::ERROR_SLICES;
 	    return;
           }
-	  if (mapVec[slice] != 0 || errVec[slice] != 0) {
+	  if (m_hitsVec[slice] != 0 || m_errVec[slice] != 0) {
 	    if (debug) msg() << "Duplicate data for slice " << slice << endreq;
 	    m_rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
 	    return;
           }
-	  mapVec[slice] = etMap;
-	  errVec[slice] = err;
-	  map->addHits(mapVec, errVec);
+	  m_hitsVec[slice] = etMap;
+	  m_errVec[slice]  = ssError;
+	  map->addHits(m_hitsVec, m_errVec);
         }
       }
     }
@@ -1212,17 +1216,17 @@ void JepByteStreamTool::decodeCmmJet(CmmJetSubBlock& subBlock, int trigCmm)
 
 // Unpack JEM sub-block
 
-void JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
+void JepByteStreamTool::decodeJem(JemSubBlock* subBlock, int trigJem,
                                         const CollectionType collection)
 {
   const bool debug   = msgLvl(MSG::DEBUG);
   const bool verbose = msgLvl(MSG::VERBOSE);
   if (debug) msg(MSG::DEBUG);
 
-  const int hwCrate    = subBlock.crate();
-  const int module     = subBlock.module();
-  const int timeslices = subBlock.timeslices();
-  const int sliceNum   = subBlock.slice();
+  const int hwCrate    = subBlock->crate();
+  const int module     = subBlock->module();
+  const int timeslices = subBlock->timeslices();
+  const int sliceNum   = subBlock->slice();
   if (debug) {
     msg() << "JEM: Crate "     << hwCrate
           << "  Module "       << module
@@ -1243,20 +1247,24 @@ void JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
     return;
   }
   // Unpack sub-block
-  if (subBlock.dataWords() && !subBlock.unpack()) {
+  if (subBlock->dataWords() && !subBlock->unpack()) {
     if (debug) {
-      std::string errMsg(subBlock.unpackErrorMsg());
+      std::string errMsg(subBlock->unpackErrorMsg());
       msg() << "JEM sub-block unpacking failed: " << errMsg << endreq;
     }
-    m_rodErr = subBlock.unpackErrorCode();
+    m_rodErr = subBlock->unpackErrorCode();
     return;
   }
 
   // Retrieve required data
 
-  const bool neutralFormat = subBlock.format() == L1CaloSubBlock::NEUTRAL;
+  const bool neutralFormat = subBlock->format() == L1CaloSubBlock::NEUTRAL;
   const int crate    = hwCrate - m_crateOffsetHw;
   const int swCrate  = crate   + m_crateOffsetSw;
+  LVL1::DataError derr;
+  derr.set(LVL1::DataError::SubStatusWord, subBlock->subStatus());
+  const int ssError = derr.error();
+  std::vector<int> dummy(timeslices);
   const int sliceBeg = ( neutralFormat ) ? 0          : sliceNum;
   const int sliceEnd = ( neutralFormat ) ? timeslices : sliceNum + 1;
   for (int slice = sliceBeg; slice < sliceEnd; ++slice) {
@@ -1266,12 +1274,8 @@ void JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
       // Loop over jet element channels and fill jet elements
 
       for (int chan = 0; chan < m_channels; ++chan) {
-        const JemJetElement jetEle(subBlock.jetElement(slice, chan));
-	LVL1::DataError emErrBits;
-	LVL1::DataError hadErrBits;
-	emErrBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
-	hadErrBits.set(LVL1::DataError::SubStatusWord, subBlock.subStatus());
-        if (jetEle.data() || emErrBits.error()) {
+        const JemJetElement jetEle(subBlock->jetElement(slice, chan));
+        if (jetEle.data() || ssError) {
 	  double eta = 0.;
 	  double phi = 0.;
 	  int layer = 0;
@@ -1280,7 +1284,6 @@ void JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
 	      LVL1::JetElement* je = findJetElement(eta, phi);
 	      if ( ! je ) {   // create new jet element
 	        const unsigned int key = m_elementKey->jeKey(phi, eta);
-	        const std::vector<int> dummy(timeslices);
 	        je = new LVL1::JetElement(phi, eta, dummy, dummy, key,
 	                                  dummy, dummy, dummy, trigJem);
 	        m_jeMap.insert(std::make_pair(key, je));
@@ -1307,13 +1310,16 @@ void JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
 		  return;
                 }
               }
+	      LVL1::DataError emErrBits(ssError);
+	      LVL1::DataError hadErrBits(ssError);
+	      const int linkError = jetEle.linkError();
 	      emErrBits.set(LVL1::DataError::Parity, jetEle.emParity());
-	      emErrBits.set(LVL1::DataError::LinkDown, jetEle.linkError());
+	      emErrBits.set(LVL1::DataError::LinkDown, linkError);
 	      hadErrBits.set(LVL1::DataError::Parity, jetEle.hadParity());
-	      hadErrBits.set(LVL1::DataError::LinkDown, jetEle.linkError() >> 1);
+	      hadErrBits.set(LVL1::DataError::LinkDown, linkError >> 1);
 	      je->addSlice(slice, jetEle.emData(), jetEle.hadData(),
 	                          emErrBits.error(), hadErrBits.error(),
-	           	          jetEle.linkError());
+	           	          linkError);
 	    }
           } else if (verbose && jetEle.data()) {
 	    msg(MSG::VERBOSE) << "Non-zero data but no channel mapping for channel "
@@ -1330,18 +1336,18 @@ void JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
 
       // Get jet hits
 
-      const unsigned int hits = subBlock.jetHits(slice);
+      const unsigned int hits = subBlock->jetHits(slice);
       if (hits) {
         LVL1::JEMHits* jh = findJetHits(crate, module);
 	if ( ! jh ) {   // create new jet hits
-	  std::vector<unsigned int> hitsVec(timeslices);
-	  hitsVec[slice] = hits;
-	  jh = new LVL1::JEMHits(swCrate, module, hitsVec, trigJem);
+	  m_hitsVec.assign(timeslices, 0);
+	  m_hitsVec[slice] = hits;
+	  jh = new LVL1::JEMHits(swCrate, module, m_hitsVec, trigJem);
 	  m_hitsMap.insert(std::make_pair(crate*m_modules+module, jh));
 	  m_hitCollection->push_back(jh);
         } else {
-	  std::vector<unsigned int> hitsVec(jh->JetHitsVec());
-	  const int nsl = hitsVec.size();
+	  m_hitsVec = jh->JetHitsVec();
+	  const int nsl = m_hitsVec.size();
 	  if (timeslices != nsl) {
 	    if (debug) {
 	      msg() << "Inconsistent number of slices in sub-blocks"
@@ -1350,14 +1356,14 @@ void JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
             m_rodErr = L1CaloSubBlock::ERROR_SLICES;
 	    return;
           }
-	  if (hitsVec[slice] != 0) {
+	  if (m_hitsVec[slice] != 0) {
 	    if (debug) msg() << "Duplicate data for slice "
 	                     << slice << endreq;
             m_rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
 	    return;
           }
-	  hitsVec[slice] = hits;
-	  jh->addJetHits(hitsVec);
+	  m_hitsVec[slice] = hits;
+	  jh->addJetHits(m_hitsVec);
         }
       } else if (verbose) {
         msg(MSG::VERBOSE) << "No jet hits data for crate/module/slice "
@@ -1369,27 +1375,27 @@ void JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
 
       // Get energy subsums
 
-      const unsigned int ex = subBlock.ex(slice);
-      const unsigned int ey = subBlock.ey(slice);
-      const unsigned int et = subBlock.et(slice);
+      const unsigned int ex = subBlock->ex(slice);
+      const unsigned int ey = subBlock->ey(slice);
+      const unsigned int et = subBlock->et(slice);
       if (ex | ey | et) {
 	LVL1::JEMEtSums* sums = findEnergySums(crate, module);
 	if ( ! sums ) {   // create new energy sums
-	  std::vector<unsigned int> exVec(timeslices);
-	  std::vector<unsigned int> eyVec(timeslices);
-	  std::vector<unsigned int> etVec(timeslices);
-	  exVec[slice] = ex;
-	  eyVec[slice] = ey;
-	  etVec[slice] = et;
-	  sums = new LVL1::JEMEtSums(swCrate, module, etVec, exVec, eyVec,
+	  m_exVec.assign(timeslices, 0);
+	  m_eyVec.assign(timeslices, 0);
+	  m_etVec.assign(timeslices, 0);
+	  m_exVec[slice] = ex;
+	  m_eyVec[slice] = ey;
+	  m_etVec[slice] = et;
+	  sums = new LVL1::JEMEtSums(swCrate, module, m_etVec, m_exVec, m_eyVec,
 	                                                            trigJem);
           m_etMap.insert(std::make_pair(crate*m_modules+module, sums));
 	  m_etCollection->push_back(sums);
         } else {
-	  std::vector<unsigned int> exVec(sums->ExVec());
-	  std::vector<unsigned int> eyVec(sums->EyVec());
-	  std::vector<unsigned int> etVec(sums->EtVec());
-	  const int nsl = exVec.size();
+	  m_exVec = sums->ExVec();
+	  m_eyVec = sums->EyVec();
+	  m_etVec = sums->EtVec();
+	  const int nsl = m_exVec.size();
 	  if (timeslices != nsl) {
 	    if (debug) {
 	      msg() << "Inconsistent number of slices in sub-blocks"
@@ -1398,18 +1404,18 @@ void JepByteStreamTool::decodeJem(JemSubBlock& subBlock, int trigJem,
             m_rodErr = L1CaloSubBlock::ERROR_SLICES;
 	    return;
           }
-	  if (exVec[slice] != 0 || eyVec[slice] != 0 || etVec[slice] != 0) {
+	  if (m_exVec[slice] != 0 || m_eyVec[slice] != 0 || m_etVec[slice] != 0) {
 	    if (debug) msg() << "Duplicate data for slice "
 	                     << slice << endreq;
             m_rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
 	    return;
           }
-	  exVec[slice] = ex;
-	  eyVec[slice] = ey;
-	  etVec[slice] = et;
-	  sums->addEx(exVec);
-	  sums->addEy(eyVec);
-	  sums->addEt(etVec);
+	  m_exVec[slice] = ex;
+	  m_eyVec[slice] = ey;
+	  m_etVec[slice] = et;
+	  sums->addEx(m_exVec);
+	  sums->addEy(m_eyVec);
+	  sums->addEt(m_etVec);
         }
       } else if (verbose) {
         msg(MSG::VERBOSE) << "No energy sums data for crate/module/slice "

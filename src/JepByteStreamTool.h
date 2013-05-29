@@ -104,11 +104,11 @@ class JepByteStreamTool : public AthAlgTool {
    StatusCode convertBs(const IROBDataProviderSvc::VROBFRAG& robFrags,
                         CollectionType collection);
    /// Unpack CMM-Energy sub-block
-   void decodeCmmEnergy(CmmEnergySubBlock& subBlock, int trigCmm);
+   void decodeCmmEnergy(CmmEnergySubBlock* subBlock, int trigCmm);
    /// Unpack CMM-Jet sub-block
-   void decodeCmmJet(CmmJetSubBlock& subBlock, int trigCmm);
+   void decodeCmmJet(CmmJetSubBlock* subBlock, int trigCmm);
    /// Unpack JEM sub-block
-   void decodeJem(JemSubBlock& subBlock, int trigJem,
+   void decodeJem(JemSubBlock* subBlock, int trigJem,
                                          CollectionType collection);
 
    /// Find a jet element given eta, phi
@@ -174,6 +174,28 @@ class JepByteStreamTool : public AthAlgTool {
    L1CaloSrcIdMap* m_srcIdMap;
    /// Jet element key provider
    LVL1::JetElementKey* m_elementKey;
+   /// JemSubBlock for unpacking
+   JemSubBlock* m_jemSubBlock;
+   /// CmmEnergySubBlock for unpacking
+   CmmEnergySubBlock* m_cmmEnergySubBlock;
+   /// CmmJetSubBlock for unpacking
+   CmmJetSubBlock* m_cmmJetSubBlock;
+   /// Ex vector for unpacking
+   std::vector<unsigned int> m_exVec;
+   /// Ey vector for unpacking
+   std::vector<unsigned int> m_eyVec;
+   /// Et vector for unpacking
+   std::vector<unsigned int> m_etVec;
+   /// Ex error vector for unpacking
+   std::vector<int> m_exErrVec;
+   /// Ex error vector for unpacking
+   std::vector<int> m_eyErrVec;
+   /// Ex error vector for unpacking
+   std::vector<int> m_etErrVec;
+   /// Hits vector for unpacking
+   std::vector<unsigned int> m_hitsVec;
+   /// Error vector for unpacking
+   std::vector<int> m_errVec;
    /// Vector for current JEM sub-blocks
    DataVector<JemSubBlock> m_jemBlocks;
    /// Vector for current CMM-Energy sub-blocks

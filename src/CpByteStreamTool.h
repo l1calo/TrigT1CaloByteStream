@@ -91,12 +91,12 @@ class CpByteStreamTool : public AthAlgTool {
    StatusCode convertBs(const IROBDataProviderSvc::VROBFRAG& robFrags,
                         CollectionType collection);
    /// Unpack CMM-CP sub-block
-   void decodeCmmCp(CmmCpSubBlock& subBlock, int trigCmm);
+   void decodeCmmCp(CmmCpSubBlock* subBlock, int trigCmm);
    /// Unpack CPM sub-block
-   void decodeCpm(CpmSubBlock& subBlock, int trigCpm, CollectionType collection);
+   void decodeCpm(CpmSubBlock* subBlock, int trigCpm, CollectionType collection);
 
-   /// Find a CPM tower given eta, phi
-   LVL1::CPMTower*  findCpmTower(double eta, double phi);
+   /// Find a CPM tower for given key
+   LVL1::CPMTower*  findCpmTower(unsigned int key);
    /// Find CPM hits for given crate, module
    LVL1::CPMHits*   findCpmHits(int crate, int module);
    /// Find CMM-CP hits for given crate, data ID
@@ -150,6 +150,26 @@ class CpByteStreamTool : public AthAlgTool {
    L1CaloSrcIdMap* m_srcIdMap;
    /// Trigger tower key provider
    LVL1::TriggerTowerKey* m_towerKey;
+   /// CPM sub-block for unpacking
+   CpmSubBlock* m_cpmSubBlock;
+   /// CMM-CP sub-block for unpacking
+   CmmCpSubBlock* m_cmmCpSubBlock;
+   /// Hits0 vector for unpacking
+   std::vector<unsigned int> m_hitsVec0;
+   /// Hits1 vector for unpacking
+   std::vector<unsigned int> m_hitsVec1;
+   /// Error0 vector for unpacking
+   std::vector<int> m_errVec0;
+   /// Error1 vector for unpacking
+   std::vector<int> m_errVec1;
+   /// EM data vector for unpacking
+   std::vector<int> m_emVec;
+   /// Had data vector for unpacking
+   std::vector<int> m_hadVec;
+   /// EM error data vector for unpacking
+   std::vector<int> m_emErrVec;
+   /// Had error data vector for unpacking
+   std::vector<int> m_hadErrVec;
    /// Vector for current CPM sub-blocks
    DataVector<CpmSubBlock> m_cpmBlocks;
    /// Vector for current CMM-CP hit0 sub-blocks
