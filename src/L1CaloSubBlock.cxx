@@ -60,6 +60,13 @@ L1CaloSubBlock::L1CaloSubBlock() : m_header(0), m_trailer(0),
 				   m_oddParity(s_maxPins, 1),
 				   m_dataWords(0)
 {
+  // Initialize unpacking masks
+  m_unpackingMasks.reserve(s_maxWordBits+1);
+  m_unpackingMasks.push_back(0);
+  for (int i = 1; i <= s_maxWordBits; ++i) {
+    const uint32_t val = (m_unpackingMasks[i-1]<<1)|1;
+    m_unpackingMasks.push_back(val);
+  }
 }
 
 L1CaloSubBlock::~L1CaloSubBlock()
@@ -319,9 +326,7 @@ uint32_t L1CaloSubBlock::unpacker(const int nbits)
     if (nbitsDone > m_maxBits - m_currentBit) {
       nbitsDone = m_maxBits - m_currentBit;
     }
-    uint32_t mask = 0x1;
-    for (int i = 1; i < nbitsDone; ++i) mask |= (mask << 1);
-    word = (m_bitword >> m_currentBit) & mask;
+    word = (m_bitword >> m_currentBit) & m_unpackingMasks[nbitsDone];
     m_currentBit += nbits;
     if (m_currentBit >= m_maxBits) {
       m_bitword = 0;
@@ -338,9 +343,7 @@ uint32_t L1CaloSubBlock::unpacker(const int nbits)
           m_unpackerFlag = false;
           return word;
         }
-	mask = 0x1;
-	for (int i = 1; i < bitsLeft; ++i) mask |= (mask << 1);
-	word |= (m_bitword & mask) << nbitsDone;
+	word |= (m_bitword & m_unpackingMasks[bitsLeft]) << nbitsDone;
 	m_currentBit = bitsLeft;
       }
     }

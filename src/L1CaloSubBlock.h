@@ -215,6 +215,8 @@ class L1CaloSubBlock {
    int      m_dataWords;
    /// Sub-Block data
    std::vector<uint32_t> m_data;
+   /// Unpacking masks
+   std::vector<uint32_t> m_unpackingMasks;
 
 };
 
