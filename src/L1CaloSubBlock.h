@@ -34,7 +34,8 @@ class L1CaloSubBlock {
    enum UnpackErrorType  { UNPACK_NONE = ERROR_NONE, UNPACK_VERSION = ERROR_MAX,
                            UNPACK_FORMAT, UNPACK_COMPRESSION_VERSION,
 			   UNPACK_COMPRESSION_SLICES, UNPACK_DATA_TRUNCATED,
-			   UNPACK_EXCESS_DATA, UNPACK_SOURCE_ID };
+			   UNPACK_EXCESS_DATA, UNPACK_SOURCE_ID,
+			   UNPACK_EXCESS_TOBS, UNPACK_DATA_ID };
 
    L1CaloSubBlock();
    ~L1CaloSubBlock();
@@ -102,6 +103,8 @@ class L1CaloSubBlock {
    static SubBlockWordType wordType(uint32_t word);
    /// Return wordID field from given header word
    static int wordId(uint32_t word);
+   /// Return version number from given header word
+   static int version(uint32_t word);
    /// Return data format from given header word
    static int format(uint32_t word);
    /// Return seqno field from given header word
@@ -144,6 +147,8 @@ class L1CaloSubBlock {
    uint32_t unpackerNeutral(int pin, int nbits);
    /// Unpack and test G-Link parity bit for given pin
    bool     unpackerNeutralParityError(int pin);
+   /// Return current pin bit for given pin
+   int      currentPinBit(int pin) const;
 
  private:
    //  Constants.
@@ -344,6 +349,11 @@ inline void L1CaloSubBlock::setStreamed()
 inline bool L1CaloSubBlock::unpackerSuccess() const
 {
   return m_unpackerFlag;
+}
+
+inline int L1CaloSubBlock::currentPinBit(int pin) const
+{
+  return m_currentPinBit[pin];
 }
 
 } // end namespace

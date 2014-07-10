@@ -10,7 +10,7 @@
 #include "TrigT1CaloEvent/JetElement.h"
 
 #include "IPpmByteStreamSubsetTool.h"
-#include "JepByteStreamTool.h"
+#include "JepByteStreamV2Tool.h"
 #include "ITriggerTowerSelectionTool.h"
 
 #include "TrigT1CaloDataAccess.h"
@@ -25,7 +25,7 @@ TrigT1CaloDataAccess::TrigT1CaloDataAccess(const std::string& type,
  m_robDataProvider("ROBDataProviderSvc/ROBDataProviderSvc", name),
  m_selectionTool("LVL1BS::TriggerTowerSelectionTool/TriggerTowerSelectionTool"),
  m_ppmBSConverter("LVL1BS::PpmByteStreamSubsetTool/PpmByteStreamSubsetTool"),
- m_JetConverter("LVL1BS::JepByteStreamTool/JepByteStreamTool"),
+ m_JetConverter("LVL1BS::JepByteStreamV2Tool/JepByteStreamV2Tool"),
  m_ttCol(0), m_jetCol(0)
 {
   declareInterface<ITrigT1CaloDataAccess>(this);
@@ -33,7 +33,7 @@ TrigT1CaloDataAccess::TrigT1CaloDataAccess(const std::string& type,
   declareProperty("ROBDataProviderSvc",        m_robDataProvider);
   declareProperty("TriggerTowerSelectionTool", m_selectionTool);
   declareProperty("PpmByteStreamSubsetTool",   m_ppmBSConverter);
-  declareProperty("JepByteStreamTool",   m_JetConverter);
+  declareProperty("JepByteStreamV2Tool",   m_JetConverter);
 
 }
 

@@ -36,6 +36,8 @@ RodHeaderByteStreamTool::RodHeaderByteStreamTool(const std::string& type,
 {
   declareInterface<RodHeaderByteStreamTool>(this);
 
+  declareProperty("ErrorTool", m_errorTool,
+                  "Tool to collect errors for monitoring");
   declareProperty("ROBSourceIDs",        m_sourceIDs,
                   "ROB fragment source identifiers - All except RoIB");
   declareProperty("ROBSourceIDsPP",      m_sourceIDsPP,

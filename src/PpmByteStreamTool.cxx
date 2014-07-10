@@ -59,6 +59,8 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
 
   declareProperty("PpmMappingTool", m_ppmMaps,
                   "Crate/Module/Channel to Eta/Phi/Layer mapping tool");
+  declareProperty("ErrorTool", m_errorTool,
+                  "Tool to collect errors for monitoring");
 
   declareProperty("PrintCompStats",     m_printCompStats  = 0,
                   "Print compressed format statistics");
@@ -88,6 +90,10 @@ PpmByteStreamTool::PpmByteStreamTool(const std::string& type,
                   "If >0, the number of LUT slices in bytestream");
   declareProperty("ForceSlicesFADC",    m_forceSlicesFadc = 0,
                   "If >0, the number of FADC slices in bytestream");
+  declareProperty("CrateMin",       m_crateMin = 0,
+                  "Minimum crate number, allows partial output");
+  declareProperty("CrateMax",       m_crateMax = s_crates-1,
+                  "Maximum crate number, allows partial output");
 
 }
 
@@ -338,6 +344,13 @@ StatusCode PpmByteStreamTool::convert(
       }
       continue;
     }
+
+    // Check minor version
+    const int minorVersion = (*rob)->rod_version() & 0xffff;
+    if (minorVersion > m_srcIdMap->minorVersionPreLS1()) {
+      if (debug) msg() << "Skipping post-LS1 data" << endreq;
+      continue;
+    }
     const int rodCrate = m_srcIdMap->crate(sourceID);
     if (debug) {
       msg() << "Treating crate " << rodCrate 
@@ -351,7 +364,6 @@ StatusCode PpmByteStreamTool::convert(
       continue;
     }
     L1CaloUserHeader userHeader(*payload);
-    const int minorVersion = (*rob)->rod_version() & 0xffff;
     userHeader.setVersion(minorVersion);
     const int headerWords = userHeader.words();
     if (headerWords != 1) {
@@ -700,7 +712,7 @@ StatusCode PpmByteStreamTool::convert(
   // Clear the event assembler
 
   m_fea->clear();
-  const uint16_t minorVersion = m_srcIdMap->minorVersion();
+  const uint16_t minorVersion = m_srcIdMap->minorVersionPreLS1();
   m_fea->setRodMinorVersion(minorVersion);
   m_rodStatusMap.clear();
 
@@ -733,7 +745,7 @@ StatusCode PpmByteStreamTool::convert(
   int trigLutNew    = 0;
   int trigFadcNew   = 0;
   const int modulesPerSlink = s_modules / m_slinks;
-  for (int crate=0; crate < s_crates; ++crate) {
+  for (int crate = m_crateMin; crate <= m_crateMax; ++crate) {
     for (int module=0; module < s_modules; ++module) {
 
       // Pack required number of modules per slink

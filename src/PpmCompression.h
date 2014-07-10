@@ -3,6 +3,8 @@
 
 namespace LVL1BS {
 
+class PpmSubBlock;
+
 /** PPM Compressed Format Version 1.04 packing and unpacking utilities.
  *
  *  Based on:
@@ -12,8 +14,6 @@ namespace LVL1BS {
  *
  *  @author Peter Faulkner
  */
-
-class PpmSubBlock;
 
 class PpmCompression {
 

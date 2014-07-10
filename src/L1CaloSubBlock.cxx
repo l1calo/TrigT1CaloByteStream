@@ -61,11 +61,9 @@ L1CaloSubBlock::L1CaloSubBlock() : m_header(0), m_trailer(0),
 				   m_dataWords(0)
 {
   // Initialize unpacking masks
-  m_unpackingMasks.reserve(s_maxWordBits+1);
-  m_unpackingMasks.push_back(0);
+  m_unpackingMasks.assign(s_maxWordBits+1, 0);
   for (int i = 1; i <= s_maxWordBits; ++i) {
-    const uint32_t val = (m_unpackingMasks[i-1]<<1)|1;
-    m_unpackingMasks.push_back(val);
+    m_unpackingMasks[i] = (m_unpackingMasks[i-1]<<1)|0x1;
   }
 }
 
@@ -140,7 +138,7 @@ OFFLINE_FRAGMENTS_NAMESPACE::PointerType L1CaloSubBlock::read(
       // Other CPM/JEM '01xx' or '10xx'
       else if (wordId() == 0xc)       badId = (((id & 0xc) != 0x4) &&
                                                ((id & 0xc) != 0x8));
-      // Other CMM '00xx'
+      // Other CMM/CMX '00xx'
       else                            badId = ((id & 0xc) != 0);
       if (m_trailer || badId) return pos;
       m_data.push_back(word);
@@ -239,6 +237,12 @@ std::string L1CaloSubBlock::unpackErrorMsg() const
     case UNPACK_SOURCE_ID:
       msg = "Invalid Source ID in Sub-block Data";
       break;
+    case UNPACK_EXCESS_TOBS:
+      msg = "Excess TOBs in Sub-block Data";
+      break;
+    case UNPACK_DATA_ID:
+      msg = "Invalid word ID in Sub-block Data";
+      break;
     default:
       msg = "Unknown Error Code";
       break;
@@ -279,8 +283,7 @@ int L1CaloSubBlock::parityBit(const int init, const uint32_t datum,
 void L1CaloSubBlock::packer(const uint32_t datum, const int nbits)
 {
   if (nbits > 0) {
-    uint32_t mask = 0x1;
-    for (int i = 1; i < nbits; ++i) mask |= (mask << 1);
+    uint32_t mask = m_unpackingMasks[nbits];
     m_bitword |= (datum & mask) << m_currentBit;
     m_currentBit += nbits;
     if (m_currentBit >= m_maxBits) {
@@ -438,6 +441,13 @@ L1CaloSubBlock::SubBlockWordType L1CaloSubBlock::wordType(const uint32_t word)
 int L1CaloSubBlock::wordId(const uint32_t word)
 {
   return (word >> s_wordIdBit) & s_wordIdMask;
+}
+
+// Return version number from given header word
+
+int L1CaloSubBlock::version(const uint32_t word)
+{
+  return (word >> s_versionBit) & s_versionMask;
 }
 
 // Return data format from given header word

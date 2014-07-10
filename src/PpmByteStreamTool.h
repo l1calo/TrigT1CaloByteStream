@@ -121,6 +121,10 @@ class PpmByteStreamTool : public AthAlgTool {
    int m_forceSlicesLut;
    /// Force number of FADC slices in bytestream
    int m_forceSlicesFadc;
+   /// Minimum crate number when writing out bytestream
+   int m_crateMin;
+   /// Maximum crate number when writing out bytestream
+   int m_crateMax;
    /// Pedestal value
    int m_pedestal;
    /// FADC baseline lower bound

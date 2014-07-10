@@ -12,7 +12,7 @@ namespace LVL1BS {
  *
  *  @author Peter Faulkner
  */
-
+                                                    // Remove pre version 2 stuff ?
 class L1CaloUserHeader {
 
  public:

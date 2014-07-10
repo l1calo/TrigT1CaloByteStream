@@ -6,7 +6,7 @@ namespace LVL1BS {
 // Static constant definitions
 
 const int      L1CaloUserHeader::s_jepCmmBit;
-const int      L1CaloUserHeader::s_cpCmmBit;
+//const int      L1CaloUserHeader::s_cpCmmBit;
 const int      L1CaloUserHeader::s_jemBit;
 const int      L1CaloUserHeader::s_cpmBit;
 const int      L1CaloUserHeader::s_ppmLutBit;

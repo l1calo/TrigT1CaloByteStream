@@ -49,7 +49,10 @@ public:
   eformat::SubDetector subDet(uint32_t code);
 
   /// Return ROD header minor version to use when writing BS
-  uint16_t minorVersion() {return 0x1003;}
+  uint16_t minorVersion() {return 0x1004;}                     // Or may go up to 0x2000, CHECK
+
+  /// Return last ROD header minor version for pre-LS1 data
+  uint16_t minorVersionPreLS1() {return 0x1003;}
 
 };
 

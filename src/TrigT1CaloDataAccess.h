@@ -29,7 +29,7 @@ namespace LVL1 {
 
 namespace LVL1BS {
 
-class JepByteStreamTool;
+class JepByteStreamV2Tool;
 class IPpmByteStreamSubsetTool;
 class ITriggerTowerSelectionTool;
 
@@ -73,7 +73,7 @@ class TrigT1CaloDataAccess : virtual public ITrigT1CaloDataAccess,
    /// Tool for bytestream conversion
    ToolHandle<LVL1BS::IPpmByteStreamSubsetTool>   m_ppmBSConverter;
    /// Tool for Jep bytestream conversion
-   ToolHandle<LVL1BS::JepByteStreamTool>   m_JetConverter;
+   ToolHandle<LVL1BS::JepByteStreamV2Tool>   m_JetConverter;
 
    /// ROB fragment pointers
    std::vector<const OFFLINE_FRAGMENTS_NAMESPACE::ROBFragment*> m_robFrags;

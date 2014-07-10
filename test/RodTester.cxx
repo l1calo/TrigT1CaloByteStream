@@ -6,6 +6,7 @@
 #include "GaudiKernel/StatusCode.h"
 #include "StoreGate/StoreGateSvc.h"
 
+#include "TrigT1Interfaces/TrigT1CaloDefs.h"
 #include "TrigT1CaloEvent/RODHeader.h"
 
 #include "RodTester.h"
@@ -15,7 +16,8 @@ namespace LVL1BS {
 RodTester::RodTester(const std::string& name, ISvcLocator* pSvcLocator)
                      : AthAlgorithm(name, pSvcLocator)
 {
-  declareProperty("RodHeaderLocation", m_rodHeaderLocation = "RODHeaders");
+  declareProperty("RodHeaderLocation", m_rodHeaderLocation =
+                   LVL1::TrigT1CaloDefs::RODHeaderLocation);
 
   m_flags.push_back("");
   m_flags.push_back("PP");
