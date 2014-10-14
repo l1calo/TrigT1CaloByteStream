@@ -28,6 +28,7 @@ class PpmByteStreamV2Tool;
 /** ByteStream converter for Pre-processor Module DAQ data / TriggerTowers.
  *
  *  @author alexander.mazurov@cern.ch
+ *  @author Peter Faulkner
  */
 
 class PpmByteStreamV2Cnv: public Converter {
