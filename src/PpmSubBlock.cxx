@@ -104,8 +104,9 @@ int PpmSubBlock::slicesLut() const
 
 // Store PPM data for later packing
 
-void PpmSubBlock::fillPpmData(const int chan, const std::vector<int>& lut,
-                                              const std::vector<int>& fadc,
+void PpmSubBlock::fillPpmData(const int chan, 
+                      const std::vector<uint_least8_t>& lut,
+                      const std::vector<uint_least16_t>& fadc,
 				              const std::vector<int>& bcidLut,
 				              const std::vector<int>& bcidFadc)
 {
@@ -137,37 +138,106 @@ void PpmSubBlock::fillPpmData(const int chan, const std::vector<int>& lut,
 
 // Return unpacked data for given channel
 
-void PpmSubBlock::ppmData(const int chan, std::vector<int>& lut,
-                                          std::vector<int>& fadc,
-				          std::vector<int>& bcidLut,
-				          std::vector<int>& bcidFadc)
+void PpmSubBlock::ppmData(
+  const int chan, 
+  std::vector<uint_least8_t>& lutCp,
+  std::vector<uint_least8_t>& lutJep,
+  std::vector<uint_least16_t>& fadc,
+	std::vector<uint_least8_t>& bcidLutCp,
+  std::vector<uint_least8_t>& satLutJep,
+	std::vector<uint_least8_t>& bcidFadc,
+  std::vector<int_least16_t>& correction,
+  std::vector<uint_least8_t>& correctionEnabled
+  
+  )
 {
-  lut.clear();
+  lutCp.clear();
+  lutJep.clear();
   fadc.clear();
-  bcidLut.clear();
+
+  bcidLutCp.clear();
+  satLutJep.clear();
   bcidFadc.clear();
+
+  correction.clear();
+  correctionEnabled.clear();
+  
+  if (m_rodVersion >= 0x1004) { // nMCM
+      ppmData1004(chan, lutCp, lutJep, fadc, bcidLutCp, satLutJep,
+        bcidFadc, correction, correctionEnabled);
+  } else { // MCM
+    ppmData1003(chan, lutCp, fadc, bcidLutCp, bcidFadc);
+  }
+}
+
+
+void PpmSubBlock::ppmData1004(
+  const int chan, 
+  std::vector<uint_least8_t>& lutCp,
+  std::vector<uint_least8_t>& lutJep,
+  std::vector<uint_least16_t>& fadc,
+  std::vector<uint_least8_t>& bcidLutCp,
+  std::vector<uint_least8_t>& satLutJep,
+  std::vector<uint_least8_t>& bcidFadc,
+  std::vector<int_least16_t>& correction,
+  std::vector<uint_least8_t>& correctionEnabled
+  
+  )
+{
   const int sliceL = slicesLut();
   const int sliceF = slicesFadc();
-  int beg = (chan % channelsPerSubBlock()) * (sliceL + sliceF);
-  int end = beg + sliceL;
-  if (size_t(end + sliceF) <= m_datamap.size()) {
-    for (int pos = beg; pos < end; ++pos) {
-      const uint32_t word = m_datamap[pos];
-      lut.push_back((word >> s_lutBit) & s_lutMask);
-      bcidLut.push_back((word >> s_bcidLutBit) & s_bcidLutMask);
-    }
-    beg += sliceL;
-    end += sliceF;
-    for (int pos = beg; pos < end; ++pos) {
-      const uint32_t word = m_datamap[pos];
-      fadc.push_back((word >> s_fadcBit) & s_fadcMask);
-      bcidFadc.push_back((word >> s_bcidFadcBit) & s_bcidFadcMask);
-    }
-  } else {
-    lut.resize(sliceL);
-    fadc.resize(sliceF);
-    bcidLut.resize(sliceL);
-    bcidFadc.resize(sliceF);
+  
+  int pos = (chan % channelsPerSubBlock()) * (2 * sliceL + sliceF + sliceL);
+  
+  uint32_t word;
+  for(int i = 0; i < sliceL; ++i) {
+    word = m_datamap[pos++];
+    lutCp.push_back((word >> s_lutBit) & s_lutMask);
+    bcidLutCp.push_back((word >> s_bcidLutBit) & s_bcidLutMask);
+  }
+
+  for(int i = 0; i < sliceL; ++i) {
+    word = m_datamap[pos++];
+    lutJep.push_back((word >> s_lutBit) & s_lutMask); 
+    satLutJep.push_back((word >> s_bcidLutBit) & s_bcidLutMask);
+  }
+
+  for(int i = 0; i < sliceF; i++) {
+    word = m_datamap[pos++];
+    fadc.push_back((word >> s_fadcBit) & s_fadcMask);
+    bcidFadc.push_back((word >> s_bcidFadcBit) & s_bcidFadcMask);
+  }
+
+  for(int i = 0; i < sliceL; i++) {
+    word = m_datamap[pos++];
+    correction.push_back((word >> s_fadcBit) & s_fadcMask);
+    correctionEnabled.push_back((word >> s_bcidFadcBit) & s_bcidFadcMask);
+  }
+}
+
+void PpmSubBlock::ppmData1003(int chan,
+        std::vector<uint_least8_t>& lut,
+        std::vector<uint_least16_t>& fadc,
+        std::vector<uint_least8_t>& bcidLut,
+        std::vector<uint_least8_t>& bcidFadc
+)
+{
+  const int sliceL = slicesLut();
+  const int sliceF = slicesFadc();
+  
+  int pos = (chan % channelsPerSubBlock()) * (sliceL + sliceF);
+  
+  uint32_t word;
+  for(int i = 0; i < sliceL; ++i) {
+    word = m_datamap[pos++];
+    lut.push_back((word >> s_lutBit) & s_lutMask);
+    bcidLut.push_back((word >> s_bcidLutBit) & s_bcidLutMask);
+  }
+
+  for(int i = 0; i < sliceF; i++) {
+    word = m_datamap[pos++];
+    fadc.push_back((word >> s_fadcBit) & s_fadcMask);
+    bcidFadc.push_back((word >> s_bcidFadcBit) & s_bcidFadcMask);
   }
 }
 
@@ -363,7 +433,11 @@ bool PpmSubBlock::packUncompressedErrors()
 
 bool PpmSubBlock::unpackNeutral()
 {
-  const int slices = slicesLut() + slicesFadc();
+  const int slices = 
+    m_rodVersion >= 0x1004 
+    ? 2 * slicesLut() + slicesFadc() + 1
+    : slicesLut() + slicesFadc();
+  
   m_datamap.clear();
   // Bunch Crossing number
   int bunchCrossing = 0;

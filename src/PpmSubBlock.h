@@ -34,15 +34,21 @@ class PpmSubBlock : public L1CaloSubBlock {
    int  slicesLut()  const;
 
    /// Store PPM data for later packing
-   void fillPpmData(int chan, const std::vector<int>& lut,
-                              const std::vector<int>& fadc,
+   void fillPpmData(int chan, const std::vector<uint_least8_t>& lut,
+                              const std::vector<uint_least16_t>& fadc,
                               const std::vector<int>& bcidLut,
 		              const std::vector<int>& bcidFadc);
    /// Return unpacked data for given channel
-   void ppmData(int chan, std::vector<int>& lut,
-                          std::vector<int>& fadc,
-			  std::vector<int>& bcidLut,
-			  std::vector<int>& bcidFadc);
+   void ppmData(int chan,
+        std::vector<uint_least8_t>& lutCp,
+        std::vector<uint_least8_t>& lutJep,
+        std::vector<uint_least16_t>& fadc,
+        std::vector<uint_least8_t>& bcidCp,
+        std::vector<uint_least8_t>& satJep,
+			  std::vector<uint_least8_t>& bcidFadc,
+        std::vector<int_least16_t>& correction,
+        std::vector<uint_least8_t>& correctionEnabled
+    );
 
    /// Store an error word corresponding to a data channel
    void fillPpmError(int chan, int errorWord);
@@ -87,6 +93,8 @@ class PpmSubBlock : public L1CaloSubBlock {
    void setFadcBaseline(int baseline);
    void setFadcThreshold(int threshold);
    void setRunNumber(int run);
+   void setRodVersion(int rodVersion);
+   
    //  Return triggered slice offsets, pedestal value
    int  lutOffset()               const;
    int  fadcOffset()              const;
@@ -179,6 +187,7 @@ class PpmSubBlock : public L1CaloSubBlock {
    int m_fadcBaseline;
    int m_fadcThreshold;
    int m_runNumber;
+   int m_rodVersion;
 
    /// Vector for compression statistics
    std::vector<uint32_t> m_compStats;
@@ -189,6 +198,25 @@ class PpmSubBlock : public L1CaloSubBlock {
    /// Vector for intermediate error data
    std::vector<uint32_t> m_errormap;
 
+  /// Return unpacked data for given channel
+ void ppmData1003(int chan,
+      std::vector<uint_least8_t>& lut,
+      std::vector<uint_least16_t>& fadc,
+      std::vector<uint_least8_t>& bcidLut,
+      std::vector<uint_least8_t>& bcidFadc
+  );
+
+  void ppmData1004(
+    const int chan, 
+    std::vector<uint_least8_t>& lutCp,
+    std::vector<uint_least8_t>& lutJep,
+    std::vector<uint_least16_t>& fadc,
+    std::vector<uint_least8_t>& bcidLutCp,
+    std::vector<uint_least8_t>& satLutJep,
+    std::vector<uint_least8_t>& bcidFadc,
+    std::vector<int_least16_t>& correction,
+    std::vector<uint_least8_t>& correctionEnabled
+   );
 };
 
 inline bool PpmSubBlock::glinkPinParity(const int chan) const
@@ -334,6 +362,11 @@ inline void PpmSubBlock::setFadcThreshold(const int threshold)
 inline void PpmSubBlock::setRunNumber(const int run)
 {
   m_runNumber = run;
+}
+
+inline void PpmSubBlock::setRodVersion(const int rodVersion)
+{
+  m_rodVersion = rodVersion;
 }
 
 inline int PpmSubBlock::lutOffset() const
