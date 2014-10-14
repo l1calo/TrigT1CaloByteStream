@@ -14,14 +14,17 @@ apply_pattern component_library
 
 apply_pattern declare_joboptions files="*.py"
 
-private
+
 use AthenaBaseComps      AthenaBaseComps-*      Control
 use ByteStreamCnvSvcBase ByteStreamCnvSvcBase-* Event 
 use ByteStreamData       ByteStreamData-*       Event
 use DataCollection       DataCollection-*       External
+
+private
 use StoreGate            StoreGate-*            Control
 use SGTools              SGTools-*              Control
 use EventInfo            EventInfo-*            Event
+use xAODTrigL1Calo       xAODTrigL1Calo-*       Event/xAOD
 
 use TrigT1CaloEvent      TrigT1CaloEvent-*      Trigger/TrigT1
 use TrigT1CaloUtils      TrigT1CaloUtils-*      Trigger/TrigT1
@@ -32,3 +35,9 @@ use TrigT1CaloMappingToolInterfaces TrigT1CaloMappingToolInterfaces-* Trigger/Tr
 #use StoreGate            StoreGate-*            Control
 
 macro_append DOXYGEN_FILE_PATTERNS    " *.icc"
+
+private
+use AtlasReflex  AtlasReflex-*  External -no_auto_imports
+
+apply_pattern lcgdict dict=TrigT1CaloByteStream selectionfile=selection.xml headerfiles="../TrigT1CaloByteStream/TrigT1CaloByteStreamDict.h"
+end_private
