@@ -51,9 +51,9 @@ class PpmSubBlock;
 /** Tool to perform ROB fragments to trigger towers and trigger towers
  *  to raw data conversions.
  *
- *  Based on ROD document version 1_09h.
  *
- *  @author Peter Faulkner
+ * @author alexander.mazurov@cern.ch 
+ * @author Peter Faulkner
  */
 
 class PpmByteStreamV2Tool: public AthAlgTool {
