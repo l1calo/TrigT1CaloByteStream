@@ -438,7 +438,6 @@ bool PpmSubBlock::unpackNeutral()
   const int slices = isRun2()
     ? 2 * slicesLut() + slicesFadc() + 1
     : slicesLut() + slicesFadc();
-  
 
   m_datamap.clear();
   // Bunch Crossing number

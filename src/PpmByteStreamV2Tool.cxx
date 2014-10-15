@@ -292,6 +292,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
     // -----------------------------------------------------------------------
     // Check minor version
     // -----------------------------------------------------------------------
+
     const int majorVersion = (*rob)->rod_version() >> 16;
     const int minorVersion = (*rob)->rod_version() & 0xffff;
 
@@ -741,7 +742,9 @@ StatusCode PpmByteStreamV2Tool::convert(
   collectTriggerTowers(robFrags);
 
   for (auto* tt: m_ttData) {
-    ttCollection->push_back(tt);
+    if (tt->coolId()) {
+      ttCollection->push_back(tt);
+    }
   }
 
 

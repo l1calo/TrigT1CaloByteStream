@@ -91,7 +91,7 @@ private:
  void printCompStats() const;
  /// Print a vector
  template <typename T>
-    std::string vectorToString(const std::vector<T>& vec) const;
+   std::string vectorToString(const std::vector<T>& vec) const;
 
 private:
   // typedef DataVector<LVL1::TriggerTower2> TriggerTowerCollection;

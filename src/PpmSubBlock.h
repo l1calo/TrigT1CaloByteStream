@@ -95,7 +95,6 @@ class PpmSubBlock : public L1CaloSubBlock {
    void setRunNumber(int run);
    void setRodVersion(uint32_t rodVersion);
 
-
    //  Return triggered slice offsets, pedestal value
    int  lutOffset()               const;
    int  fadcOffset()              const;
@@ -383,8 +382,6 @@ inline bool PpmSubBlock::isRun2() const
 {
   return rodMinorVersion() >= s_run2minorVersion;
 }
-
-
 
 inline int PpmSubBlock::lutOffset() const
 {
