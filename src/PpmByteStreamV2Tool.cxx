@@ -292,7 +292,11 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
     // -----------------------------------------------------------------------
     // Check minor version
     // -----------------------------------------------------------------------
+    const int majorVersion = (*rob)->rod_version() >> 16;
     const int minorVersion = (*rob)->rod_version() & 0xffff;
+
+
+    // std::cout << "++> ROD version " << std::hex << (*rob)->rod_version() << std::dec << std::endl;
     // if (minorVersion > m_srcIdMap->minorVersionPreLS1()) {
     //   if (debug) msg() << "Skipping post-LS1 data" << endreq;
     //   continue;
@@ -325,11 +329,14 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
     m_fadcBaseline = userHeader.lowerBound();
 
     if (debug) {
-      msg(MSG::DEBUG) << "Minor format version number: "
-            << MSG::hex << minorVersion << MSG::dec              << endreq
-            << "LUT triggered slice offset:  " << int(trigLut)        << endreq
-            << "FADC triggered slice offset: " << int(trigFadc)       << endreq
-            << "FADC baseline lower bound:   " << m_fadcBaseline << endreq;
+      msg(MSG::DEBUG) << 
+        "Major format version number: "
+        << MSG::hex  << majorVersion << MSG::dec << endreq
+        << "Minor format version number: "
+        << MSG::hex << minorVersion << MSG::dec << endreq
+        << "LUT triggered slice offset:  " << int(trigLut)        << endreq
+        << "FADC triggered slice offset: " << int(trigFadc)       << endreq
+        << "FADC baseline lower bound:   " << m_fadcBaseline << endreq;
     }
 
     const int runNumber = (*rob)->rod_run_no() & 0xffffff;
@@ -548,7 +555,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
         subBlock->setPedestal(m_pedestal);
         subBlock->setFadcBaseline(m_fadcBaseline);
         subBlock->setRunNumber(runNumber);
-        subBlock->setRodVersion(minorVersion);
+        subBlock->setRodVersion((*rob)->rod_version());
         
         if (debug) {
           msg(MSG::DEBUG) << "Unpacking sub-block version/format/seqno: "
@@ -630,33 +637,35 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
           const int error = errorBits.error();
 
         // Save to TriggerTower
+          const int layer = ((m_chanLayer[word] >> bit) & 1);
+          const int coolid = coolId(crate, module, channel);
 
           if (verbose) {
-            msg(MSG::VERBOSE) << "|channel/LUTCP/LUTJEP/FADC/bcidLUTCP/satLUTJEP/bcidFADC/correction/correctionEnabled/error: "
-                              << channel << "/";
-            printVec(lutCp);
-            printVec(lutJep);
-            printVec(fadc);
-            
-            printVec(bcidLutCp);
-            printVec(satLutJep);
-            printVec(bcidFadc);
-            
-            printVec(correction);
-            printVec(correctionEnabled);
-            
-            msg(MSG::VERBOSE) << MSG::hex << error << MSG::dec << "|";
+            msg(MSG::VERBOSE) << "|coolid:" << coolid << "(0x" << MSG::hex << coolid << MSG::dec << ")/";
+            msg(MSG::VERBOSE) << "crate:" << crate << "/";
+            msg(MSG::VERBOSE) << "module:" << module << "/";
+            msg(MSG::VERBOSE) << "channel:" << channel << "/";
+            msg(MSG::VERBOSE) << "lut_cp:" << vectorToString(lutCp);
+            msg(MSG::VERBOSE) << "lut_jep:" << vectorToString(lutJep);
+            msg(MSG::VERBOSE) << "fadc:" << vectorToString(fadc);
+            msg(MSG::VERBOSE) << "bcid_lutcp:" << vectorToString(bcidLutCp);
+            msg(MSG::VERBOSE) << "sat_lutjep:" << vectorToString(satLutJep);
+            msg(MSG::VERBOSE) << "bcid_fadc:" << vectorToString(bcidFadc);
+            msg(MSG::VERBOSE) << "correction:" << vectorToString(correction);
+            msg(MSG::VERBOSE) << "correction_enabled:" << vectorToString(correctionEnabled);
+            msg(MSG::VERBOSE) << "error:" << MSG::hex << error << MSG::dec << "|";
+            msg(MSG::VERBOSE) << endreq;
           }
           
           m_foundChan[word] |= (1 << bit);
           ++ttCount;
           xAOD::TriggerTower* tt = ttColRef[m_ttPos[index]];
           
-          const int layer = ((m_chanLayer[word] >> bit) & 1);
           // =================================================================
           // Update Trigger Towers objects
           // =================================================================
-          tt->setCoolId(coolId(crate, module, channel));
+
+          tt->setCoolId(coolid);
           tt->setLayer(layer);
           tt->setLut_cp(lutCp);
           tt->setLut_jep(lutJep);

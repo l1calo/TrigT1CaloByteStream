@@ -27,7 +27,7 @@ const int PpmCompression::s_statusMask;
 
 // Pack data
 
-bool PpmCompression::pack(PpmSubBlock& subBlock)
+bool PpmCompression::pack(PpmSubBlock& /*subBlock*/)
 {
   // TODO: (sasha) implement packs
  //  const int dataFormat = subBlock.format();

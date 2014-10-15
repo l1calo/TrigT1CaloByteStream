@@ -36,6 +36,8 @@ const int      PpmSubBlock::s_timeoutBit;
 const int      PpmSubBlock::s_mcmAbsentBit;
 const int      PpmSubBlock::s_channelDisabledBit;
 
+const uint16_t PpmSubBlock::s_run2minorVersion;
+
 PpmSubBlock::PpmSubBlock() : m_globalError(0), m_globalDone(false),
                              m_lutOffset(-1), m_fadcOffset(-1),
 			     m_pedestal(10), m_fadcBaseline(0),
@@ -162,16 +164,16 @@ void PpmSubBlock::ppmData(
   correction.clear();
   correctionEnabled.clear();
   
-  if (m_rodVersion >= 0x1004) { // nMCM
-      ppmData1004(chan, lutCp, lutJep, fadc, bcidLutCp, satLutJep,
+  if (isRun2()) { 
+      ppmDataRun2(chan, lutCp, lutJep, fadc, bcidLutCp, satLutJep,
         bcidFadc, correction, correctionEnabled);
   } else { // MCM
-    ppmData1003(chan, lutCp, fadc, bcidLutCp, bcidFadc);
+      ppmDataRun1(chan, lutCp, fadc, bcidLutCp, bcidFadc);
   }
 }
 
 
-void PpmSubBlock::ppmData1004(
+void PpmSubBlock::ppmDataRun2(
   const int chan, 
   std::vector<uint_least8_t>& lutCp,
   std::vector<uint_least8_t>& lutJep,
@@ -215,7 +217,7 @@ void PpmSubBlock::ppmData1004(
   }
 }
 
-void PpmSubBlock::ppmData1003(int chan,
+void PpmSubBlock::ppmDataRun1(int chan,
         std::vector<uint_least8_t>& lut,
         std::vector<uint_least16_t>& fadc,
         std::vector<uint_least8_t>& bcidLut,
@@ -433,11 +435,11 @@ bool PpmSubBlock::packUncompressedErrors()
 
 bool PpmSubBlock::unpackNeutral()
 {
-  const int slices = 
-    m_rodVersion >= 0x1004 
+  const int slices = isRun2()
     ? 2 * slicesLut() + slicesFadc() + 1
     : slicesLut() + slicesFadc();
   
+
   m_datamap.clear();
   // Bunch Crossing number
   int bunchCrossing = 0;

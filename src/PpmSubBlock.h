@@ -93,8 +93,9 @@ class PpmSubBlock : public L1CaloSubBlock {
    void setFadcBaseline(int baseline);
    void setFadcThreshold(int threshold);
    void setRunNumber(int run);
-   void setRodVersion(int rodVersion);
-   
+   void setRodVersion(uint32_t rodVersion);
+
+
    //  Return triggered slice offsets, pedestal value
    int  lutOffset()               const;
    int  fadcOffset()              const;
@@ -102,6 +103,8 @@ class PpmSubBlock : public L1CaloSubBlock {
    int  fadcBaseline()            const;
    int  fadcThreshold()           const;
    int  runNumber()               const;
+   uint16_t rodMinorVersion()     const;
+   bool isRun2() const;
 
    /// Pack data
    bool pack();
@@ -152,6 +155,8 @@ class PpmSubBlock : public L1CaloSubBlock {
    static const int      s_mcmAbsentBit       = 4;
    static const int      s_channelDisabledBit = 0;
 
+   static const uint16_t s_run2minorVersion   = 0x1004;
+
    /// Return the ASIC channel corresponding to a data channel
    int  asic(int chan) const;
    /// Return the G-Link pin corresponding to a data channel
@@ -187,7 +192,7 @@ class PpmSubBlock : public L1CaloSubBlock {
    int m_fadcBaseline;
    int m_fadcThreshold;
    int m_runNumber;
-   int m_rodVersion;
+   uint32_t m_rodVersion;
 
    /// Vector for compression statistics
    std::vector<uint32_t> m_compStats;
@@ -199,14 +204,14 @@ class PpmSubBlock : public L1CaloSubBlock {
    std::vector<uint32_t> m_errormap;
 
   /// Return unpacked data for given channel
- void ppmData1003(int chan,
+ void ppmDataRun1(int chan,
       std::vector<uint_least8_t>& lut,
       std::vector<uint_least16_t>& fadc,
       std::vector<uint_least8_t>& bcidLut,
       std::vector<uint_least8_t>& bcidFadc
   );
 
-  void ppmData1004(
+  void ppmDataRun2(
     const int chan, 
     std::vector<uint_least8_t>& lutCp,
     std::vector<uint_least8_t>& lutJep,
@@ -364,10 +369,22 @@ inline void PpmSubBlock::setRunNumber(const int run)
   m_runNumber = run;
 }
 
-inline void PpmSubBlock::setRodVersion(const int rodVersion)
+inline void PpmSubBlock::setRodVersion(const uint32_t rodVersion)
 {
   m_rodVersion = rodVersion;
 }
+
+inline uint16_t PpmSubBlock::rodMinorVersion() const
+{
+  return m_rodVersion & 0xffff;
+}
+
+inline bool PpmSubBlock::isRun2() const
+{
+  return rodMinorVersion() >= s_run2minorVersion;
+}
+
+
 
 inline int PpmSubBlock::lutOffset() const
 {

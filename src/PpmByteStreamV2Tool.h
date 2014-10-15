@@ -10,6 +10,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <sstream>
 // ===========================================================================
 // Atheana:
 // ===========================================================================
@@ -90,7 +91,7 @@ private:
  void printCompStats() const;
  /// Print a vector
  template <typename T>
-    void printVec(const std::vector<T>& vec) const;
+    std::string vectorToString(const std::vector<T>& vec) const;
 
 private:
   // typedef DataVector<LVL1::TriggerTower2> TriggerTowerCollection;
@@ -158,13 +159,16 @@ private:
 };
 // ===========================================================================
 template<typename T>
-void PpmByteStreamV2Tool::printVec(const std::vector<T>& vec) const
+std::string PpmByteStreamV2Tool::vectorToString(const std::vector<T>& vec) const
 {
+  std::stringstream res;
   for (auto pos = vec.cbegin(); pos != vec.cend(); ++pos) {
-    if (pos != vec.begin()) msg() << ",";
-    msg() << int(*pos);
+    if (pos != vec.begin()) 
+      res << ",";
+    res << int(*pos);
   }
-  msg() << "/" ;
+  res << "/" ;
+  return res.str();
 }
 // ===========================================================================
 }// end namespace
