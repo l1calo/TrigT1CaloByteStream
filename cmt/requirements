@@ -4,7 +4,8 @@ use AtlasPolicy          AtlasPolicy-*
 use DataModel            DataModel-*            Control
 use GaudiInterface       GaudiInterface-*       External
 
-author Peter Faulkner <P.J.W.Faulkner@bham.ac.uk> 
+author Alexander Mazurov <alexander.mazurov@cern.ch>
+author Peter Faulkner <P.J.W.Faulkner@bham.ac.uk>
 
 # use this line to exclude test algorithms
 library TrigT1CaloByteStream *.cxx components/*.cxx

@@ -191,7 +191,7 @@ void PpmSubBlock::ppmDataRun2(
   
   int pos = (chan % channelsPerSubBlock()) * (2 * sliceL + sliceF + sliceL);
   
-  uint32_t word;
+  uint_least32_t word;
   for(int i = 0; i < sliceL; ++i) {
     word = m_datamap[pos++];
     lutCp.push_back((word >> s_lutBit) & s_lutMask);
