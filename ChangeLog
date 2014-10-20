@@ -1,3 +1,8 @@
+2014-10-20  Alexander Mazurov <alexander.mazurov@cern.ch>
+        * Fix CPM  bytestream converter. Reformat source code.
+        * Don't check subblock version for RUN2 - rely on ROD version.
+        * Tag TrigT1CaloByteStream-00-09-02
+
 2014-10-16  Alexander Mazurov <alexander.mazurov@cern.ch>
         * Tag TrigT1CaloByteStream-00-09-01
         * First draft of PPM convertors for Run 2 (neutral format only)
