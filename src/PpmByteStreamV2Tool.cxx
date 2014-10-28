@@ -81,15 +81,15 @@ PpmByteStreamV2Tool::~PpmByteStreamV2Tool() {
 #endif
 
 StatusCode PpmByteStreamV2Tool::initialize() {
-  msg(MSG::INFO) << "Initializing " << name() << " - package version "
-      << PACKAGE_VERSION << endreq;
+  ATH_MSG_INFO("Initializing " << name() << " - package version "
+      << PACKAGE_VERSION);
 
   StatusCode sc = m_sms.retrieve();
   if (sc.isFailure()) {
-    msg(MSG::ERROR) << "Failed to retrieve service " << m_sms << endreq;
+    ATH_MSG_ERROR("Failed to retrieve service " << m_sms);
     return sc;
   } else
-    msg(MSG::INFO) << "Retrieved service " << m_sms << endreq;
+    ATH_MSG_INFO("Retrieved service " << m_sms);
 
   m_srcIdMap = new L1CaloSrcIdMap { };
   return StatusCode::SUCCESS;
@@ -194,9 +194,9 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
   const IROBDataProviderSvc::VROBFRAG& robFrags
 ) 
 {
-  const bool debug   = msgLvl(MSG::DEBUG);
-  const bool verbose = msgLvl(MSG::VERBOSE);
-  if (debug) msg(MSG::DEBUG);
+  // const bool debug   = msgLvl(MSG::DEBUG);
+  // const bool verbose = msgLvl(MSG::VERBOSE);
+  // if (debug) msg(MSG::DEBUG);
 
   TriggerTowerVector& ttColRef = m_ttData;
   ChannelBitVector& colChan = m_dataChan;
@@ -228,7 +228,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
   ROBIterator robEnd = robFrags.end();  
 
   for (; rob != robEnd; ++rob) {
-    msg(MSG::DEBUG) << "Treating ROB fragment " << robCount << endreq;
+    ATH_MSG_DEBUG("Treating ROB fragment " << robCount);
     ++robCount;
     
     // Skip fragments with ROB status errors
@@ -239,9 +239,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
       (*rob)->status(robData);
       if (*robData != 0) {
         m_errorTool->robError(robid, *robData);
-        if (debug) {
-          msg(MSG::WARNING) << "ROB status error - skipping fragment" << endreq;
-        }
+        ATH_MSG_WARNING("ROB status error - skipping fragment");
         continue;
       }
     }
@@ -256,7 +254,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
     payload = payloadBeg;
     
     if (payload == payloadEnd) {
-      msg(MSG::DEBUG) << "ROB fragment empty" << endreq;
+      ATH_MSG_DEBUG("ROB fragment empty");
       continue;
     } 
     // -----------------------------------------------------------------------    
@@ -284,9 +282,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
     // Skip duplicate fragments
     if (!dupCheck.insert(robid).second) {
       m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_DUPLICATE_ROB);
-      if (debug) {
-          msg(MSG::DEBUG) << "Skipping duplicate ROB fragment" << endreq;
-      }
+      ATH_MSG_DEBUG("Skipping duplicate ROB fragment");
       continue;
     }
     // -----------------------------------------------------------------------
@@ -304,17 +300,12 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
     // }
     // -----------------------------------------------------------------------
 
-    if (debug) {
-      msg(MSG::DEBUG) << "Treating crate " << rodCrate 
-            << " slink " << rodSlink << endreq;
-    }
+    ATH_MSG_DEBUG("Treating crate " << rodCrate << " slink " << rodSlink);
 
     // First word should be User Header
     if ( !L1CaloUserHeader::isValid(*payload) ) {
       m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_USER_HEADER);
-      if (debug) {
-          msg(MSG::DEBUG) << "Invalid or missing user header" << endreq;
-      }
+      ATH_MSG_DEBUG("Invalid or missing user header");
       continue;
     }
 
@@ -329,16 +320,14 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
     // FADC baseline lower bound
     m_fadcBaseline = userHeader.lowerBound();
 
-    if (debug) {
-      msg(MSG::DEBUG) << 
-        "Major format version number: "
-        << MSG::hex  << majorVersion << MSG::dec << endreq
-        << "Minor format version number: "
-        << MSG::hex << minorVersion << MSG::dec << endreq
-        << "LUT triggered slice offset:  " << int(trigLut)        << endreq
-        << "FADC triggered slice offset: " << int(trigFadc)       << endreq
-        << "FADC baseline lower bound:   " << m_fadcBaseline << endreq;
-    }
+    ATH_MSG_DEBUG( 
+      "Major format version number: "
+      << MSG::hex  << majorVersion << MSG::dec << endreq
+      << "Minor format version number: "
+      << MSG::hex << minorVersion << MSG::dec << endreq
+      << "LUT triggered slice offset:  " << int(trigLut)        << endreq
+      << "FADC triggered slice offset: " << int(trigFadc)       << endreq
+      << "FADC baseline lower bound:   " << m_fadcBaseline);
 
     const int runNumber = (*rob)->rod_run_no() & 0xffffff;
 
@@ -354,9 +343,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
             CmmSubBlock::cmmBlock(*payload)
          ) {
               m_errorTool->rodError(robid, L1CaloSubBlock::ERROR_MISSING_HEADER);
-              if (debug) {
-                  msg(MSG::DEBUG) << "Missing Sub-block header" << endreq;
-                }
+              ATH_MSG_DEBUG("Missing Sub-block header");
               continue;
       }
       // --------------------------------------------------------------------
@@ -376,22 +363,15 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
       chanPerSubBlock = subBlock->channelsPerSubBlock();
       if (chanPerSubBlock == 0) {
         m_errorTool->rodError(robid, subBlock->unpackErrorCode());
-        if (debug) {
-            msg(MSG::DEBUG) << "Unsupported version/data format: "
-                         << subBlock->version() << "/"
-                         << subBlock->format()  << endreq;
-        }
+        ATH_MSG_DEBUG("Unsupported version/data format: "
+                     << subBlock->version() << "/"
+                     << subBlock->format());
         continue;
       }
       
-      if (debug) {
-          msg(MSG::DEBUG) << "Channels per sub-block: "
-                       << chanPerSubBlock << endreq;
-      } 
+      ATH_MSG_DEBUG("Channels per sub-block: " << chanPerSubBlock);
     } else {
-      if (debug) {
-        msg() << "ROB fragment contains user header only" << endreq;
-      }
+      ATH_MSG_DEBUG("ROB fragment contains user header only");
       continue;
     }
 
@@ -424,20 +404,16 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
              CmmSubBlock::cmmBlock(word) ||
              PpmSubBlock::errorBlock(word)) {
           
-          if (debug) {
-            msg(MSG::DEBUG) << "Unexpected data sequence" << endreq;
-          }
+          ATH_MSG_DEBUG("Unexpected data sequence");
           rodErr = L1CaloSubBlock::ERROR_MISSING_HEADER;
           break;
         }
         
         if ( chanPerSubBlock != m_channels && 
              L1CaloSubBlock::seqno(word) != block * chanPerSubBlock) {
-          if (debug) {
-            msg(MSG::DEBUG) << "Unexpected channel sequence number: "
+          ATH_MSG_DEBUG("Unexpected channel sequence number: "
             << L1CaloSubBlock::seqno(word) << " expected " 
-            << block * chanPerSubBlock << endreq;
-          }
+            << block * chanPerSubBlock);
           rodErr = L1CaloSubBlock::ERROR_MISSING_SUBBLOCK;
           break;
         }
@@ -456,39 +432,27 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
         if (block == 0) {
           crate = subBlock->crate();
           module = subBlock->module();
-          if (debug) {
-            msg(MSG::DEBUG) << "Crate " << crate << "  Module " << module << endreq;
-          }
+          ATH_MSG_DEBUG("Crate " << crate << "  Module " << module);
           if (crate != rodCrate) {
-            if (debug) {
-              msg() << "Inconsistent crate number in ROD source ID" << endreq;
-            }
+            ATH_MSG_DEBUG("Inconsistent crate number in ROD source ID");
             rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
             break;
           }
         } else {
             if (subBlock->crate() != crate) {
-              if (debug) {
-                msg(MSG::DEBUG) << "Inconsistent crate number in sub-blocks"
-                       << endreq;
-              }
+              ATH_MSG_DEBUG("Inconsistent crate number in sub-blocks");
               rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
               break;
             }
             if (subBlock->module() != module) {
-              if (debug) {
-                  msg(MSG::DEBUG) << "Inconsistent module number in sub-blocks"
-                       << endreq;
-              }
+              ATH_MSG_DEBUG("Inconsistent module number in sub-blocks");
               rodErr = L1CaloSubBlock::ERROR_MODULE_NUMBER;
               break;
             }
         }
         
         if (payload == payloadEnd && block != numSubBlocks - 1) {
-          if (debug) {
-            msg(MSG::DEBUG) << "Premature end of data" << endreq;
-          }
+          ATH_MSG_DEBUG("Premature end of data");
           rodErr = L1CaloSubBlock::ERROR_MISSING_SUBBLOCK;
           break;
         }
@@ -503,9 +467,8 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
             L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::HEADER && 
             !CmmSubBlock::cmmBlock(*payload) && 
             PpmSubBlock::errorBlock(*payload)) {
-          if (debug) {
-            msg(MSG::DEBUG) << "Error block found" << endreq;
-          }
+          ATH_MSG_DEBUG("Error block found");
+          
           if (!m_errorBlock) {
             m_errorBlock = new PpmSubBlock();
           } else {
@@ -514,26 +477,18 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
           isErrBlock = true;
           payload = m_errorBlock->read(payload, payloadEnd);
           if (m_errorBlock->crate() != crate) {
-            if (debug) {
-              msg(MSG::DEBUG) << "Inconsistent crate number in error block"
-                       << endreq;
-            }
+            ATH_MSG_DEBUG("Inconsistent crate number in error block");
             rodErr = L1CaloSubBlock::ERROR_CRATE_NUMBER;
             break;
           }
           if (m_errorBlock->module() != module) {
-            if (debug) {
-              msg(MSG::DEBUG) << "Inconsistent module number in error block"
-                       << endreq;
-            }
+            ATH_MSG_DEBUG("Inconsistent module number in error block");
             rodErr = L1CaloSubBlock::ERROR_MODULE_NUMBER;
             break;
           }
           if (m_errorBlock->dataWords() && !m_errorBlock->unpack()) {
-            if (debug) {
-              std::string errMsg(m_errorBlock->unpackErrorMsg());
-              msg(MSG::DEBUG) << "Unpacking error block failed: " << errMsg << endreq;
-            }
+            std::string errMsg(m_errorBlock->unpackErrorMsg());
+            ATH_MSG_DEBUG("Unpacking error block failed: " << errMsg);
             rodErr = m_errorBlock->unpackErrorCode();
             break;
           }
@@ -558,16 +513,12 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
         subBlock->setRunNumber(runNumber);
         subBlock->setRodVersion((*rob)->rod_version());
         
-        if (debug) {
-          msg(MSG::DEBUG) << "Unpacking sub-block version/format/seqno: "
+        msg(MSG::DEBUG) << "Unpacking sub-block version/format/seqno: "
           << subBlock->version() << "/" << subBlock->format() << "/"
           << subBlock->seqno() << endreq;
-        }
         if (subBlock->dataWords() && !subBlock->unpack()) {
-          if (debug) {
-            std::string errMsg(subBlock->unpackErrorMsg());
-            msg(MSG::DEBUG) << "Unpacking PPM sub-block failed: " << errMsg << endreq;
-          }
+          std::string errMsg(subBlock->unpackErrorMsg());
+          ATH_MSG_DEBUG("Unpacking PPM sub-block failed: " << errMsg);
           rodErr = subBlock->unpackErrorCode();
           break;
         }
@@ -583,11 +534,8 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
         
           if ( !((colChan[word] >> bit) & 1)) continue; // skip unwanted channels
           if (((m_foundChan[word] >> bit) & 1)) {
-            if (debug) {
-                msg(MSG::DEBUG) << "Duplicate data for crate/module/channel: "
-                           << crate << "/" << module << "/" << channel
-               << endreq;
-            }
+            ATH_MSG_DEBUG("Duplicate data for crate/module/channel: "
+                         << crate << "/" << module << "/" << channel);
             rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
             break;
           }
@@ -596,21 +544,18 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
             bcidFadc, correction, correctionEnabled);
           
           if (lutCp.size() < size_t(trigLut + 1)) {
-            if (debug) {
-              msg(MSG::DEBUG) << "Triggered LUT slice from header "
+            ATH_MSG_DEBUG("Triggered LUT slice from header "
                     << "inconsistent with number of slices: "
-              << trigLut << ", " << lutCp.size() << endreq;
-            }
+              << trigLut << ", " << lutCp.size());
+
             rodErr = L1CaloSubBlock::ERROR_SLICES;
             break;
           }
       
           if (fadc.size() < size_t(trigFadc + 1)) {
-            if (debug) {
-              msg(MSG::DEBUG) << "Triggered FADC slice from header "
+            ATH_MSG_DEBUG("Triggered FADC slice from header "
                     << "inconsistent with number of slices: "
-              << trigFadc << ", " << fadc.size() << endreq;
-            }
+              << trigFadc << ", " << fadc.size());
             rodErr = L1CaloSubBlock::ERROR_SLICES;
             break;
           }
@@ -641,22 +586,20 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
           const int layer = ((m_chanLayer[word] >> bit) & 1);
           const int coolid = coolId(crate, module, channel);
 
-          if (verbose) {
-            msg(MSG::VERBOSE) << "|coolid:" << coolid << "(0x" << MSG::hex << coolid << MSG::dec << ")/";
-            msg(MSG::VERBOSE) << "crate:" << crate << "/";
-            msg(MSG::VERBOSE) << "module:" << module << "/";
-            msg(MSG::VERBOSE) << "channel:" << channel << "/";
-            msg(MSG::VERBOSE) << "lut_cp:" << vectorToString(lutCp);
-            msg(MSG::VERBOSE) << "lut_jep:" << vectorToString(lutJep);
-            msg(MSG::VERBOSE) << "fadc:" << vectorToString(fadc);
-            msg(MSG::VERBOSE) << "bcid_lutcp:" << vectorToString(bcidLutCp);
-            msg(MSG::VERBOSE) << "sat_lutjep:" << vectorToString(satLutJep);
-            msg(MSG::VERBOSE) << "bcid_fadc:" << vectorToString(bcidFadc);
-            msg(MSG::VERBOSE) << "correction:" << vectorToString(correction);
-            msg(MSG::VERBOSE) << "correction_enabled:" << vectorToString(correctionEnabled);
-            msg(MSG::VERBOSE) << "error:" << MSG::hex << error << MSG::dec << "|";
-            msg(MSG::VERBOSE) << endreq;
-          }
+          ATH_MSG_VERBOSE(
+            "|coolid:" << coolid << "(0x" << MSG::hex << coolid << MSG::dec << ")/" << std::endl
+            << "crate:" << crate << "/" << std::endl
+            << "module:" << module << "/" << std::endl
+            << "channel:" << channel << "/" << std::endl
+            << "lut_cp:" << vectorToString(lutCp) << std::endl
+            << "lut_jep:" << vectorToString(lutJep) << std::endl
+            << "fadc:" << vectorToString(fadc) << std::endl
+            << "bcid_lutcp:" << vectorToString(bcidLutCp) << std::endl
+            << "sat_lutjep:" << vectorToString(satLutJep) << std::endl
+            << "bcid_fadc:" << vectorToString(bcidFadc) << std::endl
+            << "correction:" << vectorToString(correction) << std::endl
+            << "correction_enabled:" << vectorToString(correctionEnabled) << std::endl
+            << "error:" << MSG::hex << error << MSG::dec << "|");
           
           m_foundChan[word] |= (1 << bit);
           ++ttCount;
