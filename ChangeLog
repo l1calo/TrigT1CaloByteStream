@@ -1,3 +1,8 @@
+2014-10-28  Alexander Mazurov <alexander.mazurov@cern.ch>
+        * Fix PPM  bytestream converter configurations.
+        * Update messages.
+        * Tag TrigT1CaloByteStream-00-09-03
+
 2014-10-20  Alexander Mazurov <alexander.mazurov@cern.ch>
         * Fix CPM  bytestream converter. Reformat source code.
         * Don't check subblock version for RUN2 - rely on ROD version.
