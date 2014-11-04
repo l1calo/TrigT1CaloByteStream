@@ -36,9 +36,3 @@ use TrigT1CaloMappingToolInterfaces TrigT1CaloMappingToolInterfaces-* Trigger/Tr
 #use StoreGate            StoreGate-*            Control
 
 macro_append DOXYGEN_FILE_PATTERNS    " *.icc"
-
-private
-use AtlasReflex  AtlasReflex-*  External -no_auto_imports
-
-apply_pattern lcgdict dict=TrigT1CaloByteStream selectionfile=selection.xml headerfiles="../TrigT1CaloByteStream/TrigT1CaloByteStreamDict.h"
-end_private

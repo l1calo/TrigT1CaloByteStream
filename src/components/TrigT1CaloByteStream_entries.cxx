@@ -52,13 +52,13 @@
 #include "../L1CaloErrorByteStreamCnv.h"
 
 // Post-LS1
-#include "TrigT1CaloByteStream/CpByteStreamV2Tool.h"
+#include "../CpByteStreamV2Tool.h"
 #include "../CpmRoiByteStreamV2Tool.h"
 #include "../JepByteStreamV2Tool.h"
 #include "../JepRoiByteStreamV2Tool.h"
 
 // Pre-LS1
-#include "TrigT1CaloByteStream/CpByteStreamV1Tool.h"
+#include "../CpByteStreamV1Tool.h"
 #include "../CpmRoiByteStreamV1Tool.h"
 #include "../JepByteStreamV1Tool.h"
 #include "../JepRoiByteStreamV1Tool.h"
