@@ -1,4 +1,8 @@
 2014-11-04  Alexander Mazurov <alexander.mazurov@cern.ch>
+        * Fix requirements file
+        * Tag TrigT1CaloByteStream-00-09-05
+
+2014-11-04  Alexander Mazurov <alexander.mazurov@cern.ch>
         * Remove CpByteStreamTools from dictionaries
         * Tag TrigT1CaloByteStream-00-09-04
 
