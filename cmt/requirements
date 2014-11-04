@@ -16,12 +16,12 @@ apply_pattern component_library
 apply_pattern declare_joboptions files="*.py"
 
 
-use AthenaBaseComps      AthenaBaseComps-*      Control
-use ByteStreamCnvSvcBase ByteStreamCnvSvcBase-* Event 
-use ByteStreamData       ByteStreamData-*       Event
 use DataCollection       DataCollection-*       External
 
 private
+use AthenaBaseComps      AthenaBaseComps-*      Control
+use ByteStreamCnvSvcBase ByteStreamCnvSvcBase-* Event 
+use ByteStreamData       ByteStreamData-*       Event
 use StoreGate            StoreGate-*            Control
 use SGTools              SGTools-*              Control
 use EventInfo            EventInfo-*            Event
