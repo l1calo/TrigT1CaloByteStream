@@ -7,6 +7,8 @@ use GaudiInterface       GaudiInterface-*       External
 author Alexander Mazurov <alexander.mazurov@cern.ch>
 author Peter Faulkner <P.J.W.Faulkner@bham.ac.uk>
 
+apply_pattern cmake_add_command command="find_package(tdaq-common COMPONENTS eformat_write)"
+
 # use this line to exclude test algorithms
 library TrigT1CaloByteStream *.cxx components/*.cxx
 # use this line to include test algorithms
