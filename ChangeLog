@@ -1,4 +1,4 @@
-2014-11-09  David Quarrie  <David.Quarrie@cern.ch>
+2014-11-10  David Quarrie  <David.Quarrie@cern.ch>
 	* cmt/requirements
 		Specify the required tdaq-common components for cmake (transparent to CMT)
 	* Tagged as TrigT1CaloByteStream-00-09-06
