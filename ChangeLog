@@ -1,3 +1,9 @@
+2014-11-21  Alexander Mazurov  <alexander.mazurov@cern.ch>
+    * PPM decoders - support uncomressed ROD format for PPM
+        - need to be tested on real data
+    * Adapt PPM decoders code for use ATH_XXX_MSG
+    * Tagged as TrigT1CaloByteStream-00-09-07
+
 2014-11-10  David Quarrie  <David.Quarrie@cern.ch>
 	* cmt/requirements
 		Specify the required tdaq-common components for cmake (transparent to CMT)

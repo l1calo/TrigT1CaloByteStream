@@ -9,6 +9,8 @@
 #include "GaudiKernel/ServiceHandle.h"
 #include "GaudiKernel/ToolHandle.h"
 
+#include "AthenaBaseComps/AthMessaging.h"
+
 class DataObject;
 class IByteStreamEventAccess;
 class IOpaqueAddress;
@@ -31,7 +33,7 @@ class PpmByteStreamV2Tool;
  *  @author Peter Faulkner
  */
 
-class PpmByteStreamV2Cnv: public Converter {
+class PpmByteStreamV2Cnv: public Converter, public ::AthMessaging {
 
   friend class CnvFactory<PpmByteStreamV2Cnv>;
 
@@ -41,7 +43,7 @@ protected:
 
 public:
 
-  ~PpmByteStreamV2Cnv();
+  virtual ~PpmByteStreamV2Cnv();
 
   virtual StatusCode initialize();
   /// Create TriggerTowers from ByteStream
@@ -69,10 +71,6 @@ private:
   ServiceHandle<IROBDataProviderSvc> m_robDataProvider;
   /// Service for writing bytestream
   ServiceHandle<IByteStreamEventAccess> m_ByteStreamEventAccess;
-
-  /// Message log
-  mutable MsgStream m_log;
-  bool m_debug;
 };
 
 } // end namespace

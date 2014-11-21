@@ -33,6 +33,7 @@
 class IInterface;
 class InterfaceID;
 class SegMemSvc;
+template <class T> class FullEventAssembler;
 
 namespace xAOD {
   class TriggerTower_v2;
@@ -94,6 +95,10 @@ private:
    std::string vectorToString(const std::vector<T>& vec) const;
 
 private:
+ // Private functions for encoding
+ void setupSourceTowers(const xAOD::TriggerTowerContainer* ttCollection);
+
+private:
   // typedef DataVector<LVL1::TriggerTower2> TriggerTowerCollection;
   typedef std::vector<xAOD::TriggerTower*> TriggerTowerVector;
   typedef std::map<unsigned int, int> TriggerTowerMap;
@@ -142,6 +147,7 @@ private:
   std::vector<uint32_t> m_sourceIDsSpare;
   std::vector<uint32_t> m_sourceIDsMuon;
 
+
   /// TriggerTower pool vectors
   TriggerTowerVector m_ttData;
   // TriggerTowerVector m_ttSpare;
@@ -155,6 +161,18 @@ private:
   int m_pedestal;
   /// FADC baseline lower bound
   int m_fadcBaseline;
+
+private:
+  // For writing to bytestream
+  /// ROD status map
+  std::map<uint32_t, std::vector<uint32_t>* > m_rodStatusMap;
+  // Event assembler
+  FullEventAssembler<L1CaloSrcIdMap>* m_fea;
+
+  TriggerTowerVector m_source_towers;
+
+  short m_dataFormat;
+  short m_subheaderVersion;
 
 };
 // ===========================================================================

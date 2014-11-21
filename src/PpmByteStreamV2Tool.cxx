@@ -50,7 +50,8 @@ PpmByteStreamV2Tool::PpmByteStreamV2Tool(const std::string& type,
         m_ppmMaps("LVL1::PpmMappingTool/PpmMappingTool"),
         m_errorTool("LVL1BS::L1CaloErrorByteStreamTool/L1CaloErrorByteStreamTool"),
         m_subDetector(eformat::TDAQ_CALO_PREPROC),
-        m_channelsType(ChannelsType::Data) {
+        m_channelsType(ChannelsType::Data),
+		m_fea(0){
   
   declareInterface<PpmByteStreamV2Tool>(this);
 
@@ -67,6 +68,12 @@ PpmByteStreamV2Tool::PpmByteStreamV2Tool(const std::string& type,
                   "Print compressed format statistics");
   declareProperty("FADCBaseline", m_fadcBaseline = 0,
                   "FADC baseline lower bound for compressed formats");
+
+  // Properties for writing bytestream only
+  declareProperty("DataFormat", m_dataFormat = 1,
+                    "Format identifier (0-3) in sub-block header");
+  declareProperty("SubHeaderVersion", m_subheaderVersion = 1,
+                      "Version identifier (1-2) in sub-block header");
 
 }
 // ===========================================================================
@@ -88,10 +95,13 @@ StatusCode PpmByteStreamV2Tool::initialize() {
   if (sc.isFailure()) {
     ATH_MSG_ERROR("Failed to retrieve service " << m_sms);
     return sc;
-  } else
+  } else {
     ATH_MSG_INFO("Retrieved service " << m_sms);
+  }
 
   m_srcIdMap = new L1CaloSrcIdMap { };
+  m_fea = new FullEventAssembler<L1CaloSrcIdMap> { };
+
   return StatusCode::SUCCESS;
 }
 // ===========================================================================
@@ -698,10 +708,38 @@ StatusCode PpmByteStreamV2Tool::convert(
 // Conversion of trigger towers to bytestream
 
 StatusCode PpmByteStreamV2Tool::convert(
-    const xAOD::TriggerTowerContainer* const /*ttCollection*/,
+    const xAOD::TriggerTowerContainer* const ttCollection,
     RawEventWrite* const /*re*/) {
 
-  // TODO: (sasha) implement PpmByteStreamV2Tool::convert
+  // Clear the event assembler
+
+  m_fea->clear();
+
+  const uint16_t minorVersion = m_srcIdMap->minorVersionPreLS1();
+  m_fea->setRodMinorVersion(minorVersion);
+  m_rodStatusMap.clear();
+
+  // Pointer to ROD data vector
+
+  //FullEventAssembler<L1CaloSrcIdMap>::RODDATA* theROD = 0;
+
+  // Set up trigger tower maps
+
+  setupSourceTowers(ttCollection);
+  // Create the sub-blocks to do the packing
+
+  PpmSubBlock subBlock;
+  const int chanPerSubBlock = subBlock.channelsPerSubBlock(m_subheaderVersion,
+															     m_dataFormat);
+  if (chanPerSubBlock == 0) {
+	  ATH_MSG_ERROR("Unsupported version/data format: "
+					<< m_subheaderVersion << "/" << m_dataFormat);
+	  return StatusCode::FAILURE;
+  }
+
+  //TODO: Sasha implement
+  ATH_MSG_ERROR("Convert xaod trigger towers to the new uncompressed ROD format"\
+		  " is not ready. Write to alexander.mazurov@cern.ch that you need it");
   return StatusCode::FAILURE;
 }
 // ===========================================================================
@@ -796,17 +834,23 @@ void PpmByteStreamV2Tool::printCompStats() const
   msg() << endreq;
 }
 
-// Print a vector
 
-// template <type
-// void PpmByteStreamV2Tool::printVec(const std::vector<int>& vec) const
-// {
-//   std::vector<int>::const_iterator pos;
-//   for (pos = vec.begin(); pos != vec.end(); ++pos) {
-//     if (pos != vec.begin()) msg() << ",";
-//     msg() << *pos;
-//   }
-//   msg() << "/";
-// }
+void PpmByteStreamV2Tool::setupSourceTowers(
+		const xAOD::TriggerTowerContainer* ttCollection) {
+	using std::accumulate;
+	for(auto* tt: *ttCollection) {
+		if (
+			  accumulate(tt->lut_cp().begin(), tt->lut_cp().end(), 0)
+			  ||
+			  accumulate(tt->lut_jep().begin(), tt->lut_jep().end(), 0)
+		) {
+			// Collect only non empty towers
+			m_source_towers.push_back(tt);
+		}
+
+	}
+}
+
+
 // ===========================================================================
 }// end namespace

@@ -503,7 +503,9 @@ bool PpmSubBlock::unpackNeutral()
 
 bool PpmSubBlock::unpackUncompressedData()
 {
-    const int slices = slicesLut() + slicesFadc();
+	const int slices = isRun2()
+	                       ? 2 * slicesLut() + slicesFadc() + 1
+	                       : slicesLut() + slicesFadc();
     const int channels = channelsPerSubBlock();
     m_datamap.resize(slices * channels);
     unpackerInit();
