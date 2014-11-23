@@ -14,7 +14,9 @@ const int      PpmSubBlock::s_wordLen;
 const int      PpmSubBlock::s_lutBit;
 const int      PpmSubBlock::s_bcidLutBit;
 const int      PpmSubBlock::s_fadcBit;
+const int      PpmSubBlock::s_fadcBitV2;
 const int      PpmSubBlock::s_bcidFadcBit;
+const int      PpmSubBlock::s_bcidFadcBitV2;
 const uint32_t PpmSubBlock::s_lutMask;
 const uint32_t PpmSubBlock::s_bcidLutMask;
 const uint32_t PpmSubBlock::s_fadcMask;
@@ -218,15 +220,15 @@ void PpmSubBlock::ppmDataRun2(
     for (int i = 0; i < sliceF; i++)
     {
         word = m_datamap[pos++];
-        fadc.push_back((word >> s_fadcBit) & s_fadcMask);
-        bcidFadc.push_back((word >> s_bcidFadcBit) & s_bcidFadcMask);
+        fadc.push_back((word >> s_fadcBitV2) & s_fadcMask);
+        bcidFadc.push_back((word >> s_bcidFadcBitV2) & s_bcidFadcMask);
     }
 
     for (int i = 0; i < sliceL; i++)
     {
         word = m_datamap[pos++];
-        correction.push_back((word >> s_fadcBit) & s_fadcMask);
-        correctionEnabled.push_back((word >> s_bcidFadcBit) & s_bcidFadcMask);
+        correction.push_back((word >> s_fadcBitV2) & s_fadcMask);
+        correctionEnabled.push_back((word >> s_bcidFadcBitV2) & s_bcidFadcMask);
     }
 }
 

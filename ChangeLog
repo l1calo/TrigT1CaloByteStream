@@ -1,4 +1,10 @@
 2014-11-21  Alexander Mazurov  <alexander.mazurov@cern.ch>
+    * PPM decoders - update external BCID bit position
+        - old was at position 0, the new one at position 11
+    * Tagged as TrigT1CaloByteStream-00-09-08
+
+
+2014-11-21  Alexander Mazurov  <alexander.mazurov@cern.ch>
     * PPM decoders - support uncomressed ROD format for PPM
         - need to be tested on real data
     * Adapt PPM decoders code for use ATH_XXX_MSG

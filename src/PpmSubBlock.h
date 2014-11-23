@@ -130,8 +130,13 @@ class PpmSubBlock : public L1CaloSubBlock {
    static const int      s_wordLen      = 16;
    static const int      s_lutBit       = 0;
    static const int      s_bcidLutBit   = 8;
+
    static const int      s_fadcBit      = 1;
+   static const int      s_fadcBitV2    = 0;
+
    static const int      s_bcidFadcBit  = 0;
+   static const int      s_bcidFadcBitV2  = 10;
+
    static const uint32_t s_lutMask      = 0xff;
    static const uint32_t s_bcidLutMask  = 0x7;
    static const uint32_t s_fadcMask     = 0x3ff;
