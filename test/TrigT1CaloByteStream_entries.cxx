@@ -57,7 +57,6 @@
 #include "../src/JepByteStreamV1Tool.h"
 #include "../src/JepRoiByteStreamV1Tool.h"
 // Both
-//#include "../src/PpmByteStreamTool.h"
 #include "../src/RodHeaderByteStreamTool.h"
 #include "../src/L1CaloErrorByteStreamTool.h"
 
@@ -166,7 +165,6 @@ DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, CpmRoiByteStreamV1Tool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, JepByteStreamV1Tool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, JepRoiByteStreamV1Tool )
 // Both
-// DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, RodHeaderByteStreamTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, L1CaloErrorByteStreamTool )
 
@@ -235,7 +233,7 @@ DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
   DECLARE_NAMESPACE_TOOL( LVL1BS, JepByteStreamV1Tool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, JepRoiByteStreamV1Tool )
   // Both
-  DECLARE_NAMESPACE_TOOL( LVL1BS, PpmByteStreamTool )
+  DECLARE_NAMESPACE_TOOL( LVL1BS, PpmByteStreamV1Tool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, RodHeaderByteStreamTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, L1CaloErrorByteStreamTool )
 

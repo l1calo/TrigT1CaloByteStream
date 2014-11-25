@@ -48,7 +48,7 @@ namespace LVL1BS {
 // ===========================================================================
 class L1CaloErrorByteStreamTool;
 class L1CaloSrcIdMap;
-class PpmSubBlock;
+class PpmSubBlockV2;
 
 /** Tool to perform ROB fragments to trigger towers and trigger towers
  *  to raw data conversions.
@@ -120,9 +120,9 @@ private:
   // Error collection tool
   ToolHandle<LVL1BS::L1CaloErrorByteStreamTool> m_errorTool;
   /// Current error block
-  PpmSubBlock* m_errorBlock;
+  PpmSubBlockV2* m_errorBlock;
   /// Vector for current PPM sub-blocks
-  DataVector<PpmSubBlock> m_ppmBlocks;
+  DataVector<PpmSubBlockV2> m_ppmBlocks;
   /// Vector for compression statistics
   std::vector<uint32_t> m_compStats;
 

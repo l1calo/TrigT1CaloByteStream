@@ -1,7 +1,16 @@
+2014-11-25  Alexander Mazurov  <alexander.mazurov@cern.ch>
+    * PPM decoders - rollback support for LVL1::TriggerTower objects
+
+        - For run1  LVL1::TriggerTower container can be retrived from the store
+          gate by key "TriggerTowers"
+        - For run1 and run2 xAOD::TriggerTowerContainer_v2 can be retrived
+          from the store gate by key "xAODTriggerTowers"
+    * Tagged as TrigT1CaloByteStream-00-09-08
+
+
 2014-11-21  Alexander Mazurov  <alexander.mazurov@cern.ch>
     * PPM decoders - update external BCID bit position
         - old was at position 0, the new one at position 11
-    * Tagged as TrigT1CaloByteStream-00-09-08
 
 
 2014-11-21  Alexander Mazurov  <alexander.mazurov@cern.ch>

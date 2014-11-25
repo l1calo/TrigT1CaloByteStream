@@ -25,7 +25,7 @@
 #include "L1CaloSrcIdMap.h"
 #include "TrigT1CaloMappingToolInterfaces/IL1CaloMappingTool.h"
 #include "L1CaloErrorByteStreamTool.h"
-#include "PpmSubBlock.h"
+#include "PpmSubBlockV2.h"
 #include "CmmSubBlock.h"
 #include "L1CaloUserHeader.h"
 // ===========================================================================
@@ -363,10 +363,10 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
       // Sasha: Check first sublock for errors?
       // --------------------------------------------------------------------
       if (m_ppmBlocks.empty()) {
-        m_ppmBlocks.push_back(new PpmSubBlock());
+        m_ppmBlocks.push_back(new PpmSubBlockV2());
       }
       // --------------------------------------------------------------------
-      PpmSubBlock* const subBlock = m_ppmBlocks[0];
+      PpmSubBlockV2* const subBlock = m_ppmBlocks[0];
       subBlock->clear();
       payloadFirst = subBlock->read(payload, payloadEnd);
 
@@ -390,7 +390,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
     if (numSubBlocks > size) {
       // Sasha: Insert empty subblocks?
       for (int i = size; i < numSubBlocks; ++i) {
-        m_ppmBlocks.push_back(new PpmSubBlock());
+        m_ppmBlocks.push_back(new PpmSubBlockV2());
       }
     }
     // -----------------------------------------------------------------------
@@ -412,7 +412,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
         const uint32_t word = (firstBlock) ? firstWord : *payload;
         if ( L1CaloSubBlock::wordType(word) != L1CaloSubBlock::HEADER ||
              CmmSubBlock::cmmBlock(word) ||
-             PpmSubBlock::errorBlock(word)) {
+             PpmSubBlockV2::errorBlock(word)) {
           
           ATH_MSG_DEBUG("Unexpected data sequence");
           rodErr = L1CaloSubBlock::ERROR_MISSING_HEADER;
@@ -428,7 +428,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
           break;
         }
         
-        PpmSubBlock* const subBlock = m_ppmBlocks[block];
+        PpmSubBlockV2* const subBlock = m_ppmBlocks[block];
         nPpmBlocks++;
         
         if (firstBlock) {
@@ -476,11 +476,11 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
         if (
             L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::HEADER && 
             !CmmSubBlock::cmmBlock(*payload) && 
-            PpmSubBlock::errorBlock(*payload)) {
+            PpmSubBlockV2::errorBlock(*payload)) {
           ATH_MSG_DEBUG("Error block found");
           
           if (!m_errorBlock) {
-            m_errorBlock = new PpmSubBlock();
+            m_errorBlock = new PpmSubBlockV2();
           } else {
             m_errorBlock->clear();
           }
@@ -515,7 +515,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
       // Loop over sub-blocks and fill trigger towers
 
       for (int block = 0; block < nPpmBlocks; ++block) {
-        PpmSubBlock* const subBlock = m_ppmBlocks[block];
+        PpmSubBlockV2* const subBlock = m_ppmBlocks[block];
         subBlock->setLutOffset(trigLut);
         subBlock->setFadcOffset(trigFadc);
         subBlock->setPedestal(m_pedestal);
@@ -579,7 +579,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
           } else {
               errorBits.set(LVL1::DataError::PPMErrorWord,
                                        subBlock->ppmError(channel));
-              const PpmSubBlock* const lastBlock =
+              const PpmSubBlockV2* const lastBlock =
                                                 m_ppmBlocks[nPpmBlocks - 1];
               errorBits.set(LVL1::DataError::SubStatusWord,
                                        lastBlock->subStatus());
@@ -728,7 +728,7 @@ StatusCode PpmByteStreamV2Tool::convert(
   setupSourceTowers(ttCollection);
   // Create the sub-blocks to do the packing
 
-  PpmSubBlock subBlock;
+  PpmSubBlockV2 subBlock;
   const int chanPerSubBlock = subBlock.channelsPerSubBlock(m_subheaderVersion,
 															     m_dataFormat);
   if (chanPerSubBlock == 0) {

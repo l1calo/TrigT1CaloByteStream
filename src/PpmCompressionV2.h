@@ -3,7 +3,7 @@
 
 namespace LVL1BS {
 
-class PpmSubBlock;
+class PpmSubBlockV2;
 
 /** PPM Compressed Format Version 1.04 packing and unpacking utilities.
  *
@@ -15,16 +15,16 @@ class PpmSubBlock;
  *  @author Peter Faulkner
  */
 
-class PpmCompression {
+class PpmCompressionV2 {
 
  public:
-   PpmCompression();
-   ~PpmCompression();
+   PpmCompressionV2();
+   ~PpmCompressionV2();
 
    /// Pack data
-   static bool pack(PpmSubBlock& subBlock);
+   static bool pack(PpmSubBlockV2& subBlock);
    /// Unpack data
-   static bool unpack(PpmSubBlock& subBlock);
+   static bool unpack(PpmSubBlockV2& subBlock);
 
  private:
    static const int s_formatsV0    = 6;
@@ -41,9 +41,9 @@ class PpmCompression {
    static const int s_errorBits    = 6;
    static const int s_statusMask   = 0x1f;
 
-   static bool unpackV100(PpmSubBlock& subBlock);
-   static bool unpackV101(PpmSubBlock& subBlock);
-   static bool unpackV104(PpmSubBlock& subBlock);
+   static bool unpackV100(PpmSubBlockV2& subBlock);
+   static bool unpackV101(PpmSubBlockV2& subBlock);
+   static bool unpackV104(PpmSubBlockV2& subBlock);
 
 };
 
