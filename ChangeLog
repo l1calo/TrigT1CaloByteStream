@@ -1,3 +1,8 @@
+2014-12-03  Alexander Mazurov  <alexander.mazurov@cern.ch>
+    * PPM decoders - support uncompressed format.
+        - TODO: handle error subblock
+    * Tagged as TrigT1CaloByteStream-00-09-10
+
 2014-11-27  Alexander Mazurov  <alexander.mazurov@cern.ch>
     * PPM decoders - avoid version names in xAOD containers.
     * Tagged as TrigT1CaloByteStream-00-09-09

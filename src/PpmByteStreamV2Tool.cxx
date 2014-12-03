@@ -408,12 +408,12 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
       int crate = 0;
       int module = 0;
       int nPpmBlocks = 0;
+
       for (int block = 0; block < numSubBlocks; ++block) {
         const uint32_t word = (firstBlock) ? firstWord : *payload;
         if ( L1CaloSubBlock::wordType(word) != L1CaloSubBlock::HEADER ||
              CmmSubBlock::cmmBlock(word) ||
              PpmSubBlockV2::errorBlock(word)) {
-          
           ATH_MSG_DEBUG("Unexpected data sequence");
           rodErr = L1CaloSubBlock::ERROR_MISSING_HEADER;
           break;
@@ -460,7 +460,6 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
               break;
             }
         }
-        
         if (payload == payloadEnd && block != numSubBlocks - 1) {
           ATH_MSG_DEBUG("Premature end of data");
           rodErr = L1CaloSubBlock::ERROR_MISSING_SUBBLOCK;
@@ -476,9 +475,15 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
         if (
             L1CaloSubBlock::wordType(*payload) == L1CaloSubBlock::HEADER && 
             !CmmSubBlock::cmmBlock(*payload) && 
-            PpmSubBlockV2::errorBlock(*payload)) {
+            PpmSubBlockV2::errorBlock(*payload))  {
           ATH_MSG_DEBUG("Error block found");
           
+          if (PpmSubBlockV2::isRun2(minorVersion)) {
+            ATH_MSG_WARNING("TODO: Handle error blocks in RUN2 (alaexander.mazurov@cern.ch)");
+            ++payload;
+            break;
+          }
+
           if (!m_errorBlock) {
             m_errorBlock = new PpmSubBlockV2();
           } else {
@@ -505,7 +510,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
         }
       }
 
-      // Don't bother unpacking modules that aren't used for required collection
+     
 
       const int index2 = (crate << 4) + module;
       const int word2  = index2 / 32;
@@ -516,6 +521,13 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
 
       for (int block = 0; block < nPpmBlocks; ++block) {
         PpmSubBlockV2* const subBlock = m_ppmBlocks[block];
+        
+        // Don't bother unpacking modules that aren't used for required collection
+        if (!isErrBlock && !subBlock->dataWords()){
+          ATH_MSG_DEBUG("Don't handle error blocks in RUN2. Need to be fixed (alexander.mazurov@cern.ch)");
+          break;
+        }   
+        
         subBlock->setLutOffset(trigLut);
         subBlock->setFadcOffset(trigFadc);
         subBlock->setPedestal(m_pedestal);
@@ -526,6 +538,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
         msg(MSG::DEBUG) << "Unpacking sub-block version/format/seqno: "
           << subBlock->version() << "/" << subBlock->format() << "/"
           << subBlock->seqno() << endreq;
+        
         if (subBlock->dataWords() && !subBlock->unpack()) {
           std::string errMsg(subBlock->unpackErrorMsg());
           ATH_MSG_DEBUG("Unpacking PPM sub-block failed: " << errMsg);

@@ -68,9 +68,9 @@ void PpmSubBlockV2::clear()
 // Store PPM header
 
 void PpmSubBlockV2::setPpmHeader(const int version, const int format,
-                               const int seqno, const int crate,
-                               const int module, const int slicesFadc,
-                               const int slicesLut)
+                                 const int seqno, const int crate,
+                                 const int module, const int slicesFadc,
+                                 const int slicesLut)
 {
     setHeader(s_wordIdVal, version, format, seqno, crate, module,
               slicesFadc, slicesLut);
@@ -79,8 +79,8 @@ void PpmSubBlockV2::setPpmHeader(const int version, const int format,
 // Store PPM error block header
 
 void PpmSubBlockV2::setPpmErrorHeader(const int version, const int format,
-                                    const int crate, const int module,
-                                    const int slicesFadc, const int slicesLut)
+                                      const int crate, const int module,
+                                      const int slicesFadc, const int slicesLut)
 {
     setHeader(s_wordIdVal, version, format, s_errorMarker, crate, module,
               slicesFadc, slicesLut);
@@ -111,10 +111,10 @@ int PpmSubBlockV2::slicesLut() const
 // Store PPM data for later packing
 
 void PpmSubBlockV2::fillPpmData(const int chan,
-                              const std::vector<uint_least8_t> &lut,
-                              const std::vector<uint_least16_t> &fadc,
-                              const std::vector<int> &bcidLut,
-                              const std::vector<int> &bcidFadc)
+                                const std::vector<uint_least8_t> &lut,
+                                const std::vector<uint_least16_t> &fadc,
+                                const std::vector<int> &bcidLut,
+                                const std::vector<int> &bcidFadc)
 {
     const int sliceL = slicesLut();
     const int sliceF = slicesFadc();
@@ -200,7 +200,7 @@ void PpmSubBlockV2::ppmDataRun2(
     const int sliceL = slicesLut();
     const int sliceF = slicesFadc();
 
-    int pos = (chan % channelsPerSubBlock()) * (2 * sliceL + sliceF + sliceL);
+    int pos = (chan % channelsPerSubBlock()) * (3 * sliceL + sliceF);
 
     uint_least32_t word;
     for (int i = 0; i < sliceL; ++i)
@@ -233,11 +233,11 @@ void PpmSubBlockV2::ppmDataRun2(
 }
 
 void PpmSubBlockV2::ppmDataRun1(int chan,
-                              std::vector<uint_least8_t> &lut,
-                              std::vector<uint_least16_t> &fadc,
-                              std::vector<uint_least8_t> &bcidLut,
-                              std::vector<uint_least8_t> &bcidFadc
-                             )
+                                std::vector<uint_least8_t> &lut,
+                                std::vector<uint_least16_t> &fadc,
+                                std::vector<uint_least8_t> &bcidLut,
+                                std::vector<uint_least8_t> &bcidFadc
+                               )
 {
     const int sliceL = slicesLut();
     const int sliceF = slicesFadc();
@@ -357,7 +357,7 @@ bool PpmSubBlockV2::unpack()
     // Now we verify only ROD version
     switch (version())
     {
-    case 1:
+    case 1: case 2:
         switch (format())
         {
         case NEUTRAL:
@@ -465,9 +465,8 @@ bool PpmSubBlockV2::packUncompressedErrors()
 bool PpmSubBlockV2::unpackNeutral()
 {
     const int slices = isRun2()
-                       ? 2 * slicesLut() + slicesFadc() + 1
+                       ? 3 * slicesLut() + slicesFadc()
                        : slicesLut() + slicesFadc();
-
     m_datamap.clear();
     // Bunch Crossing number
     int bunchCrossing = 0;
@@ -505,17 +504,30 @@ bool PpmSubBlockV2::unpackNeutral()
 
 bool PpmSubBlockV2::unpackUncompressedData()
 {
-	const int slices = isRun2()
-	                       ? 2 * slicesLut() + slicesFadc() + 1
-	                       : slicesLut() + slicesFadc();
+    const int slices = isRun2()
+                       ? 3 * slicesLut() + slicesFadc()
+                       : slicesLut() + slicesFadc();   
     const int channels = channelsPerSubBlock();
+    if (isRun2()) {
+        setStreamed();
+    }
+
     m_datamap.resize(slices * channels);
     unpackerInit();
-    for (int sl = 0; sl < slices; ++sl)
+    // for (int sl = 0; sl < slices; ++sl)
+    // {
+    //     for (int chan = 0; chan < channels; ++chan)
+    //     {
+    //         m_datamap[sl + chan * slices] = unpacker(wordLen());
+    //         std::cout << "SASHA3 wordLen=" << wordLen() << " slice=" << sl << " channel=" << chan << " OK?=" << unpackerSuccess() << " value=" << std::hex << (m_datamap[sl + chan * slices]) << std::endl;
+    //     }
+    // }
+    for (int chan = 0; chan < channels; ++chan)
     {
-        for (int chan = 0; chan < channels; ++chan)
+        for (int sl = 0; sl < slices; ++sl)
         {
-            m_datamap[sl + chan * slices] = unpacker(s_wordLen);
+            m_datamap[sl + chan * slices] = unpacker(wordLen());
+            // std::cout << "SASHA3 wordLen=" << wordLen() << " slice=" << sl << " channel=" << chan << " OK?=" << unpackerSuccess() << " value=" << std::hex << (m_datamap[sl + chan * slices]) << std::endl;
         }
     }
     bool rc = unpackerSuccess();
@@ -525,7 +537,7 @@ bool PpmSubBlockV2::unpackUncompressedData()
         // Check no more non-zero data
         while (unpackerSuccess())
         {
-            if (unpacker(s_wordLen))
+            if (unpacker(wordLen()))
             {
                 setUnpackErrorCode(UNPACK_EXCESS_DATA);
                 rc = false;
@@ -544,7 +556,7 @@ bool PpmSubBlockV2::unpackUncompressedErrors()
     m_errormap.clear();
     for (int pin = 0; pin < s_glinkPins; ++pin)
     {
-        m_errormap.push_back(unpacker(s_wordLen));
+        m_errormap.push_back(unpacker(wordLen()));
     }
     bool rc = unpackerSuccess();
     if (!rc) setUnpackErrorCode(UNPACK_DATA_TRUNCATED);
@@ -552,7 +564,7 @@ bool PpmSubBlockV2::unpackUncompressedErrors()
     {
         while (unpackerSuccess())
         {
-            if (unpacker(s_wordLen))
+            if (unpacker(wordLen()))
             {
                 setUnpackErrorCode(UNPACK_EXCESS_DATA);
                 rc = false;
@@ -586,6 +598,20 @@ int PpmSubBlockV2::channelsPerSubBlock(const int version, const int format)
             break;
         }
         break;
+    case 2:
+        switch (format)
+        {
+        case UNCOMPRESSED:
+        case NEUTRAL:
+        case COMPRESSED:
+        case SUPERCOMPRESSED:
+            chan = s_channels;
+            break;
+        default:
+            setUnpackErrorCode(UNPACK_FORMAT);
+            break;
+        }
+        break;
     default:
         setUnpackErrorCode(UNPACK_VERSION);
         break;
@@ -598,14 +624,49 @@ int PpmSubBlockV2::channelsPerSubBlock()
     return channelsPerSubBlock(version(), format());
 }
 
+int PpmSubBlockV2::wordLen(const int version, const int format)
+{
+    int chan = 0;
+    switch (version)
+    {
+    case 1:
+        return s_wordLen;
+        break;
+    case 2:
+        switch (format)
+        {
+        case UNCOMPRESSED:
+            return 11;
+        case NEUTRAL:
+        case COMPRESSED:
+        case SUPERCOMPRESSED:
+            return s_wordLen;
+            break;
+        default:
+            setUnpackErrorCode(UNPACK_FORMAT);
+            break;
+        }
+        break;
+    default:
+        setUnpackErrorCode(UNPACK_VERSION);
+        break;
+    }
+    return chan;
+}
+
+int PpmSubBlockV2::wordLen()
+{
+    return wordLen(version(), format());
+}
+
 // Check if a header word is for an error block
 
 bool PpmSubBlockV2::errorBlock(const uint32_t word)
 {
-    bool rc = false;
-    if (format(word) == UNCOMPRESSED &&
-            seqno(word) == s_errorMarker) rc = true;
-    return rc;
+    if (format(word) == UNCOMPRESSED) {
+        return seqno(word) == s_errorMarker;
+    }
+    return false;
 }
 
 } // end namespace

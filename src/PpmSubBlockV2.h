@@ -114,8 +114,15 @@ class PpmSubBlockV2 : public L1CaloSubBlock {
    int channelsPerSubBlock(int version, int format);
    int channelsPerSubBlock();
 
+   /// Return the size of word
+   int wordLen(int version, int format);
+   int wordLen();
+
    /// Check if a header word is for an error block
    static bool errorBlock(uint32_t word);
+
+   /// Check if a header word is for an error block
+   static bool isRun2(uint16_t rodMinorVersion);
 
    /// Set compression stats
    void setCompStats(const std::vector<uint32_t>& stats);
@@ -385,8 +392,13 @@ inline uint16_t PpmSubBlockV2::rodMinorVersion() const
 
 inline bool PpmSubBlockV2::isRun2() const
 {
-  return rodMinorVersion() >= s_run2minorVersion;
+  return PpmSubBlockV2::isRun2(rodMinorVersion());
 }
+
+inline bool PpmSubBlockV2::isRun2(uint16_t rodMinorVersion) {
+  return rodMinorVersion >= s_run2minorVersion;
+}
+
 
 inline int PpmSubBlockV2::lutOffset() const
 {
