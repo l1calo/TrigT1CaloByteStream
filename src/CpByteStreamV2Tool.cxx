@@ -520,12 +520,8 @@ StatusCode CpByteStreamV2Tool::convertBs(
     ROBIterator robEnd = robFrags.end();
     for (; rob != robEnd; ++rob)
     {
-
-        if (debug)
-        {
-            ++robCount;
-            msg() << "Treating ROB fragment " << robCount << endreq;
-        }
+        ++robCount;
+        ATH_MSG_DEBUG("Treating ROB fragment " << robCount << " source_id = " << std::hex << (*rob)->rob_source_id() << std::dec);
 
         // Skip fragments with ROB status errors
 
@@ -818,6 +814,7 @@ void CpByteStreamV2Tool::decodeCmxCp(CmxCpSubBlock *subBlock, int trigCpm,
                                                 m_presenceMapVec, trigCpm);
                         m_tobMap.insert(std::make_pair(key, tb));
                         m_tobCollection->push_back(tb);
+                        std::cout << "SASHA0 tob energy = " << energy << std::endl; 
                     }
                     else
                     {
