@@ -814,7 +814,6 @@ void CpByteStreamV2Tool::decodeCmxCp(CmxCpSubBlock *subBlock, int trigCpm,
                                                 m_presenceMapVec, trigCpm);
                         m_tobMap.insert(std::make_pair(key, tb));
                         m_tobCollection->push_back(tb);
-                        std::cout << "SASHA0 tob energy = " << energy << std::endl; 
                     }
                     else
                     {

@@ -68,6 +68,9 @@ CpmRoiByteStreamV2Tool::CpmRoiByteStreamV2Tool(const std::string &type,
     declareProperty("CrateMax",       m_crateMax = m_crates - 1,
                     "Maximum crate number, allows partial output");
 
+    declareProperty("IsM7Format", m_isM7Format = false,
+                    "Set it for M7 raw data");
+
 }
 
 // Destructor
@@ -273,7 +276,11 @@ StatusCode CpmRoiByteStreamV2Tool::convert(
             {
                 // Just RoI word
                 LVL1::CPMTobRoI roi;
-                if (roi.setRoiWord(*payload))
+                uint32_t roiWord = *payload;
+                if (m_isM7Format) 
+                    roiWord |= 0x80000000;
+                
+                if (roi.setRoiWord(roiWord))
                 {
                     if (roi.crate() != rodCrate - m_crateOffsetHw)
                     {
@@ -289,18 +296,18 @@ StatusCode CpmRoiByteStreamV2Tool::convert(
                         rodErr = L1CaloSubBlock::ERROR_MODULE_NUMBER;
                         break;
                     }
-                    const uint32_t location = (*payload) & 0xffff0000;
+                    const uint32_t location = roiWord & 0xffff0000;
                     if (dupRoiCheck.insert(location).second)
                     {
                         if (roi.energy() || roi.isolation())
                         {
-                            roiCollection->push_back(new LVL1::CPMTobRoI(*payload));
+                            roiCollection->push_back(new LVL1::CPMTobRoI(roiWord));
                         }
                     }
                     else
                     {
                         if (debug) msg() << "Duplicate RoI word "
-                                             << MSG::hex << *payload << MSG::dec << endreq;
+                                             << MSG::hex << roiWord << MSG::dec << endreq;
                         rodErr = L1CaloSubBlock::ERROR_DUPLICATE_DATA;
                         break;
                     }
@@ -308,7 +315,7 @@ StatusCode CpmRoiByteStreamV2Tool::convert(
                 else
                 {
                     if (debug) msg() << "Invalid RoI word "
-                                         << MSG::hex << *payload << MSG::dec << endreq;
+                                         << MSG::hex << roiWord << MSG::dec << endreq;
                     rodErr = L1CaloSubBlock::ERROR_ROI_TYPE;
                     break;
                 }

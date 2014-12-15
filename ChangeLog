@@ -1,4 +1,8 @@
 2014-12-15  Alexander Mazurov  <alexander.mazurov@cern.ch>
+    * Fix CMX Tob Roi decoders to support old format
+    * Tagged as TrigT1CaloByteStream-00-09-12
+
+2014-12-15  Alexander Mazurov  <alexander.mazurov@cern.ch>
     * Fix CMX Tobs and Hits decoders
     * Tagged as TrigT1CaloByteStream-00-09-11
 
