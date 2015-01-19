@@ -1,3 +1,8 @@
+2015-01-19  Alexander Mazurov  <alexander.mazurov@cern.ch>
+    * New ITrigT1CaloDataAccessV2 tool for access L1 objects
+    * Add python dictionary for this tool
+    * Tagged as TrigT1CaloByteStream-00-09-13
+
 2014-12-15  Alexander Mazurov  <alexander.mazurov@cern.ch>
     * Fix CMX Tob Roi decoders to support old format
     * Tagged as TrigT1CaloByteStream-00-09-12
@@ -36,9 +41,9 @@
     * Tagged as TrigT1CaloByteStream-00-09-07
 
 2014-11-10  David Quarrie  <David.Quarrie@cern.ch>
-	* cmt/requirements
-		Specify the required tdaq-common components for cmake (transparent to CMT)
-	* Tagged as TrigT1CaloByteStream-00-09-06
+    * cmt/requirements
+        Specify the required tdaq-common components for cmake (transparent to CMT)
+    * Tagged as TrigT1CaloByteStream-00-09-06
 
 2014-11-04  Alexander Mazurov <alexander.mazurov@cern.ch>
         * Fix requirements file
@@ -65,7 +70,7 @@
 2014-07-09  Peter Faulkner <pjwf@hep.ph.bham.ac.uk>
             Alan Watson  <Alan.Watson@CERN.CH>
         * Tag TrigT1CaloByteStream-00-09-00
-	    * First draft of convertors for Run 2
+        * First draft of convertors for Run 2
 
 2013-06-20  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
         * Tag TrigT1CaloByteStream-00-08-18
@@ -84,10 +89,10 @@
         * Updates to PpmByteStreamTool to reduce cpu time.
 
 2011-10-25 Denis Oliveira Damazio <Denis.Oliveira.Damazio@cern.ch>
-	* Little fix for online operation.
+    * Little fix for online operation.
 
 2011-07-07 Denis Oliveira Damazio <Denis.Oliveira.Damazio@cern.ch>
-	* Some fixes for the PpmByteStreamSubSet tool.
+    * Some fixes for the PpmByteStreamSubSet tool.
 
 2011-03-30  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
         * Tag TrigT1CaloByteStream-00-08-12
@@ -115,13 +120,13 @@
         * Update requirements.
 
 2010-12-20 Denis Oliveira Damazio <Denis.Oliveira.Damazio@cern.ch>
-	* Tag TrigT1CaloByteStream-00-08-06
-	* Major changes in TrigT1CaloDataAccess and PpmByteStreamSubsetTool
-		(HLT specific).
-	* TrigT1CaloByteStream : add support for JetElements access,
-		optimization for full TriggerTower unpacking.
-	* PpmByteStreamSubsetTool : optimization for full TriggerTower
-		unpacking. Avoid on-convert-time map access.
+    * Tag TrigT1CaloByteStream-00-08-06
+    * Major changes in TrigT1CaloDataAccess and PpmByteStreamSubsetTool
+        (HLT specific).
+    * TrigT1CaloByteStream : add support for JetElements access,
+        optimization for full TriggerTower unpacking.
+    * PpmByteStreamSubsetTool : optimization for full TriggerTower
+        unpacking. Avoid on-convert-time map access.
 
 2010-03-30  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
         * Tag TrigT1CaloByteStream-00-08-05
@@ -187,9 +192,9 @@
 
 2008-12-04  Simon George  <S.George@rhul.ac.uk>
 
-	* tag TrigT1CaloByteStream-00-06-06
-	* share/ReadLVL1CaloBS_jobOptions.py: include.block to solve 
-	bug #44947
+    * tag TrigT1CaloByteStream-00-06-06
+    * share/ReadLVL1CaloBS_jobOptions.py: include.block to solve 
+    bug #44947
 
 2008-10-08  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
         * Tag TrigT1CaloByteStream-00-06-05
@@ -320,24 +325,24 @@
 2007-05-14  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-03-03
-	* Add missing <stdint.h>.
+    * Add missing <stdint.h>.
 
 2007-05-03  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-03-02
-	* Add options to write multi-slice data by duplicating simulated slice.
-	* Move code to namespace LVL1BS.
+    * Add options to write multi-slice data by duplicating simulated slice.
+    * Move code to namespace LVL1BS.
 
 2007-04-27  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-03-01
-	* Add options to offset CP and JEP crate numbers in RDOs.
+    * Add options to offset CP and JEP crate numbers in RDOs.
 
 2007-04-23  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-03-00
-	* Change CP and JEP crate numbers in bytestream to 8-11 and 12-13.
-	* Fix bug in CMM-Energy neutral format.
+    * Change CP and JEP crate numbers in bytestream to 8-11 and 12-13.
+    * Fix bug in CMM-Energy neutral format.
 
 2007-04-18  Alan Watson <Alan.Watson@cern.ch>
         * CpmTester, PpmTester, JemTester: use ServiceHandle
@@ -345,14 +350,14 @@
 2007-04-17  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-02-01
-	* Fix problem with ClassID_traits in *Cnv.cxx.
+    * Fix problem with ClassID_traits in *Cnv.cxx.
 
 2007-04-16  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-02-00
-	* Added CPM/JEM/CMM RoI bytestreams.
-	* Added option to zero-suppress TriggerTowers on input.
-	* Improved const-correctness throughout.
+    * Added CPM/JEM/CMM RoI bytestreams.
+    * Added option to zero-suppress TriggerTowers on input.
+    * Improved const-correctness throughout.
 
 2007-02-22  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
@@ -366,11 +371,11 @@
 2007-02-01  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
         * Tag TrigT1CaloByteStream-00-01-07
-	* Added CPM and CMM bytestreams.
+    * Added CPM and CMM bytestreams.
 
 2007-01-20 David Quarrie <David.Quarrie@cern.ch>
 
-	* Backwards compatible Gaudi v19 changes
+    * Backwards compatible Gaudi v19 changes
 
 2006-11-15  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
@@ -465,25 +470,25 @@
 
 2006-05-05  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
-	* Tag TrigT1CaloByteStream-00-00-04
-	* PpmByteStreamTool.cxx: Remove unnecessary #include.
-	* PpmCrateMappings.cxx:  Correct mappings for PPM7.
+    * Tag TrigT1CaloByteStream-00-00-04
+    * PpmByteStreamTool.cxx: Remove unnecessary #include.
+    * PpmCrateMappings.cxx:  Correct mappings for PPM7.
 
 2006-04-11  Peter Faulkner  <pjwf@hep.ph.bham.ac.uk>
 
-	* Tag TrigT1CaloByteStream-00-00-03
-	* Add ChangeLog.
+    * Tag TrigT1CaloByteStream-00-00-03
+    * Add ChangeLog.
         * doc: Delete Doxyfile and used_packages.html - generated automatically
-	       by Doxygen.
-	* doc/mainpage.h: Add introduction.
+           by Doxygen.
+    * doc/mainpage.h: Add introduction.
         * share: Add TestReadPpmBS_jobOptions.py jo fragment.  Includes Tester
-	         to force PPM bytestream conversion.
+             to force PPM bytestream conversion.
         * requirements: Remove StoreGate, ByteStreamCnvSvc, add DataModel
-	                to satisfy checkreq warnings.
+                    to satisfy checkreq warnings.
         * various .h .cxx: Tighten up includes and forward declarations.
-	* L1CaloSrcIdMap.cxx: Eliminate file scope using statement.
-	* PpmByteStreamTool.cxx: Add extra check when finding channels per
-	                         sub-block in input data in case of missing
-	 		         error block.
+    * L1CaloSrcIdMap.cxx: Eliminate file scope using statement.
+    * PpmByteStreamTool.cxx: Add extra check when finding channels per
+                             sub-block in input data in case of missing
+                     error block.
         * PpmSortPermutations.h .cxx: make function totalPerms const,
-	                              eliminate unnecessary variable.
+                                  eliminate unnecessary variable.

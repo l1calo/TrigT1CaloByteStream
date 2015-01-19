@@ -117,8 +117,10 @@ StatusCode PpmByteStreamV2Cnv::createObj(IOpaqueAddress* pAddr,
 	m_robDataProvider->getROBData(vID, robFrags);
 	// -------------------------------------------------------------------------
 	// size check
+	xAOD::TriggerTowerAuxContainer* aux = new xAOD::TriggerTowerAuxContainer();
 	xAOD::TriggerTowerContainer* const ttCollection =
-			new xAOD::TriggerTowerContainer(SG::VIEW_ELEMENTS);
+			new xAOD::TriggerTowerContainer();
+	ttCollection->setStore(aux);
 
 	ATH_MSG_DEBUG("Number of ROB fragments is " << robFrags.size());
 

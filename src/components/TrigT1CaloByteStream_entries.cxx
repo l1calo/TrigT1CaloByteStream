@@ -71,6 +71,7 @@
 // #include "../PpmByteStreamSubsetTool.h"
 #include "../TriggerTowerSelectionTool.h"
 #include "../TrigT1CaloDataAccess.h"
+#include "../TrigT1CaloDataAccessV2.h"
 
 namespace LVL1BS {
 
@@ -170,6 +171,7 @@ DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamV2Tool )
 // DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamSubsetTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, TriggerTowerSelectionTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, TrigT1CaloDataAccess )
+DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, TrigT1CaloDataAccessV2 )
 
 DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
 {
@@ -226,4 +228,5 @@ DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
   // DECLARE_NAMESPACE_TOOL( LVL1BS, PpmByteStreamSubsetTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, TriggerTowerSelectionTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, TrigT1CaloDataAccess )
+  DECLARE_NAMESPACE_TOOL( LVL1BS, TrigT1CaloDataAccessV2 )
 }
