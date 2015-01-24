@@ -19,9 +19,14 @@ class ISvcLocator;
 class StatusCode;
 
 template <typename> class CnvFactory;
+class StoreGateSvc;
+
 
 // Externals
 extern long ByteStream_StorageType;
+
+
+
 
 namespace LVL1BS {
 
@@ -66,6 +71,9 @@ private:
 
   /// Tool that does the actual work
   ToolHandle<LVL1BS::PpmByteStreamV2Tool> m_tool;
+
+  /// ServiceHandle to the data store service to store aux objects
+  ServiceHandle<StoreGateSvc> m_storeSvc;
 
   /// Service for reading bytestream
   ServiceHandle<IROBDataProviderSvc> m_robDataProvider;
