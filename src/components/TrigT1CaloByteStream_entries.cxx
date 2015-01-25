@@ -19,9 +19,6 @@
 #include "TrigT1CaloEvent/JEMHits.h"
 #include "TrigT1CaloEvent/JEMRoI.h"
 // Both
-#include "TrigT1CaloEvent/TriggerTower.h"
-#include "xAODTrigL1Calo/TriggerTower.h"
-#include "xAODTrigL1Calo/TriggerTowerContainer.h"
 #include "TrigT1CaloEvent/CPMTower.h"
 #include "TrigT1CaloEvent/JEMEtSums.h"
 #include "TrigT1CaloEvent/JetElement.h"
@@ -46,10 +43,19 @@
 #include "../CpReadByteStreamV1V2Cnv.h"
 #include "../JepReadByteStreamV1V2Cnv.h"
 
+// ============================================================================
+// Ppm
+#include "TrigT1CaloEvent/TriggerTower.h"
+#include "xAODTrigL1Calo/TriggerTower.h"
+#include "xAODTrigL1Calo/TriggerTowerContainer.h"
+
 #include "../PpmByteStreamV1Cnv.h"
-#include "../PpmByteStreamV1Tool.h"
 #include "../PpmByteStreamV2Cnv.h"
+#include "../xaod/PpmByteStreamxAODCnv.h"
+#include "../PpmByteStreamV1Tool.h"
 #include "../PpmByteStreamV2Tool.h"
+#include "../xaod/PpmByteStreamxAODReadTool.h"
+// ============================================================================
 #include "../RodHeaderByteStreamCnv.h"
 #include "../L1CaloErrorByteStreamCnv.h"
 
@@ -81,6 +87,9 @@ typedef DataVector<LVL1::CMXCPHits>  CMXCPHitsCollection;
 typedef DataVector<LVL1::CMXJetTob>  CMXJetTobCollection;
 typedef DataVector<LVL1::CMXJetHits> CMXJetHitsCollection;
 typedef DataVector<LVL1::CMXEtSums>  CMXEtSumsCollection;
+
+
+
 typedef DataVector<LVL1::JEMTobRoI>  JEMTobRoICollection;
 // Pre-LS1
 typedef DataVector<LVL1::CPMHits>    CPMHitsCollection;
@@ -144,13 +153,17 @@ DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, JepRoiReadCRByteStreamV1CnvT )
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, CpReadByteStreamV1V2Cnv )
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, JepReadJEByteStreamV1V2CnvT )
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, JepReadESByteStreamV1V2CnvT )
-DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, PpmByteStreamV2Cnv)
-DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, PpmByteStreamV1Cnv)
-
-
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, RodHeaderByteStreamCnv )
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, L1CaloErrorByteStreamCnv )
 
+// ============================================================================
+DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, PpmByteStreamV2Cnv)
+DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, PpmByteStreamV1Cnv)
+DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, PpmByteStreamxAODCnv)
+DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamV1Tool )
+DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamV2Tool )
+DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamxAODReadTool )
+// ============================================================================
 // Post-LS1
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, CpByteStreamV2Tool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, CpmRoiByteStreamV2Tool )
@@ -165,8 +178,6 @@ DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, JepRoiByteStreamV1Tool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, RodHeaderByteStreamTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, L1CaloErrorByteStreamTool )
 
-DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamV1Tool )
-DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamV2Tool )
 
 // DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamSubsetTool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, TriggerTowerSelectionTool )
@@ -203,9 +214,13 @@ DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, CpReadByteStreamV1V2Cnv )
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, JepReadJEByteStreamV1V2CnvT )
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, JepReadESByteStreamV1V2CnvT )
-  // Both
+  // ==========================================================================
+  // Ppm
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, PpmByteStreamV1Cnv )
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, PpmByteStreamV2Cnv )
+  DECLARE_NAMESPACE_CONVERTER( LVL1BS, PpmByteStreamxAODCnv )
+  DECLARE_NAMESPACE_TOOL(LVL1BS, PpmByteStreamV2Tool)
+  // ==========================================================================
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, RodHeaderByteStreamCnv )
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, L1CaloErrorByteStreamCnv )
 
@@ -214,14 +229,12 @@ DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
   DECLARE_NAMESPACE_TOOL( LVL1BS, CpmRoiByteStreamV2Tool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, JepByteStreamV2Tool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, JepRoiByteStreamV2Tool )
-  DECLARE_NAMESPACE_TOOL( LVL1BS, PpmByteStreamV2Tool )
   // Pre-LS1
   DECLARE_NAMESPACE_TOOL( LVL1BS, CpByteStreamV1Tool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, CpmRoiByteStreamV1Tool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, JepByteStreamV1Tool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, JepRoiByteStreamV1Tool )
   // Both
-  DECLARE_NAMESPACE_TOOL( LVL1BS, PpmByteStreamV2Tool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, RodHeaderByteStreamTool )
   DECLARE_NAMESPACE_TOOL( LVL1BS, L1CaloErrorByteStreamTool )
 

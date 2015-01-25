@@ -12,7 +12,7 @@
 #include <vector>
 #include <sstream>
 // ===========================================================================
-// Atheana:
+// Athena:
 // ===========================================================================
 #include "AthenaBaseComps/AthAlgTool.h"
 #include "ByteStreamCnvSvcBase/IROBDataProviderSvc.h"

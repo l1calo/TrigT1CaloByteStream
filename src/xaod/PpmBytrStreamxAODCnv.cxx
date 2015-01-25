@@ -8,8 +8,8 @@
 #include "ByteStreamData/RawEvent.h"
 #include "ByteStreamData/ROBData.h"
 
-#include "DataModel/DataVector.h"
 
+#include "AthenaKernel/errorcheck.h"
 #include "GaudiKernel/CnvFactory.h"
 #include "GaudiKernel/DataObject.h"
 #include "GaudiKernel/IOpaqueAddress.h"
@@ -19,36 +19,33 @@
 
 #include "SGTools/ClassID_traits.h"
 #include "SGTools/StorableConversions.h"
+#include "StoreGate/StoreGateSvc.h"
 
 #include "xAODTrigL1Calo/TriggerTower.h"
 #include "xAODTrigL1Calo/TriggerTowerContainer.h"
 #include "xAODTrigL1Calo/TriggerTowerAuxContainer.h"
 
-#include "PpmByteStreamV2Cnv.h"
-#include "PpmByteStreamV2Tool.h"
+#include "PpmByteStreamxAODCnv.h"
+#include "PpmByteStreamxAODReadTool.h"
 
 namespace LVL1BS {
 
-PpmByteStreamV2Cnv::PpmByteStreamV2Cnv(ISvcLocator* svcloc) :
-		Converter(ByteStream_StorageType, classID(), svcloc),
-		AthMessaging(svcloc != 0 ? msgSvc() : 0, "PpmByteStreamV2Cnv"),
-		m_name("PpmByteStreamV2Cnv"),
-		m_tool("LVL1BS::PpmByteStreamV2Tool/PpmByteStreamV2Tool"),
-		m_storeSvc("StoreGateSvc", m_name),
-		m_robDataProvider("ROBDataProviderSvc", m_name),
-		m_ByteStreamEventAccess("ByteStreamCnvSvc", m_name){
+PpmByteStreamxAODCnv::PpmByteStreamxAODCnv(ISvcLocator* svcloc) :
+	Converter(ByteStream_StorageType, classID(), svcloc),
+	AthMessaging(svcloc != 0 ? msgSvc() : 0, "PpmByteStreamxAODCnv"),
+	m_name("PpmByteStreamxAODCnv"),
+	m_storeSvc("StoreGateSvc", m_name),
+	m_robDataProvider("ROBDataProviderSvc", m_name),
+	m_ByteStreamEventAccess("ByteStreamCnvSvc", m_name),
+	m_readTool("LVL1BS::PpmByteStreamxAODReadTool/PpmByteStreamxAODReadTool")
+{
 
-
-}
-
-PpmByteStreamV2Cnv::~PpmByteStreamV2Cnv() {
 }
 
 // CLID
 
-const CLID& PpmByteStreamV2Cnv::classID() {
-	// return ClassID_traits < xAOD::TriggerTowerContainer > ::ID();
-	return 0;
+const CLID& PpmByteStreamxAODCnv::classID() {
+	return ClassID_traits < xAOD::TriggerTowerContainer > ::ID();
 }
 
 //  Init method gets all necessary services etc.
@@ -57,23 +54,19 @@ const CLID& PpmByteStreamV2Cnv::classID() {
 #define PACKAGE_VERSION "unknown"
 #endif
 
-StatusCode PpmByteStreamV2Cnv::initialize() {
+StatusCode PpmByteStreamxAODCnv::initialize() {
 	ATH_MSG_DEBUG(
 			"Initializing " << m_name << " - package version "
 					<< PACKAGE_VERSION
 	);
 
-	StatusCode sc = Converter::initialize();
-	if (sc.isFailure()) {
-		return sc;
-	}
-
+	CHECK(Converter::initialize());
 	//Get ByteStreamCnvSvc
 	CHECK(m_ByteStreamEventAccess.retrieve());
-	CHECK(m_tool.retrieve());
+	CHECK(m_readTool.retrieve());
 
 	// Get ROBDataProvider
-	sc = m_robDataProvider.retrieve();
+	StatusCode sc = m_robDataProvider.retrieve();
 	if (sc.isFailure()) {
 		ATH_MSG_WARNING("Failed to retrieve service " << m_robDataProvider);
 		// return is disabled for Write BS which does not require ROBDataProviderSvc
@@ -96,25 +89,21 @@ StatusCode PpmByteStreamV2Cnv::initialize() {
 
 // createObj should create the RDO from bytestream.
 
-StatusCode PpmByteStreamV2Cnv::createObj(IOpaqueAddress* pAddr,
+StatusCode PpmByteStreamxAODCnv::createObj(IOpaqueAddress* pAddr,
 		DataObject*& pObj) {
 	ATH_MSG_DEBUG("createObj() called");
 	// -------------------------------------------------------------------------
-	ByteStreamAddress *pBS_Addr;
-	pBS_Addr = dynamic_cast<ByteStreamAddress *>(pAddr);
-	if (!pBS_Addr) {
-		ATH_MSG_DEBUG("Can not cast to ByteStreamAddress");;
-		return StatusCode::FAILURE;
-	}
+	ByteStreamAddress *pBS_Addr = dynamic_cast<ByteStreamAddress *>(pAddr);
+	CHECK(pBS_Addr != nullptr);
 	// -------------------------------------------------------------------------
 	const std::string nm = *(pBS_Addr->par());
 	ATH_MSG_DEBUG("Creating Objects " << nm);
 	// -------------------------------------------------------------------------
 	// // get SourceIDs
-	const std::vector<uint32_t>& vID(m_tool->sourceIDs(nm));
+	const std::vector<uint32_t>& vID(m_readTool->sourceIDs(nm));
 	// // get ROB fragments
 	IROBDataProviderSvc::VROBFRAG robFrags;
-	m_robDataProvider->getROBData(vID, robFrags);
+	m_robDataProvider->getROBData(vID, robFrags, "PpmByteStreamxAODCnv");
 	// -------------------------------------------------------------------------
 	// size check
 	xAOD::TriggerTowerAuxContainer* aux = new xAOD::TriggerTowerAuxContainer();
@@ -123,46 +112,19 @@ StatusCode PpmByteStreamV2Cnv::createObj(IOpaqueAddress* pAddr,
 	ttCollection->setStore(aux);
 
 	ATH_MSG_DEBUG("Number of ROB fragments is " << robFrags.size());
-
-	if (!robFrags.size()) {
+	CHECK(m_readTool->convert(robFrags, ttCollection));
+	//if (!robFrags.size()) {
 		pObj = SG::asStorable(ttCollection);
-		return StatusCode::SUCCESS;
-	}
-	// -------------------------------------------------------------------------
-	StatusCode sc = m_tool->convert(robFrags, ttCollection);
-	if (sc.isFailure()) {
-		ATH_MSG_ERROR("Failed to create Objects");
-		delete ttCollection;
-		return sc;
-	}
-
-	pObj = SG::asStorable(ttCollection);
-	CHECK(m_storeSvc->record(aux, nm + "Aux."));
-	return sc;
+	//	return StatusCode::SUCCESS;
+	//}
+	return StatusCode::SUCCESS;
 }
 
 // createRep should create the bytestream from RDOs.
 
-StatusCode PpmByteStreamV2Cnv::createRep(DataObject* pObj,
-		IOpaqueAddress*& pAddr) {
-	//TODO: (Sasha) implement createRep
-	ATH_MSG_DEBUG("createRep() called");
-
-	RawEventWrite* re = m_ByteStreamEventAccess->getRawEvent();
-
-	xAOD::TriggerTowerContainer* ttCollection = 0;
-	if(!SG::fromStorable(pObj, ttCollection )) {
-	   ATH_MSG_ERROR("Cannot cast to xAOD::TriggerTowerContainer");
-	   return StatusCode::FAILURE;
-	}
-
-	const std::string nm = pObj->registry()->name();
-
-	ByteStreamAddress* addr = new ByteStreamAddress( classID(), nm, "" );
-	pAddr = addr;
-
-	// Convert to ByteStream
-	return m_tool->convert( ttCollection, re );
+StatusCode PpmByteStreamxAODCnv::createRep(DataObject* /*pObj*/,
+		IOpaqueAddress*& /*pAddr*/) {
+	return StatusCode::FAILURE;
 }
 
 } // end namespace
