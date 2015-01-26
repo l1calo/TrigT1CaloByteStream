@@ -28,6 +28,8 @@
 #include "PpmByteStreamxAODCnv.h"
 #include "PpmByteStreamxAODReadTool.h"
 
+#include "../ToString.h"
+
 namespace LVL1BS {
 
 PpmByteStreamxAODCnv::PpmByteStreamxAODCnv(ISvcLocator* svcloc) :
@@ -113,10 +115,11 @@ StatusCode PpmByteStreamxAODCnv::createObj(IOpaqueAddress* pAddr,
 
 	ATH_MSG_DEBUG("Number of ROB fragments is " << robFrags.size());
 	CHECK(m_readTool->convert(robFrags, ttCollection));
-	//if (!robFrags.size()) {
+	ATH_MSG_DEBUG(ToString(*ttCollection));
+	if (!robFrags.size()) {
 		pObj = SG::asStorable(ttCollection);
-	//	return StatusCode::SUCCESS;
-	//}
+		return StatusCode::SUCCESS;
+	}
 	return StatusCode::SUCCESS;
 }
 

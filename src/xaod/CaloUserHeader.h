@@ -17,7 +17,7 @@ namespace LVL1BS {
 
 class CaloUserHeader {
 private:
-  const uint32_t m_header;
+  uint32_t m_header;
 
 public:
 
@@ -31,6 +31,8 @@ public:
   uint8_t ppLowerBound() const;
 
   bool isValid() const;
+
+  static bool isValid(uint32_t word);
 };
 
 
