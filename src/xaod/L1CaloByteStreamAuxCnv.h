@@ -1,5 +1,5 @@
-#ifndef TRIGT1CALOBYTESTREAM_PPMBYTESTREAMXAODCNV_H
-#define TRIGT1CALOBYTESTREAM_PPMBYTESTREAMXAODCNV_H
+#ifndef TRIGT1CALOBYTESTREAM_L1CALOBYTESTREAMXAODCNV_H
+#define TRIGT1CALOBYTESTREAM_L1CALOBYTESTREAMXAODCNV_H
 
 #include <string>
 
@@ -19,13 +19,9 @@ class ISvcLocator;
 class StatusCode;
 
 template <typename> class CnvFactory;
-class StoreGateSvc;
-
 
 // Externals
 extern long ByteStream_StorageType;
-
-
 
 
 namespace LVL1BS {
@@ -36,17 +32,18 @@ class L1CaloByteStreamReadTool;
  *  @author alexander.mazurov@cern.ch
  */
 
-class PpmByteStreamxAODCnv: public Converter, public ::AthMessaging {
+template<typename ContainerT, typename AuxContainerT>
+class L1CaloByteStreamAuxCnv: public Converter, public ::AthMessaging {
 
-  friend class CnvFactory<PpmByteStreamxAODCnv>;
+  friend class CnvFactory<L1CaloByteStreamAuxCnv<ContainerT, AuxContainerT> >;
 
 protected:
 
-  PpmByteStreamxAODCnv(ISvcLocator* svcloc);
+  L1CaloByteStreamAuxCnv(ISvcLocator* svcloc);
 
 public:
 
-  virtual ~PpmByteStreamxAODCnv(){};
+  virtual ~L1CaloByteStreamAuxCnv(){};
 
   virtual StatusCode initialize();
   /// Create TriggerTowers from ByteStream
@@ -60,15 +57,19 @@ public:
 
   static const CLID& classID();
 
-public:
-  // static const uint16_t NTOWERS = 7168;
-  static const uint16_t NTOWERS = 8128; 
-
 private:
+
   /// Converter name
   std::string m_name;
+
+  /// Do the main job - retrieve xAOD TriggerTowers from robs
+  ToolHandle<L1CaloByteStreamReadTool> m_readTool;
 };
 
+
+
 } // end namespace
+
+#include "L1CaloByteStreamAuxCnv.icc"
 
 #endif

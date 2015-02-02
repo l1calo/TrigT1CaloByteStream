@@ -18,23 +18,27 @@ namespace {
 
 std::string LVL1BS::ToString(const xAOD::TriggerTower& tt){
 	std::stringstream o;
-	o << "xAOD::TriggerTower, coolId=" << std::hex << tt.coolId() << std::dec
-	  << ", layer=" << int(tt.layer())
-	  << ", eta=" << tt.eta()
-	  << ", phi=" << tt.phi()
-	  << ", lut_cp=" << ::ToString(tt.lut_cp())
-	  << ", lut_jep=" << ::ToString(tt.lut_jep())
-	  << ", correction=" << ::ToString(tt.correction())
-	  << ", correctionEnabled=" << ::ToString(tt.correctionEnabled())
-	  << ", bcidVec=" << ::ToString(tt.bcidVec())
-	  << ", adc=" << ::ToString(tt.adc())
-	  << ", bcidExt=" << ::ToString(tt.bcidExt())
-	  << ", error=" << tt.error()
-	  << ", peak=" << int(tt.peak())
-	  << ", adcPeak=" << int(tt.adcPeak())
-	  << ", cpET=" << int(tt.cpET())
-	  << ", jepET=" << int(tt.jepET())
-	  ;
+	if(tt.coolId() == 0) {
+		o << "xAOD::TriggerTower, coolId=0";
+	} else {
+		o << "xAOD::TriggerTower, coolId=" << std::hex << tt.coolId() << std::dec
+		  << ", layer=" << int(tt.layer())
+		  << ", eta=" << tt.eta()
+		  << ", phi=" << tt.phi()
+		  << ", lut_cp=" << ::ToString(tt.lut_cp())
+		  << ", lut_jep=" << ::ToString(tt.lut_jep())
+		  << ", correction=" << ::ToString(tt.correction())
+		  << ", correctionEnabled=" << ::ToString(tt.correctionEnabled())
+		  << ", bcidVec=" << ::ToString(tt.bcidVec())
+		  << ", adc=" << ::ToString(tt.adc())
+		  << ", bcidExt=" << ::ToString(tt.bcidExt())
+		  << ", error=" << tt.error()
+		  << ", peak=" << int(tt.peak())
+		  << ", adcPeak=" << int(tt.adcPeak())
+		  << ", cpET=" << int(tt.cpET())
+		  << ", jepET=" << int(tt.jepET())
+		  ;
+	}
 
 	return o.str();
 }
@@ -47,3 +51,26 @@ std::string LVL1BS::ToString(const xAOD::TriggerTowerContainer& tt){
 	}
 	return o.str();
 }
+
+std::string LVL1BS::ToString(const xAOD::CPMTower& cpm){
+  std::stringstream o;
+
+  o << "xAOD::CPMTower"
+    << ", eta=" << cpm.eta()
+    << ", phi=" << cpm.phi()
+    << ", em peak energy=" << cpm.emEnergy()
+    << ", had peak energy=" << cpm.hadEnergy()
+    ;
+
+  return o.str();
+}
+
+std::string LVL1BS::ToString(const xAOD::CPMTowerContainer& tt){
+  std::stringstream o;
+  for(auto iter = tt.begin();
+      iter != tt.end(); ++iter){
+    o << ToString(**iter) << std::endl;
+  }
+  return o.str();
+}
+

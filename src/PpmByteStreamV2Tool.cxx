@@ -159,6 +159,7 @@ void PpmByteStreamV2Tool::reserveMemory( xAOD::TriggerTowerContainer* const ttCo
               //         const std::vector<uint_least8_t>& bcidVec,
               //         const std::vector<uint_least16_t>& adc,
               //         const std::vector<uint_least8_t>& bcidExt,
+              //          const std::vector<uint_least8_t>& Sat80Vec,
               //         const uint_least16_t& error,
               //         const uint_least8_t& peak,
               //         const uint_least8_t& adcPeak
@@ -178,6 +179,7 @@ void PpmByteStreamV2Tool::reserveMemory( xAOD::TriggerTowerContainer* const ttCo
                 dummy_vector8,
                 dummy_vector8,
                 dummy_vector16,
+                dummy_vector8,
                 dummy_vector8,
                 0,
                 0,
