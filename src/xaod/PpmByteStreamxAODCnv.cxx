@@ -68,18 +68,16 @@ StatusCode PpmByteStreamxAODCnv::createObj(IOpaqueAddress* pAddr,
   // -------------------------------------------------------------------------
   const std::string nm = *(pBS_Addr->par());
   const std::string nmAux = nm + "Aux.";
-  ATH_MSG_DEBUG("Creating xAOD interface objects '" << nm << "'");
+  ATH_MSG_DEBUG("Creating xAOD::TriggerTower interface objects '" << nm << "'");
 
   xAOD::TriggerTowerContainer* const ttCollection =
       new xAOD::TriggerTowerContainer();
-  
 
   // Create link with AUX container
   DataLink<xAOD::TriggerTowerAuxContainer> link(nmAux);
-  const xAOD::TriggerTowerAuxContainer* aux = link.getDataPtr();
   ATH_MSG_DEBUG("Creating store with data link to '" << nmAux);
   
-  for(size_t i=0; i < aux->size(); ++i){
+  for(size_t i=0; i < (*link).size(); ++i){
      ttCollection->push_back(new xAOD::TriggerTower());
   }
   ttCollection->setStore(link);

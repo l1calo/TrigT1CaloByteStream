@@ -18,6 +18,10 @@ public:
     return T((word >> m_shift) & m_mask);
   }
 
+  template<typename T> static T get(const uint32_t& word, uint8_t offset, uint8_t size){
+    return T((word >> offset) & ((1 << size) - 1));
+  }
+
   static uint32_t mask(uint32_t word, uint8_t offset, uint32_t mask) {
     return (word >> offset) & mask;
   }

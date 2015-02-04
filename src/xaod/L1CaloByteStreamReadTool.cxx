@@ -6,15 +6,15 @@
 #include <stdexcept>
 // ===========================================================================
 #include "eformat/SourceIdentifier.h"
-#include "../L1CaloSrcIdMap.h"
 #include "CaloUserHeader.h"
-#include "L1CaloByteStreamReadTool.h"
 #include "SubBlockHeader.h"
 #include "SubBlockStatus.h"
 #include "WordDecoder.h"
 #include "CpmWord.h"
+#include "../L1CaloSrcIdMap.h"
 
-using namespace LVL1BS;
+#include "L1CaloByteStreamReadTool.h"
+// ===========================================================================
 
 namespace {
 uint32_t bitFieldSize(uint32_t word, uint8_t offset, uint8_t size) {
@@ -25,16 +25,16 @@ uint32_t coolId(uint8_t crate, uint8_t module, uint8_t channel) {
   const uint8_t pin = channel % 16;
   const uint8_t asic = channel / 16;
   return (crate << 24) | (1 << 20) | (module << 16) | (pin << 8) | asic;
+} 
 }
-}
-
 // ===========================================================================
-
+namespace LVL1BS {
 // ===========================================================================
 // Constructor
 L1CaloByteStreamReadTool::L1CaloByteStreamReadTool(const std::string& name =
     "PpmByteStreamxAODReadTool") :
     AsgTool(name), m_sms("SegMemSvc/SegMemSvc", name),
+    m_errorTool("LVL1BS::L1CaloErrorByteStreamTool/L1CaloErrorByteStreamTool"),
     m_ppmMaps("LVL1::PpmMappingTool/PpmMappingTool"),
     m_cpmMaps("LVL1::CpmMappingTool/CpmMappingTool"),
     m_robDataProvider("ROBDataProviderSvc", name) {
@@ -57,6 +57,7 @@ StatusCode L1CaloByteStreamReadTool::initialize() {
       "Initializing " << name() << " - package version " << PACKAGE_VERSION);
 
   m_srcIdMap = new L1CaloSrcIdMap();
+  CHECK(m_errorTool.retrieve());
   CHECK(m_ppmMaps.retrieve());
   CHECK(m_cpmMaps.retrieve());
   CHECK(m_robDataProvider.retrieve());
@@ -147,13 +148,18 @@ StatusCode L1CaloByteStreamReadTool::convert(xAOD::CPMTowerContainer* const ttCo
 
 // ===========================================================================
 StatusCode L1CaloByteStreamReadTool::processRobFragment_(
-    const ROBIterator& robIter, const RequestType& requestedType) {
+    const ROBIterator& robIter, const RequestType& /*requestedType*/) {
 
   auto rob = **robIter;
 
   ATH_MSG_DEBUG(
       "Treating ROB fragment source id #" << MSG::hex << rob.rob_source_id());
 
+
+  const auto robSourceID = rob.rod_source_id();
+  const auto sourceID = (robSourceID >> 16) & 0xff;
+  const auto rodCrate = m_srcIdMap->crate(sourceID);
+  const auto rodSlink = m_srcIdMap->slink(sourceID);
   // -------------------------------------------------------------------------
   // Check Rob status
   if (rob.nstatus() > 0) {
@@ -161,6 +167,7 @@ StatusCode L1CaloByteStreamReadTool::processRobFragment_(
     rob.status(robData);
     if (*robData != 0) {
       ATH_MSG_WARNING("ROB status error - skipping fragment");
+      m_errorTool->robError(robSourceID, *robData);
       return StatusCode::FAILURE;
     }
   }
@@ -178,10 +185,7 @@ StatusCode L1CaloByteStreamReadTool::processRobFragment_(
     return StatusCode::FAILURE;
   }
   // -------------------------------------------------------------------------
-  const auto robSourceID = rob.rod_source_id();
-  const auto sourceID = (robSourceID >> 16) & 0xff;
-  const auto rodCrate = m_srcIdMap->crate(sourceID);
-  const auto rodSlink = m_srcIdMap->slink(sourceID);
+
 
   m_rodVer = rob.rod_version() & 0xffff;
   m_verCode = ((m_rodVer & 0xfff) << 4) | 1;
@@ -218,7 +222,12 @@ StatusCode L1CaloByteStreamReadTool::processRobFragment_(
     if (CaloUserHeader::isValid(*payload) && (subBlock == 0)) {
 
     } else if (SubBlockHeader::isSubBlockHeader(*payload)) {
+      indata = 0;
       CHECK(processPpmBlock_());
+      
+      m_ppLuts.clear();
+      m_ppFadcs.clear();
+      m_ppBlock.clear();
 
       blockType = (*payload >> 28) & 0xf;
 
@@ -227,6 +236,8 @@ StatusCode L1CaloByteStreamReadTool::processRobFragment_(
         ATH_MSG_VERBOSE(
             "SubBlock version #" << int(m_subBlockHeader.version())
              << " format #" << int(m_subBlockHeader.format())
+             << " nslice1 #" << int(m_subBlockHeader.nSlice1())
+             << " nslice2 #" << int(m_subBlockHeader.nSlice2())
         );
         subBlock = blockType & 0xe;
       } else if (blockType == (subBlock | 1)) {
@@ -244,6 +255,7 @@ StatusCode L1CaloByteStreamReadTool::processRobFragment_(
       default:
         break;
       }
+      indata++;
     }
   }
   CHECK(processPpmBlock_());
@@ -254,8 +266,13 @@ StatusCode L1CaloByteStreamReadTool::processPpmWord_(uint32_t word,
     int indata) {
   if (m_subBlockHeader.format() >= 2 || m_verCode >= 0x41) {
     m_ppBlock.push_back(word);
-  } else if (m_verCode == 0x31) {
+  } else if ((m_verCode == 0x21) || (m_verCode == 0x31)) {
     return processPpmStandardR3V1_(word, indata);
+  } else {
+    ATH_MSG_ERROR("Unsupported PPM version:format (" 
+      << m_verCode << ":" << format 
+      <<") combination");
+    return StatusCode::FAILURE;
   }
   return StatusCode::SUCCESS;
 }
@@ -290,24 +307,200 @@ StatusCode L1CaloByteStreamReadTool::processCpmWordR4V1_(uint32_t word) {
 
 StatusCode L1CaloByteStreamReadTool::processPpmBlock_() {
   if (m_ppBlock.size() > 0) {
-    if (m_verCode == 0x32) {
-      // TODO: process
+    m_ppPointer = 0;
+    if (m_verCode == 0x31) {
+      StatusCode sc = processPpmCompressedR3V1_();
+      m_ppBlock.clear();
+      CHECK(sc);
     } else if (m_verCode == 0x41 || m_verCode == 0x42) {
       StatusCode sc = processPpmBlockR4V1_();
       m_ppBlock.clear();
       CHECK(sc);
     }
   }
+
+  if (m_ppLuts.size() > 0) {
+    if (m_verCode == 0x21 || m_verCode == 0x31) {
+      StatusCode sc = processPpmBlockR3V1_();
+      m_ppLuts.clear();
+      m_ppFadcs.clear();
+      CHECK(sc);
+    }
+  }
+
   return StatusCode::SUCCESS;
 }
 
-StatusCode L1CaloByteStreamReadTool::processPpmStandardR3V1_(uint32_t word, int indata){
-  return StatusCode::FAILURE;
+StatusCode L1CaloByteStreamReadTool::processPpmCompressedR3V1_() {
+  uint8_t chan = 0;
+  m_ppPointer = 0;
+  m_ppMaxBit = 31 * m_ppBlock.size();
+  try{
+    while (chan < 64) {
+      uint8_t present = 1;
+      if (m_subBlockHeader.format() == 3) {
+        present = getPpmBytestreamField_(1); 
+      } 
+
+      if (present == 1) {
+        uint8_t lutVal = 0;
+        uint8_t fmt = 6;
+        uint8_t lutSat=0;
+        uint8_t lutExt=0;
+        uint8_t lutPeak=0;
+
+        std::vector<uint16_t> adcVal = {0 , 0, 0, 0, 0};
+        std::vector<uint8_t> adcExt = {0 , 0, 0, 0, 0};
+
+        uint8_t minHeader = getPpmBytestreamField_(4);
+        uint8_t minIndex = minHeader % 5;
+        if (minHeader < 15) { // Formats 0-5
+          if (minHeader < 10) { // Formats 0-1
+            fmt = minHeader / 5;
+          } else { // Formats 2-5
+            fmt = 2 + getPpmBytestreamField_(2);
+            uint8_t haveLut = getPpmBytestreamField_(1);
+            if (fmt == 2) {
+              if (haveLut == 1) {
+                lutVal = getPpmBytestreamField_(3);
+                lutPeak = 1; // Even if LutVal==0 it seems
+              }
+            } else {
+              uint8_t haveExt = getPpmBytestreamField_(1);
+              if (haveLut == 1) {
+                lutVal = getPpmBytestreamField_(8);
+                lutExt = getPpmBytestreamField_(1);
+                lutSat = getPpmBytestreamField_(1);
+                lutPeak = getPpmBytestreamField_(1);
+              }
+
+              if (haveExt == 1){
+                for(uint8_t i = 0; i < 5; ++i) {
+                  adcExt[i] = getPpmBytestreamField_(1);
+                }
+              } else {
+                adcExt[2] = lutExt;
+              }
+            }
+          }
+          adcVal = getPpmAdcSamplesR3_(fmt, minIndex);
+        } else {
+          uint8_t haveAdc = getPpmBytestreamField_(1);
+          if (haveAdc == 1) {
+            uint16_t val = getPpmBytestreamField_(10);
+            for(uint8_t i = 0; i < 5; ++i) {
+                  adcVal[i] = val;
+            }
+          }
+        }
+        // Add Trigger Tower
+        //std::vector<uint8_t> luts = {lutVal};
+        CHECK(addTriggerTowerV1_(
+          m_subBlockHeader.crate(),
+          m_subBlockHeader.module(),
+          chan,
+          std::vector<uint8_t> {lutVal},
+          std::vector<uint8_t> {uint8_t(lutExt | (lutSat << 1) | (lutPeak << 2))},
+          adcVal,
+          adcExt
+        ));
+      }
+      chan++;
+    }
+  }catch (const std::out_of_range& ex) {
+      ATH_MSG_ERROR("Failed to decode ppm block " << ex.what());
+      return StatusCode::FAILURE;
+  } 
+  return StatusCode::SUCCESS;
+}
+
+std::vector<uint16_t> L1CaloByteStreamReadTool::getPpmAdcSamplesR3_(
+  uint8_t format, uint8_t minIndex) {
+
+  std::vector<uint16_t> adc = {0, 0, 0, 0, 0};
+  uint8_t minAdc = 0;
+
+  for(uint8_t i = 0; i <5; ++i) {
+    uint8_t longField = 0;
+    uint8_t numBits = 0;
+    if (format > 2) {
+      longField = getPpmBytestreamField_(1);
+      numBits = longField == 0? 4: (format * 2);
+    } else {
+      numBits = i == 0? 4: (format + 2);
+    }
+
+    if (i == 0) {
+      minAdc = getPpmBytestreamField_(numBits);
+      if (longField == 0) {
+        minAdc += m_caloUserHeader.ppLowerBound();
+      }
+    } else {
+        adc[i] = minAdc + getPpmBytestreamField_(numBits);
+    }
+  }
+
+  if (minIndex == 0) {
+    adc[0] = minAdc;
+  } else {
+    adc[0] = adc[minIndex];
+    adc[minIndex] = minAdc;
+  }
+  return adc;
+}
+
+
+
+StatusCode L1CaloByteStreamReadTool::processPpmStandardR3V1_(uint32_t word,
+    int inData){
+  bool error = false;
+  if (m_subBlockHeader.seqNum() == 63) { // Error block
+    ATH_MSG_DEBUG("Error PPM subblock");
+    //TODO: errorTool
+  } else {
+    const uint8_t numAdc = m_subBlockHeader.nSlice2();
+    const uint8_t numLut = m_subBlockHeader.nSlice1();
+    const uint8_t nTotal = numAdc + numLut;
+    const uint8_t wordsPerBlock = 8; // 16 towers (4 MCMs) / 2 per word
+    const uint8_t iBlk =  inData / wordsPerBlock;
+    uint8_t iChan =  m_subBlockHeader.seqNum() + 2 * (inData % wordsPerBlock);
+    
+    if (iBlk < numLut) { // First all LUT values
+      for(int i = 0; i < 2; ++i) {
+        uint16_t subword = (word >> 16 * i) & 0x7ff;
+        m_ppLuts[iChan].push_back(subword);
+        iChan++;
+      }
+    } else if (iBlk < nTotal) { // Next all FADC values
+      for(int i = 0; i < 2; ++i) {
+        uint16_t subword = (word >> 16 * i) & 0x7ff;
+        m_ppFadcs[iChan].push_back(subword);
+        iChan++;
+      }
+    
+    } else{
+      ATH_MSG_WARNING("Error decoding Ppm word (run1)");
+      error = true;
+    }
+ 
+  }
+  return !error;
 }
 
 StatusCode L1CaloByteStreamReadTool::processPpmBlockR4V1_() {
   if (m_subBlockHeader.format() == 1) {
     CHECK(processPpmStandardR4V1_());
+    return StatusCode::SUCCESS;
+  } else if (m_subBlockHeader.format() >= 2) {
+    // TODO: convert compressed
+    return StatusCode::FAILURE;
+  }
+  return StatusCode::FAILURE;
+}
+
+StatusCode L1CaloByteStreamReadTool::processPpmBlockR3V1_() {
+  if (m_subBlockHeader.format() == 1) {
+    CHECK(processPpmStandardR3V1_());
     return StatusCode::SUCCESS;
   } else if (m_subBlockHeader.format() >= 2) {
     // TODO: convert compressed
@@ -322,9 +515,6 @@ StatusCode L1CaloByteStreamReadTool::processPpmStandardR4V1_() {
   uint8_t crate = m_subBlockHeader.crate();
   uint8_t module = m_subBlockHeader.module();
 
-  uint8_t bitsPerMcm = 11 * (numAdc + numLut * 3) * 4 + 10;
-  uint8_t bcid = 0;
-  uint8_t mcmNum = 0;
 
   m_ppPointer = 0;
   m_ppMaxBit = 31 * m_ppBlock.size();
@@ -332,15 +522,9 @@ StatusCode L1CaloByteStreamReadTool::processPpmStandardR4V1_() {
   for (uint8_t chan = 0; chan < 64; ++chan) {
     //for (uint8_t k = 0; k < 4; ++k) {
     std::vector<uint8_t> lcpVal;
-    // std::vector<uint8_t> lcpExt;
-    // std::vector<uint8_t> lcpSat;
-    // std::vector<uint8_t> lcpPeak;
     std::vector<uint8_t> lcpBcidVec;
 
     std::vector<uint8_t> ljeVal;
-    // std::vector<uint8_t> ljeLow;
-    // std::vector<uint8_t> ljeHigh;
-    // std::vector<uint8_t> ljeRes;
     std::vector<uint8_t> ljeSat80Vec;
 
 
@@ -353,17 +537,11 @@ StatusCode L1CaloByteStreamReadTool::processPpmStandardR4V1_() {
       for (int i = 0; i < numLut; ++i) {
         lcpVal.push_back(getPpmBytestreamField_(8));
         lcpBcidVec.push_back(getPpmBytestreamField_(3));
-        // lcpExt.push_back(getPpmBytestreamField_(1));
-        // lcpSat.push_back(getPpmBytestreamField_(1));
-        // lcpPeak.push_back(getPpmBytestreamField_(1));
       }
 
       for (int i = 0; i < numLut; ++i) {
         ljeVal.push_back(getPpmBytestreamField_(8));
         ljeSat80Vec.push_back(getPpmBytestreamField_(3));
-        // ljeLow.push_back(getPpmBytestreamField_(1));
-        // ljeHigh.push_back(getPpmBytestreamField_(1));
-        // ljeRes.push_back(getPpmBytestreamField_(1));
       }
 
       for (int i = 0; i < numAdc; ++i) {
@@ -372,7 +550,8 @@ StatusCode L1CaloByteStreamReadTool::processPpmStandardR4V1_() {
       }
 
       for (int i = 0; i < numLut; ++i) {
-        pedCor.push_back(getPpmBytestreamField_(10));
+        uint16_t pc = getPpmBytestreamField_(10);
+        pedCor.push_back(((((pc &(0x200))>>9)==1)?-1:+1) * (pc & 0x1fff));
         pedEn.push_back(getPpmBytestreamField_(1));
       }
     } catch (const std::out_of_range& ex) {
@@ -380,16 +559,26 @@ StatusCode L1CaloByteStreamReadTool::processPpmStandardR4V1_() {
       return StatusCode::FAILURE;
     }
     CHECK(
-        addTriggerTowers_(crate, module, chan, lcpVal, lcpBcidVec,
+        addTriggerTowerV2_(crate, module, chan, lcpVal, lcpBcidVec,
             ljeVal, ljeSat80Vec, adcVal, adcExt, pedCor, pedEn));
-
-    //}
   }
 
   return StatusCode::SUCCESS;
 }
 
-StatusCode L1CaloByteStreamReadTool::addTriggerTowers_(
+StatusCode L1CaloByteStreamReadTool::processPpmStandardR3V1_() {
+    for(auto lut : m_ppLuts) {
+      CHECK(addTriggerTowerV1_(
+        m_subBlockHeader.crate(), 
+        m_subBlockHeader.module(),
+        lut.first,
+        lut.second,
+        m_ppFadcs[lut.first]));;
+    }
+    return StatusCode::SUCCESS;
+}
+
+StatusCode L1CaloByteStreamReadTool::addTriggerTowerV2_(
     uint8_t crate,
     uint8_t module,
     uint8_t channel,
@@ -432,6 +621,58 @@ StatusCode L1CaloByteStreamReadTool::addTriggerTowers_(
       lcpBcidVec, adcVal, adcExt, ljeSat80Vec, error, m_caloUserHeader.lut(),
       m_caloUserHeader.ppFadc());
   return StatusCode::SUCCESS;
+}
+
+StatusCode L1CaloByteStreamReadTool::addTriggerTowerV1_(
+    uint8_t crate,
+    uint8_t module,
+    uint8_t channel,
+    const std::vector<uint8_t>& luts,
+    const std::vector<uint8_t>& lcpBcidVec,
+    const std::vector<uint16_t>& fadc,
+    const std::vector<uint8_t>& bcidExt
+  ) {
+
+    std::vector<uint8_t> ljeVal;
+    std::vector<uint8_t> ljeSat80Vec;
+
+    std::vector<int16_t> pedCor;
+    std::vector<uint8_t> pedEn;
+
+   CHECK(addTriggerTowerV2_(crate, module, channel, luts, lcpBcidVec,
+            ljeVal, ljeSat80Vec, fadc, bcidExt, pedCor, pedEn));
+
+   return StatusCode::SUCCESS;
+}
+
+StatusCode L1CaloByteStreamReadTool::addTriggerTowerV1_(
+    uint8_t crate,
+    uint8_t module,
+    uint8_t channel,
+    const std::vector<uint16_t>& luts,
+    const std::vector<uint16_t>& fadc
+  ) {
+
+    std::vector<uint8_t> lcpVal;
+    std::vector<uint8_t> lcpBcidVec;
+
+    std::vector<uint16_t> adcVal;
+    std::vector<uint8_t> adcExt;
+
+    for(auto lut: luts) {
+      lcpVal.push_back(BitField::get<uint8_t>(lut, 0, 8));
+      lcpBcidVec.push_back(BitField::get<uint8_t>(lut, 8, 3));
+    }
+
+    for(auto f: fadc) {
+      adcExt.push_back(BitField::get<uint8_t>(f, 0, 1));
+      adcVal.push_back(BitField::get<uint8_t>(f, 1, 10));
+    }
+
+   CHECK(addTriggerTowerV1_(crate, module, channel, lcpVal, lcpBcidVec,
+            adcVal, adcExt));
+
+   return StatusCode::SUCCESS;
 }
 
 StatusCode L1CaloByteStreamReadTool::addCpmTower_(
@@ -533,4 +774,6 @@ uint32_t L1CaloByteStreamReadTool::getPpmBytestreamField_(uint8_t numBits) {
 
   throw std::out_of_range("Requested too much bits from ppm block");
 }
+// ===========================================================================
+} // end namespace
 // ===========================================================================

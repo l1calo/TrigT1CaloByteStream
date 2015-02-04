@@ -34,10 +34,14 @@ std::string LVL1BS::ToString(const xAOD::TriggerTower& tt){
 		  << ", bcidExt=" << ::ToString(tt.bcidExt())
 		  << ", error=" << tt.error()
 		  << ", peak=" << int(tt.peak())
-		  << ", adcPeak=" << int(tt.adcPeak())
-		  << ", cpET=" << int(tt.cpET())
-		  << ", jepET=" << int(tt.jepET())
-		  ;
+		  << ", adcPeak=" << int(tt.adcPeak());
+		  if (!tt.lut_cp().empty()) {
+			o << ", cpET=" << int(tt.cpET());
+		  }
+		  if (!tt.lut_jep().empty()) {
+		  	o << ", jepET=" << int(tt.jepET());
+		  }
+		  
 	}
 
 	return o.str();
