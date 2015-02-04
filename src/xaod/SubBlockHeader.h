@@ -15,23 +15,23 @@ namespace LVL1BS {
 
 class SubBlockHeader {
 private:
-  const uint32_t m_header;
+  uint32_t m_header;
 public:
-
   /// Constructor - default just sets word ID and number of header words
-  SubBlockHeader(uint32_t header);
-  uint8_t type() const { return m_decoder.get<uint8_t>(m_header, 0); }
-  uint8_t version() const { return m_decoder.get<uint8_t>(m_header, 1); }
-  uint8_t format() const { return m_decoder.get<uint8_t>(m_header,2); }
-  uint8_t seqNum() const { return m_decoder.get<uint8_t>(m_header, 3); }
-  uint8_t crate() const { return m_decoder.get<uint8_t>(m_header, 4); }
-  uint8_t module() const { return m_decoder.get<uint8_t>(m_header, 5); }
-  uint8_t nSlice2() const { return m_decoder.get<uint8_t>(m_header, 6); }
-  uint8_t nSlice1() const { return m_decoder.get<uint8_t>(m_header, 7); }
+  SubBlockHeader(uint32_t header = 0x0);
+  uint8_t type() const;
+  uint8_t version() const;
+  uint8_t format() const;
+  uint8_t seqNum() const;
+  uint8_t crate() const;
+  uint8_t module() const;
+  uint8_t nSlice2() const;
+  uint8_t nSlice1() const;
 
-  bool isValid() const { return length() == 0xf;}
+  bool isPpmBlock() const;
 
-
+  bool isSubBlockHeader() const;
+  static bool isSubBlockHeader(uint32_t word);
 };
 
 

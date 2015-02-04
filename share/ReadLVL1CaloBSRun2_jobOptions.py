@@ -29,7 +29,9 @@ ToolSvc += LVL1BS__PpmByteStreamV2Tool("PpmByteStreamTool",
            PpmMappingTool="LVL1::PpmCoolOrBuiltinMappingTool/PpmCoolOrBuiltinMappingTool",
            PrintCompStats=1
 )
-ToolSvc += LVL1BS__PpmByteStreamxAODReadTool("PpmByteStreamxAODReadTool")
+ToolSvc += LVL1BS__PpmByteStreamxAODReadTool("PpmByteStreamxAODReadTool",
+            PpmMappingTool="LVL1::PpmCoolOrBuiltinMappingTool/PpmCoolOrBuiltinMappingTool"
+)
 ToolSvc += LVL1BS__RodHeaderByteStreamTool("RodHeaderByteStreamTool")
 ToolSvc += LVL1BS__L1CaloErrorByteStreamTool("L1CaloErrorByteStreamTool")
 

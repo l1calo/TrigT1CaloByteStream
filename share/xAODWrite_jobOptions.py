@@ -13,7 +13,7 @@ from ByteStreamCnvSvc import ReadByteStream
 
 svcMgr.ByteStreamInputSvc.FullFileName = InputFiles
 include("TrigT1CaloByteStream/ReadLVL1CaloBSRun2_jobOptions.py")
-# svcMgr.MessageSvc.defaultLimit = 5000
+svcMgr.MessageSvc.defaultLimit = 1000000
 
 
 class PyTriggerTowerRef(PyAthena.Alg):
@@ -43,16 +43,16 @@ topSequence = AlgSequence()
 topSequence += PyTriggerTowerRef()
 
 
-from OutputStreamAthenaPool.MultipleStreamManager import MSMgr
-
-MyFirstXAODStream = MSMgr.NewPoolRootStream( "StreamxAOD", "TileCIS.root" )
-
-
-MyFirstXAODStream.AddItem(["xAOD::TriggerTowerContainer#xAODTriggerTowers"])
-MyFirstXAODStream.AddItem(["xAOD::TriggerTowerAuxContainer#xAODTriggerTowersAux."])
+# from OutputStreamAthenaPool.MultipleStreamManager import MSMgr
+# 
+# MyFirstXAODStream = MSMgr.NewPoolRootStream( "StreamxAOD", "TileCIS.root" )
+# 
+# 
+# MyFirstXAODStream.AddItem(["xAOD::TriggerTowerContainer#xAODTriggerTowers"])
+# MyFirstXAODStream.AddItem(["xAOD::TriggerTowerAuxContainer#xAODTriggerTowersAux."])
 
 
 #svcMgr.StoreGateSvc.Dump = True
 
-theApp.EvtMax = 2
+theApp.EvtMax = 1
 # ==============================================================================
