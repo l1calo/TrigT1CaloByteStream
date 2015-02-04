@@ -10,7 +10,7 @@ author Peter Faulkner <P.J.W.Faulkner@bham.ac.uk>
 apply_pattern cmake_add_command command="find_package(tdaq-common COMPONENTS eformat_write)"
 
 # use this line to exclude test algorithms
-library TrigT1CaloByteStream *.cxx components/*.cxx
+library TrigT1CaloByteStream *.cxx xaod/*.cxx components/*.cxx
 # use this line to include test algorithms
 #library TrigT1CaloByteStream *.cxx ../test/*.cxx
 apply_pattern component_library
@@ -23,6 +23,7 @@ use xAODTrigL1Calo       xAODTrigL1Calo-*       Event/xAOD
 
 private
 use AthenaBaseComps      AthenaBaseComps-*      Control
+use AthenaKernel         AthenaKernel-*         Control
 use ByteStreamCnvSvcBase ByteStreamCnvSvcBase-* Event 
 use ByteStreamData       ByteStreamData-*       Event
 use StoreGate            StoreGate-*            Control
