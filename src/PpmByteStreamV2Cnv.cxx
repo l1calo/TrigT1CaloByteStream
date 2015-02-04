@@ -34,8 +34,11 @@ PpmByteStreamV2Cnv::PpmByteStreamV2Cnv(ISvcLocator* svcloc) :
 		AthMessaging(svcloc != 0 ? msgSvc() : 0, "PpmByteStreamV2Cnv"),
 		m_name("PpmByteStreamV2Cnv"),
 		m_tool("LVL1BS::PpmByteStreamV2Tool/PpmByteStreamV2Tool"),
+		m_storeSvc("StoreGateSvc", m_name),
 		m_robDataProvider("ROBDataProviderSvc", m_name),
 		m_ByteStreamEventAccess("ByteStreamCnvSvc", m_name){
+
+
 }
 
 PpmByteStreamV2Cnv::~PpmByteStreamV2Cnv() {
@@ -65,22 +68,9 @@ StatusCode PpmByteStreamV2Cnv::initialize() {
 	}
 
 	//Get ByteStreamCnvSvc
-	sc = m_ByteStreamEventAccess.retrieve();
-	if (sc.isFailure()) {
-		ATH_MSG_ERROR("Failed to retrieve service " << m_ByteStreamEventAccess);
-		return sc;
-	} else {
-		ATH_MSG_DEBUG("Retrieved service " << m_ByteStreamEventAccess);
-	}
+	CHECK(m_ByteStreamEventAccess.retrieve());
+	CHECK(m_tool.retrieve());
 
-	// Retrieve Tool
-	sc = m_tool.retrieve();
-	if (sc.isFailure()) {
-		ATH_MSG_ERROR("Failed to retrieve tool " << m_tool);
-		return sc;
-	} else {
-		ATH_MSG_DEBUG("Retrieved tool " << m_tool);
-	}
 	// Get ROBDataProvider
 	sc = m_robDataProvider.retrieve();
 	if (sc.isFailure()) {
@@ -89,6 +79,15 @@ StatusCode PpmByteStreamV2Cnv::initialize() {
 		// return sc ;
 	} else {
 		ATH_MSG_DEBUG("Retrieved service " << m_robDataProvider);
+	}
+
+	sc = m_storeSvc.retrieve();
+	if (sc.isFailure()) {
+		ATH_MSG_WARNING("Failed to retrieve service " << m_storeSvc);
+		// return is disabled for Write BS which does not require m_storeSvc
+		// return sc ;
+	} else {
+		ATH_MSG_DEBUG("Retrieved service " << m_storeSvc);
 	}
 
 	return StatusCode::SUCCESS;
@@ -137,6 +136,7 @@ StatusCode PpmByteStreamV2Cnv::createObj(IOpaqueAddress* pAddr,
 	}
 
 	pObj = SG::asStorable(ttCollection);
+	CHECK(m_storeSvc->record(aux, nm + "Aux."));
 	return sc;
 }
 
