@@ -26,7 +26,6 @@
 #include "xAODTrigL1Calo/TriggerTowerAuxContainer.h"
 
 #include "PpmByteStreamAuxCnv.h"
-#include "PpmByteStreamxAODCnv.h"
 #include "../ToString.h"
 #include "L1CaloByteStreamReadTool.h"
 

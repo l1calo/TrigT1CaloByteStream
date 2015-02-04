@@ -29,6 +29,8 @@
 #include "SubBlockStatus.h"
 #include "CpmWord.h"
 
+#include "../L1CaloErrorByteStreamTool.h"
+
 // ===========================================================================
 // Forward declarations
 // ===========================================================================
@@ -40,6 +42,7 @@ namespace LVL1BS {
 // Forward declarations
 class L1CaloSrcIdMap;
 class CpmWord;
+class L1CaloErrorByteStreamTool;
 // ===========================================================================
 
 /** Tool to perform ROB fragments to trigger towers and trigger towers
@@ -90,16 +93,21 @@ private:
   StatusCode processPpmWord_(uint32_t word, int indata);
   StatusCode processPpmBlock_();
   StatusCode processPpmBlockR4V1_();
+  StatusCode processPpmBlockR3V1_();
   StatusCode processPpmStandardR4V1_();
+  StatusCode processPpmStandardR3V1_();
+  StatusCode processPpmStandardR3V1_(uint32_t word, int indata);
+  StatusCode processPpmCompressedR3V1_();
+  std::vector<uint16_t> getPpmAdcSamplesR3_(uint8_t format, uint8_t minIndex);
 
   StatusCode processCpWord_(uint32_t word);
   StatusCode processCpmWordR4V1_(uint32_t word);
-  StatusCode processPpmStandardR3V1_(uint32_t word, int indata);
+ 
 
   uint32_t getPpmBytestreamField_(uint8_t numBits);
 
-  StatusCode addTriggerTowers_(
-      uint8_t create,
+  StatusCode addTriggerTowerV2_(
+      uint8_t crate,
       uint8_t module,
       uint8_t channel,
       const std::vector<uint8_t>& lcpVal,
@@ -113,6 +121,24 @@ private:
       const std::vector<int16_t>& pedCor,
       const std::vector<uint8_t>& pedEn);
 
+  StatusCode addTriggerTowerV1_(
+    uint8_t crate,
+    uint8_t module,
+    uint8_t channel,
+    const std::vector<uint16_t>& luts,
+    const std::vector<uint16_t>& fadc
+  );
+
+  StatusCode addTriggerTowerV1_(
+    uint8_t crate,
+    uint8_t module,
+    uint8_t channel,
+    const std::vector<uint8_t>& luts,
+    const std::vector<uint8_t>& lcpBcidVec,
+    const std::vector<uint16_t>& fadc,
+    const std::vector<uint8_t>& bcidExt
+  );
+
   StatusCode addCpmTower_(uint8_t crate, uint8_t module, const CpmWord& word);
 private:
 //  uint16_t m_crates;
@@ -123,6 +149,7 @@ private:
 
 private:
   ServiceHandle<SegMemSvc> m_sms;
+  ToolHandle<LVL1BS::L1CaloErrorByteStreamTool> m_errorTool;
   /// Channel mapping tool
   ToolHandle<LVL1::IL1CaloMappingTool> m_ppmMaps;
   ToolHandle<LVL1::IL1CaloMappingTool> m_cpmMaps;
@@ -144,10 +171,17 @@ private:
   uint16_t m_rodVer;
   uint8_t m_verCode;
 
+  // ==========================================================================
+  // PPM related structures
+  // ==========================================================================
+  // For RUN2
   std::vector<uint32_t> m_ppBlock;
   uint32_t m_ppPointer;
   uint32_t m_ppMaxBit;
-
+  // For RUN1
+  std::map<uint8_t, std::vector<uint16_t>> m_ppLuts;
+  std::map<uint8_t, std::vector<uint16_t>> m_ppFadcs;
+// ==========================================================================
 private:
   xAOD::TriggerTowerContainer* m_triggerTowers;
   xAOD::CPMTowerContainer* m_cpmTowers;
