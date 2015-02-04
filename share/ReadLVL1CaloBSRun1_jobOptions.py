@@ -53,9 +53,10 @@ ByteStreamAddressProviderSvc.TypeNames += [ "LVL1::CMMRoI/CMMRoIsRoIB" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::TriggerTower>/TriggerTowers" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::TriggerTower>/TriggerTowersSpare" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::TriggerTower>/TriggerTowersMuon" ]
-ByteStreamAddressProviderSvc.TypeNames += [ "xAOD::TriggerTowerContainer/xAODTriggerTowers" ]
-ByteStreamAddressProviderSvc.TypeNames += [ "xAOD::TriggerTowerContainer/xAODTriggerTowersSpare" ]
-ByteStreamAddressProviderSvc.TypeNames += [ "xAOD::TriggerTowerContainer/xAODTriggerTowersMuon" ]
+ByteStreamAddressProviderSvc.TypeNames += [ "xAOD::TriggerTowerContainer/xAODTriggerTowers"]
+ByteStreamAddressProviderSvc.TypeNames += [ "xAOD::TriggerTowerAuxContainer/xAODTriggerTowersAux."]
+ByteStreamAddressProviderSvc.TypeNames += [ "xAOD::CpmTowerContainer/xAODCpmTowers" ]
+
 
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::RODHeader>/RODHeaders" ]
 ByteStreamAddressProviderSvc.TypeNames += [ "DataVector<LVL1::RODHeader>/RODHeadersPP" ]

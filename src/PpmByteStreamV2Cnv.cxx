@@ -47,8 +47,7 @@ PpmByteStreamV2Cnv::~PpmByteStreamV2Cnv() {
 // CLID
 
 const CLID& PpmByteStreamV2Cnv::classID() {
-	// return ClassID_traits < xAOD::TriggerTowerContainer > ::ID();
-	return 0;
+	return ClassID_traits < xAOD::TriggerTowerContainer > ::ID();
 }
 
 //  Init method gets all necessary services etc.
