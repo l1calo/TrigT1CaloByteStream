@@ -1,7 +1,7 @@
 #include "GaudiKernel/MsgStream.h"
 #include "GaudiKernel/StatusCode.h"
 
-#include "PpmByteStreamV2Tool.h"
+#include "xaod/L1CaloByteStreamReadTool.h"
 #include "ByteStreamCnvSvcBase/IROBDataProviderSvc.h"
 #include "TrigT1CaloDataAccessV2.h"
 
@@ -14,8 +14,7 @@ namespace LVL1BS {
 
 TrigT1CaloDataAccessV2::TrigT1CaloDataAccessV2(const std::string& name="TrigT1CaloDataAccessV2")
                     : AsgTool(name),
- m_tool("LVL1BS::PpmByteStreamV2Tool/PpmByteStreamV2Tool"),
- m_robDataProvider("ROBDataProviderSvc/ROBDataProviderSvc", name)
+ m_tool("LVL1BS::L1CaloByteStreamReadTool/L1CaloByteStreamReadTool")
 {
 
 }
@@ -33,8 +32,6 @@ StatusCode TrigT1CaloDataAccessV2::initialize()
                  << PACKAGE_VERSION);
 	// Retrieve Tool
 	CHECK(m_tool.retrieve().isSuccess());
-	CHECK(m_robDataProvider.retrieve().isSuccess());
-
 
   return StatusCode::SUCCESS;
 }
@@ -45,12 +42,7 @@ StatusCode TrigT1CaloDataAccessV2::initialize()
 
 StatusCode TrigT1CaloDataAccessV2::loadTriggerTowers(xAOD::TriggerTowerContainer&  container)
 {
-	auto sourceIds = m_tool->sourceIDs("TriggerTowers");
-
-	IROBDataProviderSvc::VROBFRAG robFrags;
-	m_robDataProvider->getROBData(sourceIds, robFrags);
-	CHECK((m_tool->convert(robFrags, &container)).isSuccess());
-
+	CHECK((m_tool->convert(&container)).isSuccess());
 	return StatusCode::SUCCESS;
 }
 

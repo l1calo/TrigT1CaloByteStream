@@ -1,3 +1,10 @@
+2015-02-05  Alexander Mazurov  <alexander.mazurov@cern.ch>
+    * Rewriting PPM decoders (simplify the code)
+        - Decoder can create xAOD interface and aux container simultaneously 
+    * Need to update error tools for reporting subblocks and rod errors
+    * Tagged as TrigT1CaloByteStream-00-09-14
+
+
 2015-01-19  Alexander Mazurov  <alexander.mazurov@cern.ch>
     * New ITrigT1CaloDataAccessV2 tool for access L1 objects
     * Add python dictionary for this tool

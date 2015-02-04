@@ -10,6 +10,7 @@
 
 namespace LVL1BS {
 
+class L1CaloByteStreamReadTool;
 
 /** Tool to retrieve all TriggerTowers
  *  from bytestream.
@@ -22,7 +23,7 @@ class TrigT1CaloDataAccessV2 : public asg::AsgTool,
 {
 	ASG_TOOL_CLASS(TrigT1CaloDataAccessV2, ITrigT1CaloDataAccessV2)
  public:
-		TrigT1CaloDataAccessV2(const std::string& name);
+	TrigT1CaloDataAccessV2(const std::string& name);
 
    virtual StatusCode initialize();
 
@@ -32,12 +33,7 @@ class TrigT1CaloDataAccessV2 : public asg::AsgTool,
  private:
    std::string m_message;
    /// Tool that does the actual work
-   ToolHandle<LVL1BS::PpmByteStreamV2Tool> m_tool;
-
-   /// Data fetching service
-   ServiceHandle<IROBDataProviderSvc> m_robDataProvider;
-
-
+   ToolHandle<LVL1BS::L1CaloByteStreamReadTool> m_tool;
 };
 
 } // end namespace

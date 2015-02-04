@@ -47,16 +47,16 @@ topSequence = AlgSequence()
 topSequence += PyTriggerTowerRef()
 
 
-# from OutputStreamAthenaPool.MultipleStreamManager import MSMgr
+from OutputStreamAthenaPool.MultipleStreamManager import MSMgr
    
-# MyFirstXAODStream = MSMgr.NewPoolRootStream( "StreamxAOD", "TileCIS.root" )
+MyFirstXAODStream = MSMgr.NewPoolRootStream( "StreamxAOD", "TileCIS.root" )
    
-# # MyFirstXAODStream.AddItem(["xAOD::CPMTowerContainer#xAODCPMTowers", "xAOD::CPMTowerAuxContainer#xAODCPMTowersAux."])
-# MyFirstXAODStream.AddItem(["xAOD::TriggerTowerContainer#xAODTriggerTowers", "xAOD::TriggerTowerAuxContainer#xAODTriggerTowersAux."])
+# MyFirstXAODStream.AddItem(["xAOD::CPMTowerContainer#xAODCPMTowers", "xAOD::CPMTowerAuxContainer#xAODCPMTowersAux."])
+MyFirstXAODStream.AddItem(["xAOD::TriggerTowerContainer#xAODTriggerTowers", "xAOD::TriggerTowerAuxContainer#xAODTriggerTowersAux."])
 
 
 
 svcMgr.StoreGateSvc.Dump = True
 
-theApp.EvtMax = 1
+theApp.EvtMax = -1
 # ==============================================================================
