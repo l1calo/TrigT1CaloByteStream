@@ -551,7 +551,7 @@ StatusCode L1CaloByteStreamReadTool::processPpmStandardR4V1_() {
 
       for (int i = 0; i < numLut; ++i) {
         uint16_t pc = getPpmBytestreamField_(10);
-        pedCor.push_back(((((pc &(0x200))>>9)==1)?-1:+1) * (pc & 0x1fff));
+        pedCor.push_back(((((pc &(0x200))>>9)==1)?-1:+1) * (pc & 0x1ff));
         pedEn.push_back(getPpmBytestreamField_(1));
       }
     } catch (const std::out_of_range& ex) {
