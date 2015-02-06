@@ -2,8 +2,8 @@
 # ==============================================================================
 # Change the input file
 InputFiles = [
-    "/afs/cern.ch/work/g/geisler/public/misc/data09_1beam.00140370.physics_MinBias.merge.RAW._lb0236._0001.1",
-    #"/afs/cern.ch/work/h/hmeyerzt/public/data/data14_cos.00247548.physics_CosmicCalo.merge.RAW._lb0097._SFO-ALL._0001.1",
+    #"/afs/cern.ch/work/g/geisler/public/misc/data09_1beam.00140370.physics_MinBias.merge.RAW._lb0236._0001.1",
+    "/afs/cern.ch/work/h/hmeyerzt/public/data/data14_cos.00247548.physics_CosmicCalo.merge.RAW._lb0097._SFO-ALL._0001.1",
     #"/afs/cern.ch/work/v/vscharf/public/splash/data09_1beam.00140370.physics_MinBias.merge.RAW._lb0002._0001.1",
     #"/afs/cern.ch/work/h/hristova/public/M7/248370/data14_cos.00248370.physics_L1Calo.merge.RAW._lb0007._SFO-ALL._0001.1",       
     #"/afs/cern.ch/work/h/hristova/public/M7/248370/data14_cos.00248370.express_express.merge.RAW._lb0163._SFO-ALL._0001.1"

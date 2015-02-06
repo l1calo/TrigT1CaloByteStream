@@ -6,6 +6,8 @@
 #include <stdexcept>
 // ===========================================================================
 #include "eformat/SourceIdentifier.h"
+#include "TrigT1Interfaces/TrigT1CaloDefs.h"
+
 #include "CaloUserHeader.h"
 #include "SubBlockHeader.h"
 #include "SubBlockStatus.h"
@@ -78,6 +80,7 @@ StatusCode L1CaloByteStreamReadTool::convert(
     xAOD::TriggerTowerContainer* const ttCollection) {
 
   m_triggerTowers = ttCollection;
+  m_coolIds.clear();
   m_subDetectorID = eformat::TDAQ_CALO_PREPROC;
   m_requestedType = RequestType::PPM;
 
@@ -121,9 +124,14 @@ StatusCode L1CaloByteStreamReadTool::convert(
   return StatusCode::SUCCESS;
 }
 
+StatusCode L1CaloByteStreamReadTool::convert(
+    xAOD::TriggerTowerContainer* const ttCollection) {
+  return convert(LVL1::TrigT1CaloDefs::xAODTriggerTowerLocation, ttCollection);
+}
 
-StatusCode L1CaloByteStreamReadTool::convert(xAOD::TriggerTowerContainer* const ttCollection) {
-  const std::vector<uint32_t>& vID(ppmSourceIDs());
+StatusCode L1CaloByteStreamReadTool::convert(const std::string& sgKey,
+    xAOD::TriggerTowerContainer* const ttCollection) {
+  const std::vector<uint32_t>& vID(ppmSourceIDs(sgKey));
   // // get ROB fragments
   IROBDataProviderSvc::VROBFRAG robFrags;
   m_robDataProvider->getROBData(vID, robFrags, "PpmByteStreamxAODReadTool");
@@ -134,14 +142,21 @@ StatusCode L1CaloByteStreamReadTool::convert(xAOD::TriggerTowerContainer* const 
   return StatusCode::SUCCESS;
 }
 
-StatusCode L1CaloByteStreamReadTool::convert(xAOD::CPMTowerContainer* const ttCollection) {
+StatusCode L1CaloByteStreamReadTool::convert(
+  xAOD::CPMTowerContainer* const cpmCollection) {
+  // TODO: replace key with TrigT1CaloDefs::xAODCPMTriggerTowerLocation
+  return convert("xAODCPMTriggerTowers", cpmCollection);
+}
+
+StatusCode L1CaloByteStreamReadTool::convert(const std::string& /*sgKey*/, 
+    xAOD::CPMTowerContainer* const cpmCollection) {
   const std::vector<uint32_t>& vID(cpSourceIDs());
   // get ROB fragments
   IROBDataProviderSvc::VROBFRAG robFrags;
   m_robDataProvider->getROBData(vID, robFrags, "L1CaloByteStreamReadTool");
   ATH_MSG_DEBUG("Number of ROB fragments:" << robFrags.size());
 
-  CHECK(convert(robFrags, ttCollection));
+  CHECK(convert(robFrags, cpmCollection));
 
   return StatusCode::SUCCESS;
 }
@@ -264,7 +279,9 @@ StatusCode L1CaloByteStreamReadTool::processRobFragment_(
 
 StatusCode L1CaloByteStreamReadTool::processPpmWord_(uint32_t word,
     int indata) {
-  if (m_subBlockHeader.format() >= 2 || m_verCode >= 0x41) {
+  if ( (m_subBlockHeader.format() == 0) 
+      || (m_subBlockHeader.format() >= 2) 
+      || (m_verCode >= 0x41)) {
     m_ppBlock.push_back(word);
   } else if ((m_verCode == 0x21) || (m_verCode == 0x31)) {
     return processPpmStandardR3V1_(word, indata);
@@ -308,14 +325,25 @@ StatusCode L1CaloByteStreamReadTool::processCpmWordR4V1_(uint32_t word) {
 StatusCode L1CaloByteStreamReadTool::processPpmBlock_() {
   if (m_ppBlock.size() > 0) {
     m_ppPointer = 0;
+    if (m_subBlockHeader.format() == 0) {
+      StatusCode sc = processPpmNeutral_();
+      m_ppBlock.clear();
+      CHECK(sc);
+      return sc;
+    }
+
     if (m_verCode == 0x31) {
       StatusCode sc = processPpmCompressedR3V1_();
       m_ppBlock.clear();
       CHECK(sc);
-    } else if (m_verCode == 0x41 || m_verCode == 0x42) {
+      return sc;
+    }
+
+    if (m_verCode == 0x41 || m_verCode == 0x42) {
       StatusCode sc = processPpmBlockR4V1_();
       m_ppBlock.clear();
       CHECK(sc);
+      return sc;
     }
   }
 
@@ -325,9 +353,97 @@ StatusCode L1CaloByteStreamReadTool::processPpmBlock_() {
       m_ppLuts.clear();
       m_ppFadcs.clear();
       CHECK(sc);
+      return sc;
+    }
+    ATH_MSG_ERROR("Unknown PPM subheader format '" 
+      << int(m_subBlockHeader.format()) 
+      << "' for rob version '"
+      << MSG::hex << int(m_verCode) 
+      << MSG::dec << "'" );
+    return StatusCode::FAILURE;
+  }
+  return StatusCode::SUCCESS;
+}
+
+StatusCode L1CaloByteStreamReadTool::processPpmNeutral_() {
+  uint8_t numLut = m_subBlockHeader.nSlice1();
+  uint8_t numFadc = m_subBlockHeader.nSlice2();
+  uint8_t totSlice = 3 * numLut + numFadc;
+
+  uint8_t channel = 0;
+  for ( int asic = 0 ; asic < 4 ; ++asic ) {
+    for ( int mcm = 0 ; mcm < 16 ; ++mcm ) {
+      // ----------------------------------------------------------------------
+      std::vector<uint32_t> rotated(totSlice);
+
+      for ( uint8_t slice = 0 ; slice < totSlice ; ++slice ) {
+        for ( uint8_t bit = 0 ; bit < 11 ; ++bit ) {
+          if ( m_ppBlock[slice * 11 + asic * (11 * totSlice) + bit + 1] & (1 << mcm))
+              rotated[slice] |= (1 << bit);
+          }
+      }
+
+      bool nonZeroData = false;
+      for (uint8_t slice = 0; slice < numLut; ++slice) {
+        if (rotated[slice] 
+            || rotated[slice + numLut] 
+            || rotated[slice + 2 * numLut + numFadc]) { // CP, JET
+          nonZeroData = true;
+          break;
+        }
+      }
+
+      std::vector<uint8_t> lcpVal;
+      std::vector<uint8_t> lcpBcidVec;
+      std::vector<uint8_t> ljeVal;
+      std::vector<uint8_t> ljeSat80Vec;
+      std::vector<int16_t> pedCor;
+      std::vector<uint8_t> pedEn;
+
+      std::vector<uint16_t> adcVal;
+      std::vector<uint8_t> adcExt;
+
+      if (nonZeroData) {
+        for (uint8_t slice = 0; slice < numLut; ++slice) {
+          lcpVal.push_back(rotated[slice] & 0xff);
+          ljeVal.push_back(rotated[slice + numLut] & 0xff);
+          pedCor.push_back(rotated[slice + 2 * numLut + numFadc] & 0xff);
+          
+          lcpBcidVec.push_back((rotated[slice] >> 8) & 0x7);
+          ljeSat80Vec.push_back((rotated[slice + numLut] >> 8) & 0x7);
+          pedEn.push_back((rotated[slice + 2 * numLut + numFadc] >> 10) & 0x1);
+        }
+      }
+
+      for (uint8_t slice = 0; slice < numFadc; ++slice) {
+        if (rotated[slice + numLut]) { // CP, JET
+          nonZeroData = true;
+          break;
+        }
+      }
+
+      if (nonZeroData) {
+        for (uint8_t slice = 0; slice < numFadc; ++ slice) {
+          adcVal.push_back(rotated[slice + 2 * numLut] & 0x3ff);
+          adcExt.push_back((rotated[slice + 2 * numLut] >> 10 & 0x1) & 0x3ff);
+        }
+      }
+
+      CHECK(addTriggerTowerV2_(
+        m_subBlockHeader.crate(),
+        m_subBlockHeader.module(),
+        channel,
+        lcpVal,
+        lcpBcidVec,
+        ljeVal,
+        ljeSat80Vec, adcVal,
+        adcExt,
+        pedCor,
+        pedEn));
+      // ---------------------------------------------------------------------
+      channel++;
     }
   }
-
   return StatusCode::SUCCESS;
 }
 
@@ -816,12 +932,26 @@ StatusCode L1CaloByteStreamReadTool::addTriggerTowerV2_(
     const std::vector<int16_t>& pedCor,
     const std::vector<uint8_t>& pedEn) {
 
-  int layer;
+  int layer = 0;
   int error = 0;
   double eta = 0.;
   double phi = 0.;
-  m_ppmMaps->mapping(crate, module, channel, eta, phi, layer);
+  
+  bool isNotSpare = m_ppmMaps->mapping(crate, module, channel, eta, phi, layer);
+  if (!isNotSpare && !m_ppmIsRetSpare && !m_ppmIsRetMuon){
+    return StatusCode::SUCCESS;
+  }
+
+  if (!isNotSpare) {
+    const int pin  = channel % 16;
+    const int asic = channel / 16;
+    eta = 16 * crate + module;
+    phi = 4 * pin + asic;
+  }
+
   uint32_t coolId = ::coolId(crate, module, channel);
+  CHECK(m_coolIds.count(coolId) == 0);
+  m_coolIds.insert(coolId);
 
   xAOD::TriggerTower* tt = new xAOD::TriggerTower();
   m_triggerTowers->push_back(tt);
@@ -936,20 +1066,46 @@ StatusCode L1CaloByteStreamReadTool::addCpmTower_(
 
 // Return reference to vector with all possible Source Identifiers
 
-const std::vector<uint32_t>& L1CaloByteStreamReadTool::ppmSourceIDs() {
+const std::vector<uint32_t>& L1CaloByteStreamReadTool::ppmSourceIDs(
+  const std::string& sgKey) {
+  
   const int crates = 8;
+  m_ppmIsRetMuon = false;
+  m_ppmIsRetSpare =  false;
+
+  if (sgKey.find("Muon") != std::string::npos) {
+    m_ppmIsRetMuon = true;
+  } else if (sgKey.find("Spare") != std::string::npos) {
+    m_ppmIsRetSpare = true;
+  }
+  
   if (m_ppmSourceIDs.empty()) {
     for (int crate = 0; crate < crates; ++crate) {
       for (int slink = 0; slink < m_srcIdMap->maxSlinks(); ++slink) {
         const uint32_t rodId = m_srcIdMap->getRodID(crate, slink, 0,
             eformat::TDAQ_CALO_PREPROC);
         const uint32_t robId = m_srcIdMap->getRobID(rodId);
-
         m_ppmSourceIDs.push_back(robId);
+        if (crate > 1 && crate < 6) {
+            m_ppmSourceIDsSpare.push_back(robId);
+            if (crate < 4 && slink == 0) {
+              m_ppmSourceIDsMuon.push_back(robId);
+            }
+        }
       }
     }
   }
+
+  if (m_ppmIsRetSpare) {
+    return m_ppmSourceIDsSpare;
+  }
+
+  if (m_ppmIsRetMuon) {
+    return m_ppmSourceIDsMuon;
+  }
+
   return m_ppmSourceIDs;
+
 }
 
 

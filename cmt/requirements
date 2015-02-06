@@ -34,8 +34,10 @@ use TrigT1CaloEvent      TrigT1CaloEvent-*      Trigger/TrigT1
 use TrigT1CaloUtils      TrigT1CaloUtils-*      Trigger/TrigT1
 use TrigT1CaloMappingToolInterfaces TrigT1CaloMappingToolInterfaces-* Trigger/TrigT1
 
+use TrigT1Interfaces     TrigT1Interfaces-*     Trigger/TrigT1
+
 # Only needed for test algorithms
-#use TrigT1Interfaces     TrigT1Interfaces-*     Trigger/TrigT1
+use TrigT1Interfaces     TrigT1Interfaces-*     Trigger/TrigT1
 #use StoreGate            StoreGate-*            Control
 
 use AtlasReflex  AtlasReflex-*  External -no_auto_imports

@@ -72,7 +72,7 @@ StatusCode PpmByteStreamAuxCnv::createObj(IOpaqueAddress* pAddr,
   xAOD::TriggerTowerContainer ttCollection;
   ttCollection.setStore(aux);
 
-  StatusCode sc = m_readTool->convert(&ttCollection);
+  StatusCode sc = m_readTool->convert(nm, &ttCollection);
   if (sc.isFailure()) {
       ATH_MSG_ERROR("Failed to create Objects");
       delete aux;

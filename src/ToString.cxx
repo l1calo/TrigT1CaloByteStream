@@ -9,7 +9,7 @@ namespace {
 		std::stringstream o;
 		std::string delim = "";
 		for(auto val: vv){
-			o << delim << int(val) << "(0x" << std::hex << int(val) << ")" << std::dec;
+			o << delim << int(val) << /*"(0x" << std::hex << int(val) << ")" << */  std::dec;
 			delim ="|";
 		}
 		return o.str();

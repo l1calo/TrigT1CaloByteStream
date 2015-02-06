@@ -1,4 +1,10 @@
 2015-02-06  Alexander Mazurov  <alexander.mazurov@cern.ch>
+    * Fix RUN2 neutral decoding for PPM
+    * Fix handling spare PPM trigger tower
+    * Tagged as TrigT1CaloByteStream-00-09-16
+
+
+2015-02-06  Alexander Mazurov  <alexander.mazurov@cern.ch>
     * Fix RUN1 uncompressed decoding for PPM (wrong fadc value)
     * Tagged as TrigT1CaloByteStream-00-09-15
 

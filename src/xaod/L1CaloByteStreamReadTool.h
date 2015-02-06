@@ -69,15 +69,18 @@ public:
     xAOD::TriggerTowerContainer* const ttCollection
   );
   StatusCode convert(xAOD::TriggerTowerContainer* const ttCollection);
+  StatusCode convert(const std::string& sgKey, xAOD::TriggerTowerContainer* const ttCollection);
   // =========================================================================
   StatusCode convert(
       const IROBDataProviderSvc::VROBFRAG& robFrags,
       xAOD::CPMTowerContainer* const cpmCollection
     );
-  StatusCode convert(xAOD::CPMTowerContainer* const cppCollection);
+  StatusCode convert(xAOD::CPMTowerContainer* const cpmCollection);
+  StatusCode convert(const std::string& sgKey,
+    xAOD::CPMTowerContainer* const cpmCollection);
   // =========================================================================
   /// Return reference to vector with all possible Source Identifiers
-  const std::vector<uint32_t>& ppmSourceIDs();
+  const std::vector<uint32_t>& ppmSourceIDs(const std::string& sgKey);
   const std::vector<uint32_t>& cpSourceIDs();
 
 private:
@@ -103,6 +106,8 @@ private:
   void interpretPpmHeaderR4V1_(uint8_t numAdc, int8_t& encoding,
     int8_t& minIndex);
   std::vector<uint16_t> getPpmAdcSamplesR4_(uint8_t encoding, uint8_t minIndex);
+  StatusCode processPpmNeutral_();
+
 
   StatusCode processCpWord_(uint32_t word);
   StatusCode processCpmWordR4V1_(uint32_t word);
@@ -167,7 +172,13 @@ private:
 
   uint8_t m_subDetectorID;
   RequestType m_requestedType;
+  
+  std::set<uint32_t> m_coolIds;
   std::vector<uint32_t> m_ppmSourceIDs;
+  bool m_ppmIsRetMuon;
+  std::vector<uint32_t> m_ppmSourceIDsMuon;
+  bool m_ppmIsRetSpare;
+  std::vector<uint32_t> m_ppmSourceIDsSpare;
   std::vector<uint32_t> m_cpSourceIDs;
   L1CaloSrcIdMap* m_srcIdMap;
 
