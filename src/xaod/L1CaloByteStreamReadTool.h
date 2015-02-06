@@ -99,6 +99,10 @@ private:
   StatusCode processPpmStandardR3V1_(uint32_t word, int indata);
   StatusCode processPpmCompressedR3V1_();
   std::vector<uint16_t> getPpmAdcSamplesR3_(uint8_t format, uint8_t minIndex);
+  StatusCode processPpmCompressedR4V1_();
+  void interpretPpmHeaderR4V1_(uint8_t numAdc, int8_t& encoding,
+    int8_t& minIndex);
+  std::vector<uint16_t> getPpmAdcSamplesR4_(uint8_t encoding, uint8_t minIndex);
 
   StatusCode processCpWord_(uint32_t word);
   StatusCode processCpmWordR4V1_(uint32_t word);

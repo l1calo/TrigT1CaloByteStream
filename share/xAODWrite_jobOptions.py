@@ -2,8 +2,10 @@
 # ==============================================================================
 # Change the input file
 InputFiles = [
+    "/afs/cern.ch/work/g/geisler/public/misc/data09_1beam.00140370.physics_MinBias.merge.RAW._lb0236._0001.1",
+    #"/afs/cern.ch/work/h/hmeyerzt/public/data/data14_cos.00247548.physics_CosmicCalo.merge.RAW._lb0097._SFO-ALL._0001.1",
     #"/afs/cern.ch/work/v/vscharf/public/splash/data09_1beam.00140370.physics_MinBias.merge.RAW._lb0002._0001.1",
-    "/afs/cern.ch/work/h/hristova/public/M7/248370/data14_cos.00248370.physics_L1Calo.merge.RAW._lb0007._SFO-ALL._0001.1",       
+    #"/afs/cern.ch/work/h/hristova/public/M7/248370/data14_cos.00248370.physics_L1Calo.merge.RAW._lb0007._SFO-ALL._0001.1",       
     #"/afs/cern.ch/work/h/hristova/public/M7/248370/data14_cos.00248370.express_express.merge.RAW._lb0163._SFO-ALL._0001.1"
     #"/afs/cern.ch/work/j/juraj/public/2015/TileCIS/data15_calib.00249297.calibration_L1CaloEnergyScan.daq.RAW._lb0000._SFO-1._0001.data",
     #"/afs/cern.ch/work/j/juraj/public/2015/TileCIS/data15_calib.00249300.calibration_L1CaloEnergyScan.daq.RAW._lb0000._SFO-1._0001.data",
@@ -47,16 +49,16 @@ topSequence = AlgSequence()
 topSequence += PyTriggerTowerRef()
 
 
-from OutputStreamAthenaPool.MultipleStreamManager import MSMgr
+# from OutputStreamAthenaPool.MultipleStreamManager import MSMgr
    
-MyFirstXAODStream = MSMgr.NewPoolRootStream( "StreamxAOD", "TileCIS.root" )
+# MyFirstXAODStream = MSMgr.NewPoolRootStream( "StreamxAOD", "TileCIS.root" )
    
-# MyFirstXAODStream.AddItem(["xAOD::CPMTowerContainer#xAODCPMTowers", "xAOD::CPMTowerAuxContainer#xAODCPMTowersAux."])
-MyFirstXAODStream.AddItem(["xAOD::TriggerTowerContainer#xAODTriggerTowers", "xAOD::TriggerTowerAuxContainer#xAODTriggerTowersAux."])
+# # MyFirstXAODStream.AddItem(["xAOD::CPMTowerContainer#xAODCPMTowers", "xAOD::CPMTowerAuxContainer#xAODCPMTowersAux."])
+# MyFirstXAODStream.AddItem(["xAOD::TriggerTowerContainer#xAODTriggerTowers", "xAOD::TriggerTowerAuxContainer#xAODTriggerTowersAux."])
 
 
 
-svcMgr.StoreGateSvc.Dump = True
+# svcMgr.StoreGateSvc.Dump = True
 
-theApp.EvtMax = -1
+theApp.EvtMax = 1
 # ==============================================================================
