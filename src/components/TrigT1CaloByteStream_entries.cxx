@@ -179,6 +179,7 @@ DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamV1Tool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, PpmByteStreamV2Tool )
 DECLARE_NAMESPACE_TOOL_FACTORY( LVL1BS, L1CaloByteStreamReadTool )
 // ============================================================================
+DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, PpmByteStreamV1Cnv )
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, PpmByteStreamxAODCnv)
 DECLARE_NAMESPACE_CONVERTER_FACTORY( LVL1BS, PpmByteStreamAuxCnv)
 // ============================================================================

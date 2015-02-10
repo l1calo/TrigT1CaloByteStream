@@ -1,3 +1,7 @@
+2015-02-10 John Morris <john.morris@cern.ch>
+	* Fix src/components/TrigT1CaloByteStream_entries.cxx for
+	* https://its.cern.ch/jira/browse/ATR-10119
+	* Tagged as TrigT1CaloByteStream-00-09-18
 
 2015-02-07  Alexander Mazurov  <alexander.mazurov@cern.ch>
     * Fix RUN2 Jet Elements decoder
