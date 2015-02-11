@@ -93,8 +93,13 @@ private:
 private:
   StatusCode processRobFragment_(const ROBIterator& robFrag,
       const RequestType& requestedType);
+  
+  // ==========================================================================
+  // PPM
+  // ==========================================================================
   StatusCode processPpmWord_(uint32_t word, int indata);
   StatusCode processPpmBlock_();
+  
   StatusCode processPpmBlockR4V1_();
   StatusCode processPpmBlockR3V1_();
   StatusCode processPpmStandardR4V1_();
@@ -107,14 +112,8 @@ private:
     int8_t& minIndex);
   std::vector<uint16_t> getPpmAdcSamplesR4_(uint8_t encoding, uint8_t minIndex);
   StatusCode processPpmNeutral_();
-
-
-  StatusCode processCpWord_(uint32_t word);
-  StatusCode processCpmWordR4V1_(uint32_t word);
- 
-
   uint32_t getPpmBytestreamField_(uint8_t numBits);
-
+  
   StatusCode addTriggerTowerV2_(
       uint8_t crate,
       uint8_t module,
@@ -148,14 +147,14 @@ private:
     const std::vector<uint8_t>& bcidExt
   );
 
-  StatusCode addCpmTower_(uint8_t crate, uint8_t module, const CpmWord& word);
-private:
-//  uint16_t m_crates;
-//  uint16_t m_modules;
-//  uint16_t m_channels;
-//  uint16_t m_dataSize;
-//  uint16_t m_maxSlinks;
+  // ==========================================================================
+  // CPM
+  // ==========================================================================
+  StatusCode processCpWord_(uint32_t word);
+  StatusCode processCpmWordR4V1_(uint32_t word);
+  // ==========================================================================
 
+  StatusCode addCpmTower_(uint8_t crate, uint8_t module, const CpmWord& word);
 private:
   ServiceHandle<SegMemSvc> m_sms;
   ToolHandle<LVL1BS::L1CaloErrorByteStreamTool> m_errorTool;
@@ -200,7 +199,6 @@ private:
 private:
   xAOD::TriggerTowerContainer* m_triggerTowers;
   xAOD::CPMTowerContainer* m_cpmTowers;
-
 };
 
 // ===========================================================================

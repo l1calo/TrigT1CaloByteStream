@@ -48,5 +48,5 @@ topSequence = AlgSequence()
 ToolSvc += LVL1BS__TrigT1CaloDataAccessV2("TrigT1CaloDataAccessV2")
 
 topSequence += PyTriggerTowerRef("PyTriggerTowerRef")
-theApp.EvtMax = 1
+theApp.EvtMax = -1
 # ==============================================================================
