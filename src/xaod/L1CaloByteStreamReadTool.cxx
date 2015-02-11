@@ -683,6 +683,10 @@ StatusCode L1CaloByteStreamReadTool::processPpmCompressedR4V1_() {
               }
             }            
           } else if (encoding < 6) {
+            // Get LUT presence flag for each LUT slice. 
+            for(uint8_t i = 0; i < numLut; ++i){
+              haveLut[i] = getPpmBytestreamField_(1);
+            }
             // Get external BCID bits (if block is present).
             uint8_t haveExt = getPpmBytestreamField_(1);
             if (haveExt == 1) {
@@ -690,10 +694,7 @@ StatusCode L1CaloByteStreamReadTool::processPpmCompressedR4V1_() {
                 adcExt[i] = getPpmBytestreamField_(1);
               }
             }
-            // Get LUT presence flag for each LUT slice. 
-            for(uint8_t i = 0; i < numLut; ++i){
-              haveLut[i] = getPpmBytestreamField_(1);
-            }
+            
             for(uint8_t i = 0; i < numLut; ++i){
               if (haveLut[i] == 1) {
                 lcpVal[i] = getPpmBytestreamField_(8);
