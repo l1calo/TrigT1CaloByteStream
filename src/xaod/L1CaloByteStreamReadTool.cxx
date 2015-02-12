@@ -973,7 +973,7 @@ StatusCode L1CaloByteStreamReadTool::addTriggerTowerV2_(
   //         const uint_least8_t& peak,
   //         const uint_least8_t& adcPeak
   // );
-  tt->initialize(coolId, layer, eta, phi, lcpVal, ljeVal, pedCor, pedEn,
+  tt->initialize(coolId, eta, phi, lcpVal, ljeVal, pedCor, pedEn,
       lcpBcidVec, adcVal, adcExt, ljeSat80Vec, error, m_caloUserHeader.lut(),
       m_caloUserHeader.ppFadc());
   return StatusCode::SUCCESS;

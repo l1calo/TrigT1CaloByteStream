@@ -170,7 +170,6 @@ void PpmByteStreamV2Tool::reserveMemory( xAOD::TriggerTowerContainer* const ttCo
               const std::vector<uint_least8_t> dummy_vector8 {0};
               tt->initialize(
                 0,
-                0,
                 eta,
                 phi,
                 dummy_vector8,
@@ -607,7 +606,7 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
           const int error = errorBits.error();
 
         // Save to TriggerTower
-          const int layer = ((m_chanLayer[word] >> bit) & 1);
+          // const int layer = ((m_chanLayer[word] >> bit) & 1);
           const int coolid = coolId(crate, module, channel);
 
           ATH_MSG_VERBOSE(
@@ -634,7 +633,6 @@ void PpmByteStreamV2Tool::collectTriggerTowers(
           // =================================================================
 
           tt->setCoolId(coolid);
-          tt->setLayer(layer);
           tt->setLut_cp(lutCp);
           tt->setLut_jep(lutJep);
           tt->setAdc(fadc);

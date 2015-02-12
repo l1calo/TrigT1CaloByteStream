@@ -2,6 +2,7 @@
 # ==============================================================================
 # Change the input file
 InputFiles = [
+    "/afs/cern.ch/work/j/juraj/public/2015/TileCIS/251619/data15_calib.00251619.calibration_L1CaloEnergyScan.daq.RAW._lb0000._SFO-1._0001.data",
     #"/afs/cern.ch/work/g/geisler/public/misc/data09_1beam.00140370.physics_MinBias.merge.RAW._lb0236._0001.1",
     #"/afs/cern.ch/work/h/hmeyerzt/public/data/data14_cos.00247548.physics_CosmicCalo.merge.RAW._lb0097._SFO-ALL._0001.1",
     #"/afs/cern.ch/work/v/vscharf/public/splash/data09_1beam.00140370.physics_MinBias.merge.RAW._lb0002._0001.1",
@@ -35,7 +36,7 @@ class PyTriggerTowerRef(PyAthena.Alg):
 
     def execute(self):
         tt =  self.event_store["xAODTriggerTowers"]
-        cpm =  self.event_store["CPMTowers"]
+        # cpm =  self.event_store["CPMTowers"]
         # je = self.event_store["JetElements"]
         # for j in je:
         #     vv = j.hadEnergyVec()
@@ -55,16 +56,17 @@ topSequence = AlgSequence()
 topSequence += PyTriggerTowerRef()
 
 
-# from OutputStreamAthenaPool.MultipleStreamManager import MSMgr
+from OutputStreamAthenaPool.MultipleStreamManager import MSMgr
    
-# MyFirstXAODStream = MSMgr.NewPoolRootStream( "StreamxAOD", "TileCIS.root" )
+#MyFirstXAODStream = MSMgr.NewPoolRootStream( "StreamxAOD", "TileCIS.root" )
+#MyByteStream = MSMgr.NewByteStream( "StreamBS", "TileCIS.raw" )
    
 # # MyFirstXAODStream.AddItem(["xAOD::CPMTowerContainer#xAODCPMTowers", "xAOD::CPMTowerAuxContainer#xAODCPMTowersAux."])
 # MyFirstXAODStream.AddItem(["xAOD::TriggerTowerContainer#xAODTriggerTowers", "xAOD::TriggerTowerAuxContainer#xAODTriggerTowersAux."])
-
+#MyByteStream.AddItem(["xAOD::TriggerTowerContainer#xAODTriggerTowers"])
 
 
 # svcMgr.StoreGateSvc.Dump = True
 
-theApp.EvtMax = -1
+theApp.EvtMax = 1
 # ==============================================================================

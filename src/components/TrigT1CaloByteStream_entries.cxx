@@ -236,10 +236,9 @@ DECLARE_FACTORY_ENTRIES( TrigT1CaloByteStream )
   // ==========================================================================
   // Ppm
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, PpmByteStreamV1Cnv )
-  DECLARE_NAMESPACE_CONVERTER( LVL1BS, PpmByteStreamV2Cnv )
+  // V2 is named xAOD
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, PpmByteStreamxAODCnv )
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, PpmByteStreamAuxCnv)
-  DECLARE_NAMESPACE_TOOL(LVL1BS, PpmByteStreamV2Tool)
   DECLARE_NAMESPACE_TOOL(LVL1BS, L1CaloByteStreamReadTool)
   // ==========================================================================
   DECLARE_NAMESPACE_CONVERTER( LVL1BS, RodHeaderByteStreamCnv )
